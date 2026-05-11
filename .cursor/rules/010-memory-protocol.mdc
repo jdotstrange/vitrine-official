@@ -1,0 +1,17 @@
+---
+description: Project memory protocol
+globs:
+  - "docs/ai-context/*.md"
+  - "AGENTS.md"
+alwaysApply: false
+---
+
+# Memory Protocol
+
+Canonical project memory lives in `docs/ai-context/`.
+
+Do not save assumptions as facts. Mark unresolved items in `OPEN_THREADS.md`.
+
+Keep `CURRENT_STATE.md` concise and present-tense. Keep `HANDOFF.md` optimized for the next agent chat.
+
+Do not duplicate the same context across every memory file. Thinktank is advisory only and must not override this repo.

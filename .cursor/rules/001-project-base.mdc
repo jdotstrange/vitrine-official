@@ -1,0 +1,23 @@
+---
+description: Vitrine project base rule
+alwaysApply: true
+---
+
+# Vitrine Project Base
+
+Project files are the source of truth.
+
+Before meaningful changes, read:
+- `AGENTS.md`
+- `docs/ai-context/CURRENT_STATE.md`
+- `docs/ai-context/DO_NOT_BREAK.md`
+- `docs/ai-context/OPEN_THREADS.md`
+
+For architecture, data, or design-system work, also read:
+- `docs/ai-context/ARCHITECTURE.md`
+- `docs/ai-context/DECISION_LOG.md`
+- `docs/ai-context/DESIGN_SYSTEM.md`
+
+Do not rewrite architecture unless explicitly asked. Do not introduce libraries without checking existing patterns and Expo Go compatibility.
+
+After meaningful work, update `CURRENT_STATE.md`, `IMPLEMENTATION_LOG.md`, `OPEN_THREADS.md`, and `HANDOFF.md`. Update `DECISION_LOG.md` only when a durable decision changes.

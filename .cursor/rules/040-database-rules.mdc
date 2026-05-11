@@ -1,0 +1,21 @@
+---
+description: Supabase database and migration rules
+globs:
+  - "supabase/**"
+  - "**/*.sql"
+  - "lib/api/**/*.ts"
+  - "lib/supabase.ts"
+alwaysApply: false
+---
+
+# Database Rules
+
+Supabase migrations, RLS, auth-linked user data, and Edge Functions are high-risk.
+
+Before changing schema, policies, RPCs, or auth-sensitive queries, read `docs/ai-context/DATA_MODEL.md`, `docs/ai-context/API_CONTRACTS.md`, and relevant migrations.
+
+Do not run production migrations or configure production write access without explicit approval.
+
+Do not expose service-role keys, secrets, JWTs, or private env values.
+
+Document downstream effects in `OPEN_THREADS.md` or `DECISION_LOG.md` when the data contract changes.

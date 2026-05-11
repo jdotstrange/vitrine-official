@@ -1,0 +1,19 @@
+---
+description: MCP usage safety rules
+globs:
+  - "docs/ai-context/MCP_STRATEGY.md"
+  - ".cursor/**/*.json"
+alwaysApply: false
+---
+
+# MCP Usage
+
+Use MCPs only when they reduce context waste, improve precision, or prevent outdated implementation.
+
+Do not add MCPs casually. Do not install or configure MCPs unless explicitly asked.
+
+Do not commit secrets, production credentials, service-role keys, or broad write-access config.
+
+Prefer read-only or explicit-approval access for Supabase and GitHub style operations.
+
+Project-local files remain canonical; MCP outputs are evidence, not source of truth.

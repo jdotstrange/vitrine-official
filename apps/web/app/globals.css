@@ -1,0 +1,684 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =============================================================================
+   VITRINE DESIGN SYSTEM — Contemporary Gallery (Light Theme Adaptation)
+   1:1 token parity with consumer app's lib/colors.ts + DESIGN_SYSTEM_CURRENT.md
+   All visual decisions flow through these variables — no hardcoded values.
+   ============================================================================= */
+
+:root {
+  /* -------------------------------------------------------------------------
+     FOUNDATION — Light mode adaptation of the warm dark base
+     Dark app: background #0C0C10, foreground #EFEFE7
+     Light site: inverted — warm off-white bg, near-black text
+     ------------------------------------------------------------------------- */
+  --background: #EFEFE7;
+  --foreground: #0C0C10;
+
+  /* -------------------------------------------------------------------------
+     SURFACES — Inverted elevation system
+     Dark app: card #161618, surfaceElevated #1E1E22
+     Light site: card white, elevated slightly warm
+     ------------------------------------------------------------------------- */
+  --card: #FFFFFF;
+  --card-foreground: #0C0C10;
+  --surface: #FFFFFF;
+  --surface-elevated: #F5F5F0;
+
+  /* -------------------------------------------------------------------------
+     BRAND ACCENT — Mint (#D3FFC3)
+     The primary brand color. Used for CTAs, active states, highlights,
+     and the memorabilia category identity.
+     On light backgrounds: mint bg with dark text for CTAs.
+     ------------------------------------------------------------------------- */
+  --primary: #D3FFC3;
+  --primary-foreground: #0C0C10;
+  --primary-muted: rgba(211, 255, 195, 0.40);
+  --primary-glow: rgba(234, 239, 222, 0.18);
+
+  /* -------------------------------------------------------------------------
+     ATTENTION — Deep Green (#2D9B4C)
+     The only saturated color. Used sparingly for text accents on light,
+     success states, online indicators, and value-up indicators.
+     On the dark app this is success/attention; on light it serves
+     as the high-contrast text accent where mint would be invisible.
+     ------------------------------------------------------------------------- */
+  --attention: #2D9B4C;
+
+  /* -------------------------------------------------------------------------
+     ACCENT — Warm Sand (#E7D5BA)
+     Secondary accent. Trading card category identity. Warm decorative tints.
+     ------------------------------------------------------------------------- */
+  --accent: #E7D5BA;
+  --accent-foreground: #0C0C10;
+  --accent-muted: rgba(231, 213, 186, 0.40);
+  --accent-glow: rgba(231, 213, 186, 0.18);
+
+  /* -------------------------------------------------------------------------
+     WARM UI PALETTE — Trawelt-derived warm tones
+     ------------------------------------------------------------------------- */
+  --warm-sand: #E7D5BA;
+  --warm-sage: #EAEFDE;
+  --warm-ivory: #EFEFE7;
+
+  /* -------------------------------------------------------------------------
+     SECONDARY — Light mode adaptation
+     Dark app: #1E1E22 bg, #E4E9DC text
+     Light site: warm sage bg, dark text
+     ------------------------------------------------------------------------- */
+  --secondary: #EAEFDE;
+  --secondary-foreground: #3A3A38;
+  --secondary-hover: #DDE5CE;
+
+  /* -------------------------------------------------------------------------
+     MUTED
+     Dark app: #1E1E22 bg, #C1C1C1 text
+     Light site: warm ivory bg, medium gray text
+     ------------------------------------------------------------------------- */
+  --muted: #F5F5F0;
+  --muted-foreground: #7A7A80;
+
+  /* -------------------------------------------------------------------------
+     STATUS QUARTET — Muted Jewels
+     Scannable by hue. Identical on dark and light.
+     ------------------------------------------------------------------------- */
+  --status-sale: #C47878;
+  --status-trade: #6B9EB5;
+  --status-sell-trade: #C49B5A;
+  --status-nfst: #7A7A80;
+
+  /* -------------------------------------------------------------------------
+     SEMANTIC / FUNCTIONAL
+     ------------------------------------------------------------------------- */
+  --destructive: #C4655A;
+  --destructive-foreground: #FFFFFF;
+  --success: #2D9B4C;
+  --success-foreground: #FFFFFF;
+  --warning: #C49B5A;
+  --warning-foreground: #0C0C10;
+
+  /* Value change indicators */
+  --positive: #2D9B4C;
+  --negative: #C4655A;
+  --neutral: #7A7A80;
+
+  /* Detail coverage density */
+  --density-low: #C1C1C1;
+  --density-medium: #E4E9DC;
+  --density-high: #D3FFC3;
+
+  /* Online / offline */
+  --online-dot: #2D9B4C;
+  --offline-text: #C1C1C1;
+
+  /* -------------------------------------------------------------------------
+     BORDERS — Light mode adaptation
+     Dark app: rgba(255, 255, 255, 0.08)
+     Light site: rgba(0, 0, 0, 0.08)
+     ------------------------------------------------------------------------- */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-accent: rgba(0, 0, 0, 0.10);
+  --input: #FFFFFF;
+  --ring: rgba(0, 0, 0, 0.15);
+
+  /* -------------------------------------------------------------------------
+     GLASS EFFECTS — Light mode adaptation
+     Dark app: rgba(22, 22, 24, 0.8) + rgba(255, 255, 255, 0.06) border
+     Light site: frosted white with dark border
+     ------------------------------------------------------------------------- */
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-bg-light: rgba(255, 255, 255, 0.60);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-blur: 20px;
+  --glass-blur-heavy: 40px;
+  --gradient-overlay: rgba(250, 250, 247, 0.85);
+
+  /* -------------------------------------------------------------------------
+     GLOW — Mint-tinted for light mode
+     Dark app: rgba(211, 255, 195, 0.18)
+     Light site: same mint glow, slightly stronger for visibility
+     ------------------------------------------------------------------------- */
+  --glow-mint: rgba(234, 239, 222, 0.25);
+  --glow-sand: rgba(231, 213, 186, 0.25);
+
+  /* -------------------------------------------------------------------------
+     SHADOW SYSTEM — Warm, subtle shadows for light mode
+     ------------------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* Mint-tinted accent shadows */
+  --shadow-accent: 0 4px 12px rgba(211, 255, 195, 0.30);
+  --shadow-accent-lg: 0 8px 24px rgba(211, 255, 195, 0.40);
+  /* Sand-tinted accent shadows */
+  --shadow-accent-sand: 0 4px 12px rgba(231, 213, 186, 0.30);
+
+  /* -------------------------------------------------------------------------
+     GRID TEXTURE
+     ------------------------------------------------------------------------- */
+  --grid-line-color: rgba(0, 0, 0, 0.03);
+  --grid-line-color-accent: rgba(0, 0, 0, 0.04);
+
+  /* -------------------------------------------------------------------------
+     GRADIENTS
+     Upload flow gradient system from design system
+     ------------------------------------------------------------------------- */
+  --gradient-primary: linear-gradient(135deg, #D3FFC3 0%, #EAEFDE 100%);
+  --gradient-mint: linear-gradient(135deg, #D3FFC3 0%, #EAEFDE 100%);
+  --gradient-surface: linear-gradient(180deg, #FAFAF7 0%, #F5F5F0 100%);
+  --gradient-radial-primary: radial-gradient(ellipse at center, rgba(211, 255, 195, 0.10) 0%, transparent 70%);
+
+  /* Upload flow gradient tokens */
+  --gradient-cyan: #D3FFC3;
+  --gradient-teal: #EAEFDE;
+  --gradient-pink: #C4655A;
+  --gradient-rose: #B55A50;
+
+  /* -------------------------------------------------------------------------
+     CATEGORY IDENTITY
+     Mint (cool) = Memorabilia — physical collectibles
+     Sand (warm) = Trading Cards — API-driven catalog
+     Neutral = Mixed contexts (no category tinting)
+     ------------------------------------------------------------------------- */
+  --category-memorabilia: #EAEFDE;
+  --category-memorabilia-muted: rgba(234, 239, 222, 0.40);
+  --category-memorabilia-glow: rgba(234, 239, 222, 0.18);
+  --category-memorabilia-text: #3A3A38;
+
+  --category-cards: #E7D5BA;
+  --category-cards-muted: rgba(231, 213, 186, 0.40);
+  --category-cards-glow: rgba(231, 213, 186, 0.18);
+  --category-cards-text: #8B7A5F;
+
+  /* -------------------------------------------------------------------------
+     BACKWARD-COMPATIBLE ALIASES
+     Old variable names → new gallery values.
+     Tailwind utility classes resolve through these.
+     ------------------------------------------------------------------------- */
+  --void-deep: var(--background);
+  --void-base: #F5F5F0;
+  --void-elevated: var(--card);
+  --void-surface: var(--secondary);
+  --void-light: var(--muted);
+
+  /* cyan-glow → neutral muted (no green text) */
+  --cyan-glow: var(--muted-foreground);
+  --cyan-bright: #6A6A70;
+  --cyan-muted: #5A5A60;
+  --cyan-dim: #4A4A50;
+
+  /* magenta-glow → status-sale (rose jewel) */
+  --magenta-glow: var(--status-sale);
+  --magenta-bright: #B56B6B;
+  --magenta-muted: #A66060;
+  --magenta-dim: #975555;
+
+  --holo-green: var(--muted-foreground);
+  --holo-green-bright: #6A6A70;
+  --holo-green-muted: #5A5A60;
+  --holo-green-dim: #4A4A50;
+
+  --plasma-orange: var(--status-sell-trade);
+  --smart-amber: var(--status-sell-trade);
+  --void-purple: var(--status-nfst);
+
+  /* -------------------------------------------------------------------------
+     SPACING / RADII / TRANSITIONS / Z-INDEX
+     ------------------------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-slower: 600ms ease;
+
+  --z-base: 0;
+  --z-elevated: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-popover: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+
+  /* Sidebar (shadcn compat) */
+  --sidebar: #F5F5F0;
+  --sidebar-foreground: #0C0C10;
+  --sidebar-primary: #D3FFC3;
+  --sidebar-primary-foreground: #0C0C10;
+  --sidebar-accent: #EAEFDE;
+  --sidebar-accent-foreground: #0C0C10;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Chart colors */
+  --chart-1: var(--attention);
+  --chart-2: var(--status-sale);
+  --chart-3: var(--status-trade);
+  --chart-4: var(--status-sell-trade);
+  --chart-5: var(--status-nfst);
+
+  /* Popover */
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
+}
+
+/* =============================================================================
+   TAILWIND THEME CONFIGURATION
+   ============================================================================= */
+
+@theme inline {
+  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-heading: "Manrope", "Manrope Fallback", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Georgia", serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Attention (deep green for text on light) */
+  --color-attention: var(--attention);
+
+  /* Backward-compatible palette aliases */
+  --color-void-deep: var(--void-deep);
+  --color-void-base: var(--void-base);
+  --color-void-elevated: var(--void-elevated);
+  --color-void-surface: var(--void-surface);
+  --color-void-light: var(--void-light);
+
+  --color-cyan-glow: var(--cyan-glow);
+  --color-cyan-bright: var(--cyan-bright);
+  --color-cyan-muted: var(--cyan-muted);
+  --color-cyan-dim: var(--cyan-dim);
+
+  --color-magenta-glow: var(--magenta-glow);
+  --color-magenta-bright: var(--magenta-bright);
+  --color-magenta-muted: var(--magenta-muted);
+  --color-magenta-dim: var(--magenta-dim);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  --color-holo-green: var(--holo-green);
+  --color-plasma-orange: var(--plasma-orange);
+  --color-smart-amber: var(--smart-amber);
+  --color-void-purple: var(--void-purple);
+
+  /* Design system named colors */
+  --color-mint: var(--primary);
+  --color-warm-sand: var(--warm-sand);
+  --color-warm-sage: var(--warm-sage);
+  --color-warm-ivory: var(--warm-ivory);
+
+  /* Status quartet */
+  --color-status-sale: var(--status-sale);
+  --color-status-trade: var(--status-trade);
+  --color-status-sell-trade: var(--status-sell-trade);
+  --color-status-nfst: var(--status-nfst);
+
+  /* Category identity */
+  --color-category-memorabilia: var(--category-memorabilia);
+  --color-category-cards: var(--category-cards);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    @apply font-bold tracking-tight;
+  }
+
+  /* JetBrains Mono — dollar amounts / prices ONLY */
+  .price, [data-type="price"], [data-type="value"] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: var(--primary-muted);
+    color: var(--foreground);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--surface-elevated);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--warm-ivory);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+}
+
+/* =============================================================================
+   UTILITY CLASSES
+   ============================================================================= */
+
+@layer utilities {
+  /* Glass effect — light mode frosted glass */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-light {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-premium {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Header overlay */
+  .hud-overlay {
+    background: var(--gradient-overlay);
+    backdrop-filter: blur(20px) saturate(1.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* Shadow utilities */
+  .shadow-glow {
+    box-shadow: var(--shadow-accent-lg);
+  }
+
+  .shadow-glow-sm {
+    box-shadow: var(--shadow-accent);
+  }
+
+  /* Gradient text — neutral foreground spectrum */
+  .text-gradient {
+    background: linear-gradient(135deg, var(--foreground) 0%, var(--muted-foreground) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-animated {
+    color: var(--muted-foreground);
+  }
+
+  /* Gradient border */
+  .border-gradient {
+    position: relative;
+    border: none;
+  }
+
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: var(--gradient-primary);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* Background grid texture */
+  .bg-grid {
+    background-image:
+      linear-gradient(var(--grid-line-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Ambient glow backgrounds */
+  .ambient-primary {
+    position: relative;
+  }
+
+  .ambient-primary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-radial-primary);
+    pointer-events: none;
+  }
+
+  /* Section label style — uppercase tracking label in heading font */
+  .section-label {
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--attention);
+  }
+
+  /* Uppercase tracking label (heading font) — for status indicators, category labels, etc. */
+  .label-caps {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Brand wordmark */
+  .wordmark {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Dollar amounts / prices — the ONLY use of JetBrains Mono */
+  .font-price {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding */
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Hero text shadow — subtle on light */
+  .hero-text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Hover lift */
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+  }
+
+  /* 3D perspective */
+  .perspective-container {
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
+
+  .parallax-layer {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  /* Button glow animation — mint pulse */
+  .glow-animate {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  /* Stagger delay utilities */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+  .stagger-6 { animation-delay: 0.6s; }
+
+  /* Animation utilities */
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  .animate-fade-in { animation: fade-in 0.5s ease-out; }
+  .animate-slide-up { animation: slide-up 0.5s ease-out; }
+  .animate-slide-down { animation: slide-down 0.5s ease-out; }
+  .animate-scale-in { animation: scale-in 0.3s ease-out; }
+  .animate-reveal { animation: reveal-blur 0.8s ease-out forwards; }
+}
+
+/* =============================================================================
+   KEYFRAMES
+   ============================================================================= */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(211, 255, 195, 0.20);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(211, 255, 195, 0.40);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes reveal-blur {
+  from { opacity: 0; filter: blur(10px); transform: translateY(20px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}

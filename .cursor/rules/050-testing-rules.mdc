@@ -1,0 +1,25 @@
+---
+description: Validation and testing rules
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "package.json"
+  - "jest.config.*"
+alwaysApply: false
+---
+
+# Testing Rules
+
+Before claiming completion, identify the best available validation.
+
+Preferred order:
+1. Typecheck if available.
+2. Lint.
+3. Unit tests.
+4. Integration tests.
+5. Build.
+6. Manual verification notes.
+
+Current package scripts include `npm test` and `npm run lint`. No typecheck script was found during memory installation.
+
+If validation cannot be run, say why.

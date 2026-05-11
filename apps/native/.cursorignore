@@ -1,0 +1,58 @@
+﻿# Cursor indexing exclusions.
+#
+# NOTE: .gitignore does NOT exclude files from Cursor's indexer, AI context,
+# or search. This file does. Mirror common dependency/build/artifact paths
+# here so the indexer only crawls the ~450 source files instead of the
+# 84,000+ that land when node_modules is included.
+
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/
+
+# Expo / Metro
+.expo/
+.expo-shared/
+.metro-health-check*
+web-build/
+dist/
+
+# Native builds
+ios/Pods/
+ios/build/
+ios/DerivedData/
+android/build/
+android/app/build/
+android/.gradle/
+android/.cxx/
+
+# General build output
+build/
+out/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Version control
+.git/
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Lockfiles (exclude from AI context - huge and noisy)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Env / secrets (defensive)
+.env
+.env.*
+!.env.example

@@ -1,0 +1,23 @@
+{
+  "name": "myvitrine",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MyVitrine — collectibles-as-canvas. Monorepo for the native (Expo) app, web (Next.js) app, shared packages, and Supabase backend.",
+  "scripts": {
+    "dev:native": "pnpm --filter @vitrine/native start",
+    "dev:web": "pnpm --filter @vitrine/web dev",
+    "build:web": "pnpm --filter @vitrine/web build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "clean": "git clean -xdf node_modules .next .expo dist .turbo"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  }
+}

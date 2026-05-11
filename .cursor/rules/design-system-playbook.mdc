@@ -1,0 +1,137 @@
+---
+description: Vitrine V3 design system playbook — evolutionary extraction, lock-in, and drift prevention
+globs:
+  - "**/*.tsx"
+  - "**/*.ts"
+alwaysApply: true
+---
+
+# Vitrine Design System Rule
+
+## Strategy
+
+The V3 design system grows **evolutionarily**: screens drive system growth, not the other way around. A component earns its place by proving reuse value in real screens — we do not build speculative component libraries. Once extracted, components are **locked**: future screens consume the existing component, extending it when necessary, never forking.
+
+If a session is about a screen redesign, the rhythm below applies. If a session is about something else (bug fix, refactor, wiring) this rule still governs any V3 UI touched in passing.
+
+## Single Source of Truth
+
+- **Design tokens + shared configs:** `lib/design/*`
+  - `tokens.ts` — `COLORS`, `TYPE`, `SPACING`, `RADII`
+  - `status-config.ts` — `STATUS_CONFIG`, `deriveStatus`
+  - `trait-config.ts` — `TRAIT_CONFIG`, `getTraitChrome`, `isTraitKey`, `TRAIT_ORDER`
+  - `match-tiers.ts` — `getMatchTier`, `MATCH_TIER_THRESHOLDS`
+- **Components:** `components/vault/*`, exported from `components/vault/index.ts`
+- **Gallery / self-documentation:** `app/(design-lab)/design-system.tsx`
+  - `§ FOUNDATION` — every token rendered live
+  - `§ COMPONENTS` — every vault export with every variant
+  - `§ PATTERNS` — every recurring composition
+
+**Always import from the barrels.** Use `@/lib/design` and `@/components/vault`. Never deep-import from `@/lib/design/tokens` or `@/components/vault/status-pill`.
+
+If it is not in the gallery, it does not exist in the system. Gallery updates are non-optional on any extraction.
+
+## Legacy DNA
+
+`lib/colors.ts` (White Cube Contemporary Gallery) is **deprecated for V3 redesigns**. New screens and new components consume `@/lib/design` only. Do not backport V3 tokens into legacy screens — visual clash during the redesign transition is expected and acceptable.
+
+## Per-Screen Workflow
+
+Every V3 screen redesign follows this rhythm. Do not skip steps.
+
+1. **Recon.** Read the existing screen and any components it consumes. Identify data shape, behaviors, navigation, auth, data fetching, and deep-link integration points that must be preserved. Note legacy interactions that should NOT be ported (predate V3 strategy).
+2. **Inventory (written, not mental).** Before writing UI, enumerate the components the screen needs. Mark each:
+   - `[existing]` — use vault component as-is
+   - `[variant]` — vault component extended with a new prop/variant
+   - `[new]` — no vault equivalent; build fresh
+   Share the inventory with the user before coding so cuts can be discussed.
+3. **Design in-screen.** Build with inline code for `[new]` elements. Existing + variant items consume vault immediately.
+4. **Extract.** At session end, promote every `[new]` element that meets the extraction triggers below into `components/vault/`. Update the barrel, § COMPONENTS, and § PATTERNS in the same pass.
+5. **Commit.** Screen file + new/modified components + gallery updates + token additions land as one logical unit. The system and its consumers stay in lockstep.
+
+## Search Before You Build
+
+Before writing any UI on a new screen, check § COMPONENTS for existing matches. This is the mechanism that makes lock-in *enforce* convergence — without it, screens drift.
+
+## Extraction Triggers
+
+Extract UI to `components/vault/` when:
+
+- **Rule of 2 in one screen.** A shape appears twice in a single file → extract immediately.
+- **Cross-screen anticipation.** Will obviously appear on another screen (search bar, top bar, button, avatar, list row, empty state) → extract on first appearance even if used once.
+- **Internal complexity.** State, a11y logic, animations, or >30 lines of render code → extract regardless of reuse count.
+
+Leave inline when:
+
+- Truly one-off (e.g., an illustrated empty-state specific to one flow).
+- So coupled to the screen's data shape that abstracting would be premature.
+
+**When in doubt, inline first.** Extracting later is cheaper than un-extracting a speculative abstraction.
+
+## Lock-in Contract
+
+When a component lands in `components/vault/`:
+
+1. It is added to the barrel (`components/vault/index.ts`).
+2. A `ComponentShowcase` block lands in § COMPONENTS with **every current variant rendered live**, an import-path line, and a one-sentence role description.
+3. If composed, a `PatternShowcase` lands in § PATTERNS with a `composedOf` annotation.
+4. `COMPONENT_COUNT` in `design-system.tsx` is bumped.
+5. Future screens consume it — **no forking**.
+
+If a new screen needs something the current version can't do:
+
+- **Add a variant** (new prop value) — backward compatible ✓
+- **Add a prop** (new optional field, sensible default) — backward compatible ✓
+- **Breaking change** — explicit decision, migrate every consumer in the same commit. Surface the trade before implementing.
+
+## Component Architecture Patterns
+
+Three patterns. Pick the right one; don't mix them.
+
+- **Atoms** — pure display, one job each. Examples: `StatusPill`, `TraitPill`, `MatchPercent`, `StatCell`, `SchemaRow`.
+- **Shells** — generic layouts that compose with variant content via `children`. Example: `GridCard`.
+- **Compositions** — shell + purpose-built meta component. Example: `CompCard = GridCard + CompMeta`.
+
+When two components share *meaning* but render *differently* (e.g., `StatusPill` + `StatusDot`), they are **siblings** that consume shared config (`STATUS_CONFIG`). They do not inherit from each other. Adding a new status is a one-file change in the config, not a change in every component.
+
+When a component has multiple content shapes (e.g., grid cells rendering different meta), build a **shell + children** composition. Do not merge every shape into one variant-prop union.
+
+## File & Naming Conventions
+
+- Files: `kebab-case.tsx` (e.g., `status-pill.tsx`, `grid-card.tsx`).
+- Components: `PascalCase` (e.g., `StatusPill`, `GridCard`).
+- One component per file; tightly-coupled sub-exports allowed (e.g., `CompMeta` alongside `CompCard`).
+- Props type inline (`type Props = { ... }`) unless shared across components.
+- Every component file begins with a JSDoc block: what it does, what consumes it, when to use which variant, a short `Usage:` example.
+
+## Tokens, Not Raw Values
+
+Raw hex, rgba, and pt numbers **do not appear at call sites in new V3 code**. Use tokens from `@/lib/design`. If a token doesn't exist for a value you need, add it to `tokens.ts` first — don't inline the raw value.
+
+Exceptions: screen-local constants that are genuinely one-screen geometry (e.g., a specific hero aspect ratio, a one-off animation duration) can stay local to the screen file with a comment explaining why it isn't a token.
+
+## Prohibitions
+
+Do not:
+
+- **Fork components.** If vault has `X` and you need `X`-ish, extend `X`.
+- **Inline raw tokens** in new V3 code (`'#f0f0f0'`, `fontSize: 13` without a token).
+- **Import from deep paths.** Use the barrels (`@/lib/design`, `@/components/vault`).
+- **Backport V3 tokens into `lib/colors.ts`** or legacy screens.
+- **Redefine shared config.** `STATUS_CONFIG`, `TRAIT_CONFIG`, etc. live in `lib/design`. Components consume; they do not redefine.
+- **Ship a V3 screen** that introduced new inline UI without running the extract + gallery update step at session end.
+- **Introduce a V3 component** that isn't in the gallery by end of commit.
+
+## When to Flag, Not Assume
+
+Raise these explicitly before proceeding — do not decide silently:
+
+- A new shape that could plausibly become 1 vs 2 vs 3 components depending on how it's cut.
+- A variant that would require a breaking change to an existing component.
+- An ambiguous choice between "this is a component" vs. "this is a composition / inline pattern."
+- An addition to `tokens.ts` that introduces a new semantic color, scale, or category — worth a sentence on naming before committing to it.
+- Any deviation from this rule's workflow for a good-faith reason — say so, don't hide it.
+
+## Release Interaction
+
+This rule layers on top of `expo-release-guardrails.mdc`. When they conflict, release guardrails win (Expo Go compatibility, build path, App Store risk). Aesthetic decisions yield to shippability.

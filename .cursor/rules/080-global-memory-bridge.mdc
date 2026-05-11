@@ -1,0 +1,18 @@
+---
+description: Thinktank bridge rule
+globs:
+  - "docs/ai-context/GLOBAL_MEMORY_BRIDGE.md"
+  - "docs/ai-context/*.md"
+  - "AGENTS.md"
+alwaysApply: false
+---
+
+# Global Memory Bridge
+
+Read `docs/ai-context/GLOBAL_MEMORY_BRIDGE.md` before using Thinktank.
+
+Project-local memory is canonical. Thinktank is advisory.
+
+Do not load the full Thinktank repo. Start with indexes/rubrics only.
+
+Do not write to Thinktank without explicit approval.

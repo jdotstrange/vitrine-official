@@ -1,0 +1,23 @@
+---
+description: Vitrine frontend implementation rules
+globs:
+  - "app/**/*.tsx"
+  - "app/**/*.ts"
+  - "components/**/*.tsx"
+  - "components/**/*.ts"
+  - "lib/**/*.tsx"
+  - "lib/**/*.ts"
+alwaysApply: false
+---
+
+# Frontend Rules
+
+Preserve Expo Go compatibility and React Native constraints.
+
+For V3 UI, use `@/lib/design` and `@/components/vault`. Check existing vault components before building new UI.
+
+Keep state boundaries clear: screen orchestration in screens, reusable display in components, API calls in `lib/api/*` unless an existing pattern says otherwise.
+
+Handle loading, empty, error, retry, safe area, keyboard, and long text where relevant.
+
+Do not fork vault components. Extend existing components or discuss the tradeoff first.

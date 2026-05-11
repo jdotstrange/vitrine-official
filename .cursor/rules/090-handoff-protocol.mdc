@@ -1,0 +1,19 @@
+---
+description: Handoff update protocol
+globs:
+  - "docs/ai-context/*.md"
+  - "AGENTS.md"
+alwaysApply: false
+---
+
+# Handoff Protocol
+
+After meaningful work, update:
+- `docs/ai-context/CURRENT_STATE.md`
+- `docs/ai-context/IMPLEMENTATION_LOG.md`
+- `docs/ai-context/OPEN_THREADS.md`
+- `docs/ai-context/HANDOFF.md`
+
+Update `DECISION_LOG.md` only when a durable product or technical decision changes.
+
+Handoffs should include what changed, what works, incomplete work, validation, risks, next best task, what not to touch, and proposed Thinktank updates if relevant.

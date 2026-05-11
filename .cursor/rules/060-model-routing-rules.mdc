@@ -1,0 +1,15 @@
+---
+description: Model family routing rule
+globs:
+  - "docs/ai-context/MODEL_ROUTING.md"
+  - "docs/ai-context/HANDOFF.md"
+alwaysApply: false
+---
+
+# Model Routing
+
+Use `docs/ai-context/MODEL_ROUTING.md` when recommending model families.
+
+Do not recommend the current model by default. Recommend based on ambiguity, architecture impact, edit volume, exactness, UI/design judgment, security/data risk, and current-docs needs.
+
+For high-risk work, consider a two-model workflow: frontier model for planning/review, implementation model for bounded edits.

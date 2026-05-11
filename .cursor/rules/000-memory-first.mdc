@@ -1,0 +1,24 @@
+---
+description: Prefer project memory before chat history
+alwaysApply: true
+---
+
+# Memory First
+
+Before relying on chat history, consult the project memory system first:
+
+- `AGENTS.md`
+- `docs/ai-context/CURRENT_STATE.md`
+- `docs/ai-context/OPEN_THREADS.md`
+- `docs/ai-context/DO_NOT_BREAK.md`
+- Any relevant `docs/ai-context/*` file for the task
+
+Treat project memory as canonical, then use chat context only for the latest unresolved nuance.
+
+Priority order:
+
+1. Project memory
+2. Current code
+3. Chat context
+
+If project memory and chat history conflict, trust project memory unless the user's latest message explicitly changes direction.
