@@ -1,8 +1,9 @@
 import * as React from "react"
+import Link from "next/link"
 import { T } from "@/lib/marketing/tokens"
 import { Kicker } from "@/components/marketing/primitives"
 import { VitrineLogo } from "@/components/marketing/VitrineLogo"
-import { FOOTER_COLUMNS } from "@/lib/marketing/constants"
+import { FOOTER_COLUMNS, type FooterItem } from "@/lib/marketing/constants"
 
 export function Footer() {
   return (
@@ -53,13 +54,8 @@ export function Footer() {
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.title}>
               <Kicker style={{ marginBottom: 16 }}>{col.title}</Kicker>
-              {col.items.map((i) => (
-                <div
-                  key={i}
-                  style={{ marginBottom: 10, color: T.fg2, cursor: "pointer" }}
-                >
-                  {i}
-                </div>
+              {col.items.map((item) => (
+                <FooterItemLink key={item.label} item={item} />
               ))}
             </div>
           ))}
@@ -84,5 +80,40 @@ export function Footer() {
         <span>BUILT FOR COLLECTORS</span>
       </div>
     </footer>
+  )
+}
+
+function FooterItemLink({ item }: { item: FooterItem }) {
+  const baseStyle: React.CSSProperties = {
+    display: "block",
+    marginBottom: 10,
+    color: T.fg2,
+    textDecoration: "none",
+    transition: "color 160ms ease",
+  }
+
+  if (item.href) {
+    return (
+      <Link
+        href={item.href}
+        style={{ ...baseStyle, cursor: "pointer" }}
+        className="footer-link"
+      >
+        {item.label}
+      </Link>
+    )
+  }
+
+  return (
+    <span
+      style={{
+        ...baseStyle,
+        color: T.fg3,
+        cursor: "default",
+      }}
+      title="Coming soon"
+    >
+      {item.label}
+    </span>
   )
 }

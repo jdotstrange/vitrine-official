@@ -375,19 +375,52 @@ export const AUCTION_HOUSE_LOGOS = [
 
 // ───────── Footer columns ─────────
 
+export interface FooterItem {
+  label: string
+  /** Optional internal/external href. When omitted, the item renders as
+   * non-interactive copy (used for items that don't have a destination yet). */
+  href?: string
+}
+
 export interface FooterColumn {
   title: string
-  items: string[]
+  items: FooterItem[]
 }
 
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Product",
-    items: ["Showcases", "Comps", "Pulse", "Tracking", "Lexicon"],
+    items: [
+      { label: "Product overview", href: "/product" },
+      { label: "Looking Glass", href: "/intelligence" },
+      { label: "Pricing", href: "/pricing" },
+      { label: "Get the app", href: "/#download" },
+    ],
   },
-  { title: "Company", items: ["About", "Press", "Careers", "Contact"] },
-  { title: "Resources", items: ["Help", "Status", "Changelog"] },
-  { title: "Legal", items: ["Privacy", "Terms"] },
+  {
+    title: "Company",
+    items: [
+      { label: "About" },
+      { label: "Press" },
+      { label: "Careers" },
+      { label: "Contact" },
+    ],
+  },
+  {
+    title: "Resources",
+    items: [
+      { label: "Help" },
+      { label: "Status" },
+      { label: "Changelog" },
+    ],
+  },
+  {
+    title: "Legal",
+    items: [
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
+    ],
+  },
 ]
 
 // ───────── Press quotes ─────────

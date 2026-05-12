@@ -15,17 +15,15 @@ const nextConfig = {
     unoptimized: true,
   },
   /**
-   * 301s for the legacy multi-page marketing routes (about / pricing /
-   * features / explore / contact / identity). The V3 site is single-page
-   * with anchored sections, so we permanently redirect each old URL to its
-   * closest narrative anchor on `/`. Identity has no clean anchor analog,
-   * so it lands on the home root.
+   * Legacy redirects for old marketing URLs that no longer exist as
+   * pages. `/pricing` is intentionally NOT redirected — it's a real
+   * deep page now. Same will apply to `/explore` once that page ships.
+   * The remaining sources land on the closest narrative anchor on `/`.
    */
   async redirects() {
     return [
       { source: '/about', destination: '/#thesis', permanent: true },
-      { source: '/pricing', destination: '/#pro', permanent: true },
-      { source: '/features', destination: '/#intelligence', permanent: true },
+      { source: '/features', destination: '/product', permanent: true },
       { source: '/explore', destination: '/#explore', permanent: true },
       { source: '/contact', destination: '/#footer', permanent: true },
       { source: '/identity', destination: '/', permanent: true },

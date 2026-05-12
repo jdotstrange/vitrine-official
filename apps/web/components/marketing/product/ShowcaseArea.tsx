@@ -80,9 +80,10 @@ export function ShowcaseArea() {
         >
           {SHOWCASES.map((s, i) => {
             const amount = [50, 18, 50][i] ?? 30
+            const { key: _key, tone, ...rest } = s
             return (
               <Parallax key={s.key} amount={amount}>
-                <ShowcaseCard {...s} tone={TONE_MAP[s.tone]} />
+                <ShowcaseCard {...rest} tone={TONE_MAP[tone]} />
               </Parallax>
             )
           })}
