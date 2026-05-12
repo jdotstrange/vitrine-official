@@ -4,13 +4,22 @@ import * as React from "react"
 import { useState } from "react"
 import { T } from "@/lib/marketing/tokens"
 import { Kicker } from "@/components/marketing/primitives"
-import { SectionHeader } from "./SectionHeader"
+import { Reveal } from "@/lib/marketing/Reveal"
 
-export function CompsSection() {
+/**
+ * CompsArea — migrated from sections/CompsSection.tsx for the
+ * /intelligence page. The Comps engine is a downstream consumer of the
+ * extraction layer (every comp is tagged on attributes the engine
+ * extracted), which is why it earns a beat on the Intelligence page.
+ *
+ * Same three-tier visual as the original; copy and kicker tuned for the
+ * intelligence-page narrative.
+ */
+export function CompsArea() {
   return (
     <section
       id="comps"
-      data-marketing-section="comps"
+      data-marketing-section="comps-area"
       style={{
         padding: "140px 40px",
         borderTop: `1px solid ${T.frostDiv}`,
@@ -18,11 +27,20 @@ export function CompsSection() {
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <SectionHeader
-          num="05B"
-          kicker="COMPS ENGINE"
-          title={
-            <>
+        <Reveal>
+          <div style={{ textAlign: "center" }}>
+            <Kicker color={T.volt}>COMPS ENGINE</Kicker>
+            <h2
+              style={{
+                fontFamily: T.fontDisplay,
+                fontWeight: 400,
+                fontSize: 64,
+                lineHeight: 0.96,
+                letterSpacing: -1.4,
+                margin: "20px 0 0",
+                textWrap: "balance",
+              }}
+            >
               Three tiers.{" "}
               <em
                 style={{
@@ -33,36 +51,52 @@ export function CompsSection() {
               >
                 Zero ambiguity.
               </em>
-            </>
-          }
-          sub="Every comparable sale tagged on six attributes, dated, source-weighted, and tiered. Perfect = all six match. Strong = most. Loose = direction only."
-        />
+            </h2>
+            <p
+              style={{
+                fontSize: 16,
+                lineHeight: 1.55,
+                color: T.fg2,
+                marginTop: 20,
+                maxWidth: 720,
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              Once Looking Glass has extracted six attributes from the photo,
+              the Comps engine can find true peers. Every comparable sale
+              tagged on those same six axes, dated, source-weighted, and
+              tiered. Perfect = all six match. Strong = most. Loose =
+              direction only.
+            </p>
+          </div>
+        </Reveal>
         <div
           data-marketing-grid="comps-tiers"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 20,
-            marginTop: 80,
+            marginTop: 64,
           }}
         >
           <CompTier
             tier="PERFECT"
-            pct="92–100%"
+            pct="92\u2013100%"
             tone={T.green}
-            desc="Set, year, parallel, grade, condition, and provenance — all six aligned."
+            desc="Set, year, parallel, grade, condition, and provenance \u2014 all six aligned."
             count={2}
           />
           <CompTier
             tier="STRONG"
-            pct="70–91%"
+            pct="70\u201391%"
             tone={T.blue}
             desc="Same set + year, with one or two attribute deltas. The closest non-perfect peers."
             count={2}
           />
           <CompTier
             tier="LOOSE"
-            pct="40–69%"
+            pct="40\u201369%"
             tone={T.fg2}
             desc="Cross-set or cross-grade comparables. Useful context, not direct comps."
             count={2}
@@ -98,7 +132,8 @@ function CompTier({ tier, pct, tone, desc, count }: CompTierProps) {
             ? "rgba(17,255,153,0.04)"
             : "rgba(214,235,253,0.02)",
         cursor: "pointer",
-        transition: "border-color 200ms, transform 280ms cubic-bezier(.2,.8,.2,1)",
+        transition:
+          "border-color 200ms, transform 280ms cubic-bezier(.2,.8,.2,1)",
         transform: hover ? "translateY(-3px)" : "none",
       }}
     >

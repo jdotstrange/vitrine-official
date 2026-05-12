@@ -4,7 +4,6 @@ import {
   CatalogingSection,
   CategoriesSection,
   CommunitySection,
-  CompsSection,
   ExploreSection,
   FAQSection,
   FinalCTA,
@@ -22,6 +21,7 @@ import {
   ThesisSection,
   TrackingSection,
 } from "./sections"
+import { CompsArea } from "@/components/marketing/intelligence/CompsArea"
 
 /**
  * MarketingSiteLab — frozen snapshot of the original 18-section V3 build.
@@ -52,7 +52,7 @@ export function MarketingSiteLab() {
       <CatalogingSection />
       <ShowcasesSection />
       <TrackingSection />
-      <CompsSection />
+      <CompsArea />
       <CommunitySection />
       <CategoriesSection />
       <HowItWorksSection />
