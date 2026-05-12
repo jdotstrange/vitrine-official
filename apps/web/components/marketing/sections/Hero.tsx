@@ -142,7 +142,7 @@ export function Hero() {
               textAlign: "center",
             }}
           >
-            One photo. Every field identified, extracted, and listed — no manual entry required.
+            One photo. Identified, extracted, and validated. <span style={{ textDecoration: "underline" }}>No manual entry required.</span>
           </span>
           <span
             style={{
