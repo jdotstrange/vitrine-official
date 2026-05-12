@@ -19,7 +19,7 @@ Collectibles-as-canvas. Native (Expo) + Web (Next.js) monorepo, sharing a single
 |---|---|
 | `supabase/` | Database migrations + Edge Functions (single project, used by both apps) |
 | `packages/` | Shared workspace packages (see below) |
-| `docs/` | All project documentation including `ai-context/` (project memory), brand operating system (`brand/`), and active plans |
+| `docs/` | All project documentation including `ai-context/` (project memory) and active plans |
 | `.cursor/` | Repo-wide Cursor rules and AI agent configuration |
 
 ### Shared packages
@@ -75,7 +75,6 @@ pnpm --filter @vitrine/web start          # Run production build locally
 
 - All Supabase changes (migrations, Edge Functions) live at the repo root in `supabase/`. Both apps import the same Supabase project.
 - Repo-wide AI rules and project memory are at the **monorepo root** (`AGENTS.md`, `.cursor/rules/`, `docs/ai-context/`). Per-app context goes in `apps/*/AGENTS.md` (does not exist yet — to be added if needed).
-- Brand voice + messaging system lives at `docs/brand/` (32 files, full brand operating system). Applies to both apps.
 
 ## Legacy reference
 
