@@ -12,6 +12,8 @@ export type PillVariant =
   | "game_used"
   | "graded"
   | "volt"
+  | "pro"
+  | "green"
 
 const PILL_VARIANTS: Record<
   PillVariant,
@@ -26,6 +28,8 @@ const PILL_VARIANTS: Record<
   game_used: { bg: T.oliveFill, border: T.oliveBorder, fg: T.olive },
   graded: { bg: T.cyanFill, border: T.cyanBorder, fg: T.cyan },
   volt: { bg: T.voltFill, border: T.voltBorder, fg: T.volt },
+  pro: { bg: T.proFill, border: T.proBorder, fg: T.pro },
+  green: { bg: T.greenFill, border: T.greenBorder, fg: T.green },
 }
 
 export interface PillProps {

@@ -1,6 +1,7 @@
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
 import {
+  type LiveExploreItem,
   ExploreSection,
   FinalCTA,
   Footer,
@@ -21,7 +22,11 @@ import {
  * were feature deep-dives migrated to /product, /intelligence, and
  * /pricing in earlier phases of the multi-page restructure.
  */
-export function MarketingSite() {
+interface MarketingSiteProps {
+  exploreItems?: LiveExploreItem[]
+}
+
+export function MarketingSite({ exploreItems }: MarketingSiteProps) {
   return (
     <div
       style={{
@@ -34,11 +39,11 @@ export function MarketingSite() {
     >
       <SiteNav />
       <Hero />
-      <ThesisSection />
       <ProblemSection />
+      <ThesisSection />
       <RapidFireFeatures />
       <IntelligenceSection />
-      <ExploreSection />
+      <ExploreSection items={exploreItems} />
       <FinalCTA />
       <Footer />
     </div>

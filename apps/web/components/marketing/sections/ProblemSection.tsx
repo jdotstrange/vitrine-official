@@ -25,7 +25,7 @@ export function ProblemSection() {
           }}
         >
           <Reveal y={16}>
-            <Kicker color={T.volt} style={{ marginBottom: 24 }}>THE PROBLEM IT SOLVES</Kicker>
+            <Kicker color={T.volt} style={{ marginBottom: 24 }}>BEFORE VITRINE</Kicker>
             <h2
               data-marketing-section-title
               style={{

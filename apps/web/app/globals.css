@@ -42,6 +42,11 @@
   --brand-volt-fill: rgba(232, 224, 212, 0.10);
   --brand-volt-border: rgba(232, 224, 212, 0.28);
 
+  /* Product tier accents */
+  --tier-pro: #f7d65a;
+  --tier-pro-fill: rgba(247, 214, 90, 0.16);
+  --tier-pro-border: rgba(247, 214, 90, 0.42);
+
   /* Semantic — status + destructive */
   --semantic-green: #11ff99;
   --semantic-green-fill: rgba(17, 255, 153, 0.18);
@@ -324,6 +329,10 @@
   --color-brand-volt: var(--brand-volt);
   --color-brand-volt-fill: var(--brand-volt-fill);
   --color-brand-volt-border: var(--brand-volt-border);
+
+  --color-tier-pro: var(--tier-pro);
+  --color-tier-pro-fill: var(--tier-pro-fill);
+  --color-tier-pro-border: var(--tier-pro-border);
 
   --color-semantic-green: var(--semantic-green);
   --color-semantic-blue: var(--semantic-blue);

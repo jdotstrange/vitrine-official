@@ -207,41 +207,73 @@ export function IntelligenceSection() {
           </div>
         </div>
 
+        <Reveal delay={100} y={16}>
+          <div style={{ marginTop: 96, maxWidth: 760 }}>
+            <h3
+              style={{
+                fontFamily: T.fontDisplay,
+                fontWeight: 400,
+                fontSize: 48,
+                lineHeight: 1,
+                letterSpacing: -1,
+                margin: 0,
+                color: T.fg1,
+              }}
+            >
+              From record to intelligence.
+            </h3>
+            <p
+              style={{
+                fontSize: 16,
+                lineHeight: 1.55,
+                color: T.fg2,
+                marginTop: 18,
+                marginBottom: 0,
+              }}
+            >
+              Looking Glass creates the collector-grade record. VAR, AAR, and
+              Market Pulse turn that record into documentation, assessment,
+              and live market context.
+            </p>
+          </div>
+        </Reveal>
+
         <div
           data-marketing-grid="intel-tiles"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 16,
-            marginTop: 80,
+            marginTop: 48,
           }}
         >
-          <Reveal delay={120} y={16}>
+          <Reveal delay={120} y={16} style={{ height: "100%" }}>
             <CapabilityTile
               num="01"
-              kicker="CLASSIFY"
-              title="Thirty-eight domains. Deep."
+              kicker="DOCUMENT"
+              title="Vitrine Analysis Report."
               body={
                 <>
-                  Not just &ldquo;trading card.&rdquo; Trading Card → Sports →
-                  Single Card → Graded. Comic → Silver Age → Key Issue. Watch →
-                  Sports Chronograph → Vintage. The AI locates your piece in the
-                  right corner of the whole taxonomy.
+                  VAR turns the confirmed record into a structured
+                  documentation report: extraction data, trait evidence, gaps,
+                  population context, auction references, and a unique report
+                  ID. Not an appraisal. Not authentication. The cataloging
+                  record, fully contextualized.
                 </>
               }
             >
               <TaxonomyChip
-                items={["COLLECTIBLE", "SIGNED MEMORABILIA", "BASEBALL", "OBL · AUTO"]}
+                items={["REPORT_ID · VAR-2049", "EVIDENCE MAPPED"]}
               />
             </CapabilityTile>
           </Reveal>
 
-          <Reveal delay={220} y={16}>
+          <Reveal delay={220} y={16} style={{ height: "100%" }}>
             <CapabilityTile
               num="02"
-              kicker="DETECT TRAITS"
-              title="Five overlays, category-aware."
-              body="Graded, autographed, game-used, framed, sealed. Each trait the AI detects unlocks a dedicated field schema — subgrades for graded pieces, signer + ink + placement for autographs, LOA presence for game-used — in a single pass."
+              kicker="COMPARE"
+              title="Autograph Assessment Report."
+              body="AAR searches trusted authenticated examples, then compares the signature across formation, flow, baseline, placement, ink, medium, and inscription patterns. The result is directional: consistent, inconclusive, or inconsistent — never a verdict."
             >
               <div
                 style={{
@@ -251,20 +283,28 @@ export function IntelligenceSection() {
                   marginTop: 6,
                 }}
               >
-                <Pill variant="graded">GRADED</Pill>
-                <Pill variant="signed">AUTOGRAPHED</Pill>
-                <Pill variant="game_used">GAME-USED</Pill>
-                <Pill variant="rookie">ROOKIE</Pill>
+                <Pill variant="green">CONSISTENT</Pill>
+                <span
+                  style={{
+                    alignSelf: "center",
+                    fontFamily: T.fontMono,
+                    fontSize: 10,
+                    color: T.fg3,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  formal auth recommended
+                </span>
               </div>
             </CapabilityTile>
           </Reveal>
 
-          <Reveal delay={320} y={16}>
+          <Reveal delay={320} y={16} style={{ height: "100%" }}>
             <CapabilityTile
               num="03"
-              kicker="EXTRACT"
-              title="Verbatim off the label."
-              body="Cert numbers, grades, grade qualifiers, subgrades, inscriptions, ink color, signature placement, auth companies — pulled as written. When the AI isn't sure, it flags the field for your review instead of guessing."
+              kicker="READ THE MARKET"
+              title="Market Pulse."
+              body="Pulse turns live market data into an analyst brief: fresh vs. stale pricing, absorption rate, seller consensus, listing tempo, scarcity, census data, auction results, and source-attributed market context."
             >
               <div
                 style={{
@@ -280,16 +320,16 @@ export function IntelligenceSection() {
                 }}
               >
                 <div>
-                  <span style={{ color: T.fg3 }}>cert_number</span>{" "}
-                  <span style={{ color: T.volt }}>&quot;AZ58051&quot;</span>
+                  <span style={{ color: T.fg3 }}>signal</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;fresh pricing diverging&quot;</span>
                 </div>
                 <div>
-                  <span style={{ color: T.fg3 }}>grade</span>{" "}
-                  <span style={{ color: T.volt }}>&quot;PSA 10&quot;</span>
+                  <span style={{ color: T.fg3 }}>absorption</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;+6.0%&quot;</span>
                 </div>
                 <div>
-                  <span style={{ color: T.fg3 }}>inscription</span>{" "}
-                  <span style={{ color: T.volt }}>&quot;24&quot;</span>
+                  <span style={{ color: T.fg3 }}>source_tier</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;factual&quot;</span>
                 </div>
               </div>
             </CapabilityTile>
@@ -819,7 +859,8 @@ interface CapabilityTileProps {
 function CapabilityTile({ num, kicker, title, body, children }: CapabilityTileProps) {
   const [hover, setHover] = useState(false)
   return (
-    <div
+    <a
+      href="/intelligence"
       data-marketing-intel-cap-tile
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -830,12 +871,42 @@ function CapabilityTile({ num, kicker, title, body, children }: CapabilityTilePr
         border: `1px solid ${hover ? T.voltBorder : T.frostDiv}`,
         background: "rgba(214,235,253,0.018)",
         transition:
-          "transform 280ms cubic-bezier(.2,.8,.2,1), border-color 200ms",
+          "transform 280ms cubic-bezier(.2,.8,.2,1), border-color 200ms, background 200ms",
+        transform: hover ? "translateY(-3px)" : "translateY(0)",
         minHeight: 360,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
       }}
     >
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 24,
+          right: 24,
+          width: 44,
+          height: 44,
+          borderRadius: 9999,
+          border: `1px solid ${hover ? T.voltBorder : T.frostDiv}`,
+          background: hover ? T.voltFill : "rgba(214,235,253,0.018)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: T.fontDisplay,
+          fontSize: 30,
+          lineHeight: 1,
+          color: hover ? T.volt : T.fg3,
+          transition:
+            "color 200ms, transform 200ms, border-color 200ms, background 200ms",
+          transform: hover ? "translate(3px, -3px) rotate(6deg)" : "translate(0, 0)",
+        }}
+      >
+        ↗
+      </span>
       <div
         style={{
           fontFamily: T.fontDisplay,
@@ -847,7 +918,19 @@ function CapabilityTile({ num, kicker, title, body, children }: CapabilityTilePr
       >
         {num}
       </div>
-      <Kicker style={{ marginTop: 14, color: T.fg1 }}>{kicker}</Kicker>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 14,
+        }}
+      >
+        <Kicker style={{ color: T.fg1 }}>{kicker}</Kicker>
+        <Pill variant="pro" style={{ fontSize: 9.5 }}>
+          PRO+
+        </Pill>
+      </div>
       <div
         style={{
           fontFamily: T.fontDisplay,
@@ -870,7 +953,7 @@ function CapabilityTile({ num, kicker, title, body, children }: CapabilityTilePr
         {body}
       </p>
       <div style={{ marginTop: "auto", paddingTop: 20 }}>{children}</div>
-    </div>
+    </a>
   )
 }
 

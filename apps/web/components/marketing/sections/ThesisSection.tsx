@@ -16,7 +16,7 @@ export function ThesisSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <Reveal y={16}>
-          <Kicker color={T.volt} style={{ marginBottom: 24 }}>VITRINE IS</Kicker>
+          <Kicker color={T.volt} style={{ marginBottom: 24 }}>WITH VITRINE</Kicker>
           <h2
             data-marketing-section-title
             style={{
@@ -29,9 +29,8 @@ export function ThesisSection() {
               maxWidth: 1100,
             }}
           >
-            Not a tracker. Not a feed.
+            One home for every piece,
             <br />
-            Not a marketplace.{" "}
             <em
               style={{
                 fontFamily: T.fontDisplay,
@@ -39,7 +38,7 @@ export function ThesisSection() {
                 color: T.volt,
               }}
             >
-              A vitrine.
+              signal, and story.
             </em>
           </h2>
           <p
@@ -51,8 +50,9 @@ export function ThesisSection() {
               maxWidth: 760,
             }}
           >
-            Vitrine is the home for everything you collect — built around four
-            jobs the existing tools handle in pieces and never together.
+            Vitrine gives every piece a place, a story, a value, and a reason
+            to be shown — because serious collections are built from meaning,
+            not rows in a spreadsheet.
           </p>
         </Reveal>
 

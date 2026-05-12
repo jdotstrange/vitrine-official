@@ -39,6 +39,11 @@ export const T = {
   voltFill: "var(--brand-volt-fill)",
   voltBorder: "var(--brand-volt-border)",
 
+  // Product tiers
+  pro: "var(--tier-pro)",
+  proFill: "var(--tier-pro-fill)",
+  proBorder: "var(--tier-pro-border)",
+
   // Semantic
   green: "var(--semantic-green)",
   greenFill: "var(--semantic-green-fill)",

@@ -30,7 +30,7 @@ export function RapidFireFeatures() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <Reveal y={16}>
-          <Kicker color={T.volt} style={{ marginBottom: 24 }}>THE TOOLKIT</Kicker>
+          <Kicker color={T.volt} style={{ marginBottom: 24 }}>HOW IT WORKS</Kicker>
           <h2
             data-marketing-section-title
             style={{
@@ -42,7 +42,7 @@ export function RapidFireFeatures() {
               margin: 0,
             }}
           >
-            Twelve more reasons{" "}
+            Built for the full{" "}
             <em
               style={{
                 fontFamily: T.fontDisplay,
@@ -50,7 +50,7 @@ export function RapidFireFeatures() {
                 color: T.volt,
               }}
             >
-              to switch.
+              collector loop.
             </em>
           </h2>
           <p
@@ -62,7 +62,9 @@ export function RapidFireFeatures() {
               marginTop: 24,
             }}
           >
-            A quick tour through the rest of what shipped. Every tile is a real surface in the app today.
+            From capture to context, from value to visibility, every surface
+            in Vitrine exists to help you understand what you own and decide
+            what happens next.
           </p>
         </Reveal>
 
@@ -76,7 +78,12 @@ export function RapidFireFeatures() {
           }}
         >
           {RAPID_FIRE_TILES.map((tile, i) => (
-            <Reveal key={tile.headline} delay={120 + i * 60} y={16}>
+            <Reveal
+              key={tile.headline}
+              delay={120 + i * 60}
+              y={16}
+              style={{ height: "100%" }}
+            >
               <RapidFireTileCard
                 icon={tile.icon}
                 headline={tile.headline}
@@ -98,7 +105,7 @@ export function RapidFireFeatures() {
             letterSpacing: 0.5,
           }}
         >
-          AND THIS IS THE SHORT LIST.{" "}
+          EVERY SURFACE HAS A JOB.{" "}
           <a
             href="/product"
             style={{
@@ -108,7 +115,7 @@ export function RapidFireFeatures() {
               paddingBottom: 1,
             }}
           >
-            See the full toolkit &rarr;
+            Explore the full product &rarr;
           </a>
         </p>
       </div>
@@ -146,6 +153,7 @@ function RapidFireTileCard({
         transition: "border-color 280ms, background 280ms, transform 280ms",
         transform: hover ? "translateY(-2px)" : "translateY(0)",
         minHeight: 196,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         gap: 16,

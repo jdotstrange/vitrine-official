@@ -644,67 +644,63 @@ export interface RapidFireTile {
 export const RAPID_FIRE_TILES: RapidFireTile[] = [
   {
     icon: "scan-line",
-    headline: "Looking Glass AI",
-    sub: "Photo-only extraction across 38 categories. Tell us nothing — we read the piece.",
+    headline: "Capture from a photo",
+    sub: "Looking Glass identifies the piece, extracts key fields, and creates the first collector-grade record.",
   },
   {
     icon: "layout-grid",
-    headline: "Per-category schemas",
-    sub: "38 categories, 38 form sets. Each kind has the fields it actually needs.",
+    headline: "Structure every category",
+    sub: "Cards, watches, comics, coins, wine, vinyl — each gets fields that match how collectors actually describe it.",
   },
   {
     icon: "crown",
-    headline: "Crown Jewel showcases",
-    sub: "Curate, don\u2019t dump. Every showcase anchored by its defining piece.",
+    headline: "Build showcases",
+    sub: "Curate around grails, eras, players, makers, themes, or stories instead of dumping everything into folders.",
   },
   {
     icon: "scale",
-    headline: "Comps engine",
-    sub: "Math, not vibes. Perfect / Strong / Loose tiers, attribute-tagged on six axes.",
+    headline: "Anchor the crown jewel",
+    sub: "Make the defining piece visible. Every serious collection has an object that explains the rest.",
   },
   {
     icon: "trending-up",
-    headline: "Live tracking",
-    sub: "Watch every piece move. 30-day, 90-day, 365-day windows on each item.",
+    headline: "Understand real value",
+    sub: "Weighted comps, market windows, volatility, and confidence signals keep value grounded in actual evidence.",
   },
   {
     icon: "shield-check",
-    headline: "VAR",
-    sub: "Variable Authentication Reports. Authentication you can argue with.",
-    flag: "PRO",
+    headline: "Track what changes",
+    sub: "Watch status, value, comps, and market movement without refreshing eBay tabs by hand.",
   },
   {
     icon: "file-check",
-    headline: "AAR",
-    sub: "Authoritative Appraisal Reports. Appraisal-grade, on demand.",
-    flag: "PRO",
+    headline: "Generate collector reports",
+    sub: "VAR and AAR turn evidence into shareable authentication and appraisal-style reports.",
   },
   {
     icon: "activity",
-    headline: "Pulse",
-    sub: "Per-item market intel. The signals you didn\u2019t know to ask for.",
-    flag: "PRO",
-  },
-  {
-    icon: "radio-tower",
-    headline: "Activity",
-    sub: "The signal layer for your network. Followers, status changes, comp alerts.",
-  },
-  {
-    icon: "sparkles",
-    headline: "Smart Collections",
-    sub: "Auto-organized by what\u2019s inside. AI-curated showcases.",
-    flag: "PRO",
+    headline: "See per-piece signals",
+    sub: "Pulse surfaces the events, changes, and market activity worth paying attention to.",
   },
   {
     icon: "share-2",
-    headline: "Vault sharing",
-    sub: "Drop a link in iMessage. They see your showcase. No install required.",
+    headline: "Share without friction",
+    sub: "Send a showcase or piece by link. Collectors can view it without installing the app.",
+  },
+  {
+    icon: "radio-tower",
+    headline: "Mark intent clearly",
+    sub: "For Sale, For Trade, or NFST lives beside the piece, so context comes before transaction.",
   },
   {
     icon: "users",
-    headline: "Discover",
-    sub: "We find people who own what you own. Network-level recommendations.",
+    headline: "Find adjacent collectors",
+    sub: "Discover people whose collections overlap with yours by category, tracking, comps, or inventory affinity.",
+  },
+  {
+    icon: "sparkles",
+    headline: "Keep the record alive",
+    sub: "A collection is not a static database. Vitrine keeps every piece connected to its value, story, and next move.",
   },
 ]
 
@@ -732,7 +728,7 @@ export const ROADMAP_ITEMS: [string, string][] = [
 // ───────── Thesis pillars ─────────
 
 export interface Pillar {
-  kicker: "CATALOG" | "PRESENT" | "TRACK" | "TRANSACT"
+  kicker: "CAPTURE" | "CURATE" | "UNDERSTAND" | "MOVE"
   title: string
   body: string
   state: "live" | "soon"
@@ -740,28 +736,28 @@ export interface Pillar {
 
 export const PILLARS: Pillar[] = [
   {
-    kicker: "CATALOG",
-    title: "Every piece, fully described.",
-    body: "Per-category schemas. Set, year, parallel, grade, condition, provenance, edition, signed-by, made-by, found-where. The fields adapt to what you collect.",
+    kicker: "CAPTURE",
+    title: "From photo to fully understood.",
+    body: "Looking Glass identifies the piece, extracts the details, validates key fields, and turns a confusing form into a collector-grade record.",
     state: "live",
   },
   {
-    kicker: "PRESENT",
-    title: "Showcases, not folders.",
-    body: "Curate by era, theme, player, grail status. Crown Jewel anchors each one. Public, private, or share-by-link.",
+    kicker: "CURATE",
+    title: "Show the collection the way you see it.",
+    body: "Build showcases around eras, grails, players, makers, themes, or stories — not just folders and filters.",
     state: "live",
   },
   {
-    kicker: "TRACK",
-    title: "Value, modeled — not guessed.",
-    body: "Live FMV against weighted comps. Volatility band. Event flags. 30-day, 90-day, 365-day windows on every piece.",
+    kicker: "UNDERSTAND",
+    title: "Know what matters, not just what it might sell for.",
+    body: "Track value, comps, volatility, status, provenance, and signals without reducing the piece to a price tag.",
     state: "live",
   },
   {
-    kicker: "TRANSACT",
-    title: "Eventually — on your terms.",
-    body: "For Sale / For Trade / NFST signals live alongside intrinsic data today. Marketplace transaction layer comes later, by design.",
-    state: "soon",
+    kicker: "MOVE",
+    title: "When the time is right, move on your terms.",
+    body: "Mark pieces For Sale, For Trade, or NFST today. Marketplace workflows can come later; collector intent comes first.",
+    state: "live",
   },
 ]
 

@@ -208,10 +208,9 @@ export function Hero() {
               color: T.fg2,
             }}
           >
-            The first collectibles platform that starts with the
-            collector. Catalog from a photo. Value against real comps.
-            Showcase what you&rsquo;ve built. Move pieces when
-            you&rsquo;re ready.
+            Designed by collectors who know the difference between
+            inventory and identity. Vitrine helps you catalog, value,
+            showcase, and move the pieces that define your collection.
           </p>
 
           <div

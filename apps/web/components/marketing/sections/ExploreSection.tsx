@@ -5,13 +5,37 @@ import { useState } from "react"
 import { T } from "@/lib/marketing/tokens"
 import { Kicker, Pill } from "@/components/marketing/primitives"
 import {
-  EXPLORE_FILTERS,
   EXPLORE_ITEMS,
   STATUS_LABEL,
   type ExploreItem,
 } from "@/lib/marketing/constants"
 import { Reveal } from "@/lib/marketing/Reveal"
-export function ExploreSection() {
+
+export interface LiveExploreItem {
+  id: string
+  photo: string
+  title: string
+  value: string | null
+  status: ExploreItem["status"]
+}
+
+interface ExploreSectionProps {
+  items?: LiveExploreItem[]
+}
+
+function fallbackItems(): LiveExploreItem[] {
+  return EXPLORE_ITEMS.map((it, i) => ({
+    id: `fallback-${i}`,
+    photo: it.photo,
+    title: it.name,
+    value: it.price,
+    status: it.status,
+  }))
+}
+
+export function ExploreSection({ items }: ExploreSectionProps) {
+  const displayItems = items && items.length > 0 ? items : fallbackItems()
+
   return (
     <section
       id="explore"
@@ -77,42 +101,10 @@ export function ExploreSection() {
                 marginRight: "auto",
               }}
             >
-              A slice of what collectors are cataloging right now. Tap any piece to see all five lenses.
+              A slice of what collectors are cataloging right now.
             </p>
           </div>
 
-          <div
-            data-marketing-grid="explore-filters"
-            style={{
-              display: "flex",
-              gap: 8,
-              marginTop: 60,
-              flexWrap: "wrap",
-              justifyContent: "center",
-              borderBottom: `1px solid ${T.frostDiv}`,
-              paddingBottom: 16,
-            }}
-          >
-            {EXPLORE_FILTERS.map((c, i) => (
-              <span
-                key={c}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 9999,
-                  background: i === 0 ? T.fg1 : "transparent",
-                  color: i === 0 ? T.void : T.fg2,
-                  border: `1px solid ${i === 0 ? T.fg1 : T.frostDiv}`,
-                  fontFamily: T.fontGrotesk,
-                  fontWeight: 700,
-                  fontSize: 10.5,
-                  letterSpacing: 1.2,
-                  cursor: "pointer",
-                }}
-              >
-                {c}
-              </span>
-            ))}
-          </div>
         </Reveal>
 
         <div
@@ -121,11 +113,11 @@ export function ExploreSection() {
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
             gap: 16,
-            marginTop: 32,
+            marginTop: 60,
           }}
         >
-          {EXPLORE_ITEMS.map((it, i) => (
-            <Reveal key={i} delay={120 + i * 60} y={16}>
+          {displayItems.map((it, i) => (
+            <Reveal key={it.id} delay={120 + i * 60} y={16}>
               <SpatialCard
                 item={it}
                 statusLabel={STATUS_LABEL[it.status]}
@@ -139,7 +131,7 @@ export function ExploreSection() {
 }
 
 interface SpatialCardProps {
-  item: ExploreItem
+  item: LiveExploreItem
   statusLabel: string
 }
 
@@ -188,10 +180,9 @@ function SpatialCard({ item, statusLabel }: SpatialCardProps) {
           left: 12,
           right: 12,
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
         }}
       >
-        <Pill style={{ background: "rgba(0,0,0,0.5)" }}>{item.cat}</Pill>
         <Pill variant={item.status}>{statusLabel}</Pill>
       </div>
       <div style={{ position: "absolute", left: 14, right: 14, bottom: 14 }}>
@@ -204,39 +195,17 @@ function SpatialCard({ item, statusLabel }: SpatialCardProps) {
             lineHeight: 1.15,
           }}
         >
-          {item.name}
+          {item.title}
         </div>
         <div
           style={{
-            fontFamily: T.fontCaslon,
-            fontStyle: "italic",
-            fontSize: 11.5,
-            color: "rgba(255,255,255,0.65)",
-            marginTop: 4,
-          }}
-        >
-          {item.set}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
+            fontFamily: T.fontMono,
+            fontSize: 13,
+            color: T.fg1,
             marginTop: 8,
           }}
         >
-          <span
-            style={{
-              fontFamily: T.fontMono,
-              fontSize: 13,
-              color: T.fg1,
-            }}
-          >
-            {item.price}
-          </span>
-          <Kicker style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
-            FMV
-          </Kicker>
+          {item.value ?? "Value not listed"}
         </div>
       </div>
     </div>
