@@ -37,7 +37,15 @@ export function CommunitySection() {
               </em>
             </>
           }
-          sub="No engagement bait. No reposts. You follow collectors because of what they own and how they curate. Identity, here, is the collection itself."
+          sub={
+            <>
+              No follower scoreboards. No engagement bait. No reposts of
+              reposts. You discover collectors by what they own and how
+              they curate &mdash; the dossier they keep, the run they
+              completed, the standard they hold themselves to. Identity,
+              here, is the collection itself.
+            </>
+          }
         />
 
         <div
@@ -61,6 +69,8 @@ export function CommunitySection() {
                   background: "rgba(214,235,253,0.015)",
                   transition:
                     "transform 280ms cubic-bezier(.2,.8,.2,1), border-color 280ms",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -81,7 +91,7 @@ export function CommunitySection() {
                   >
                     {c.name[0].toUpperCase()}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         fontFamily: T.fontDisplay,
@@ -98,9 +108,10 @@ export function CommunitySection() {
                         fontSize: 10.5,
                         color: T.fg3,
                         marginTop: 2,
+                        letterSpacing: 0.3,
                       }}
                     >
-                      {c.followers} following
+                      {c.since}
                     </div>
                   </div>
                   <span
@@ -120,7 +131,7 @@ export function CommunitySection() {
                   </span>
                 </div>
                 <Kicker style={{ marginTop: 24, color: hue }}>
-                  {c.tag} · {c.count}
+                  {c.tag} &middot; {c.count}
                 </Kicker>
                 <div
                   style={{
@@ -151,13 +162,33 @@ export function CommunitySection() {
                     borderTop: `1px solid ${T.frostDiv}`,
                     fontSize: 12,
                     color: T.fg2,
-                    lineHeight: 1.5,
+                    lineHeight: 1.55,
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
                   }}
                 >
-                  <span style={{ color: T.fg3 }}>Followed because of: </span>
-                  <em style={{ fontFamily: T.fontCaslon, color: T.fg1 }}>
-                    &quot;the only complete first-pressing run I&apos;ve ever seen&quot;
-                  </em>
+                  <span
+                    style={{
+                      color: hue,
+                      fontFamily: T.fontGrotesk,
+                      fontWeight: 700,
+                      fontSize: 9.5,
+                      letterSpacing: 1.2,
+                      textTransform: "uppercase",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {c.hook}
+                  </span>
+                  <em
+                    style={{
+                      fontFamily: T.fontCaslon,
+                      color: T.fg1,
+                      fontStyle: "italic",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: `&ldquo;${c.note}&rdquo;` }}
+                  />
                 </div>
               </div>
             )

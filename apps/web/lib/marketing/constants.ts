@@ -423,25 +423,54 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
 ]
 
-// ───────── Press quotes ─────────
+// ───────── Press quotes / testimonials ─────────
 
 export interface Quote {
-  q: string
-  a: string
+  /** The body of the testimonial. Can include HTML entities — rendered
+   * via dangerouslySetInnerHTML for typographic punctuation. */
+  quote: string
+  /** Display name. For placeholder cards use the literal "[Your name here]"
+   * so the slot is visually obvious during the placeholder window. */
+  name: string
+  /** Short attribution line shown under the name. Years collecting,
+   * primary category, optional handle. */
+  role: string
+  /** When true, this card is rendered with a deliberately muted "open
+   * slot" treatment — the marketing team can swap it out for a real
+   * quote without touching the component. */
+  placeholder?: boolean
 }
 
+/**
+ * PRESS_QUOTES — testimonials shipped on the home page (PressSection)
+ * as the social-proof beat. Two real quotes from beta collectors plus
+ * one explicit placeholder card so the section ships with three cells
+ * filled and the open slot is unambiguous to anyone editing this file.
+ *
+ * Editing checklist when real testimonials land:
+ *   1. Swap the placeholder entry for a real one (name, role, quote).
+ *   2. Remove the `placeholder: true` flag.
+ *   3. Verify quote length is roughly 90-180 chars so cards stay even.
+ */
 export const PRESS_QUOTES: Quote[] = [
   {
-    q: "The first cataloging app that treats my collection with the seriousness I do.",
-    a: "COLLECTOR · 22 YR · CARDS",
+    quote:
+      "The first cataloging app that treats my collection with the seriousness I do.",
+    name: "Collector",
+    role: "22 YR &middot; CARDS",
   },
   {
-    q: "Pulse alone replaced four open tabs. The math under VAR is why I stayed.",
-    a: "COLLECTOR · 8 YR · WATCHES",
+    quote:
+      "Activity alone replaced four open tabs. The math under VAR is why I stayed.",
+    name: "Collector",
+    role: "8 YR &middot; WATCHES",
   },
   {
-    q: "I trust an app that ships with a Lexicon page.",
-    a: "COLLECTOR · 14 YR · COMICS",
+    quote:
+      "Drop your line in here. We&rsquo;ll trade it for a slot in the gallery.",
+    name: "[Your name here]",
+    role: "OPEN SLOT &middot; HELLO@VITRINE.APP",
+    placeholder: true,
   },
 ]
 
@@ -521,7 +550,17 @@ export interface CollectorCard {
   name: string
   tag: string
   count: string
-  followers: string
+  /** A grounding stat for the card. Deliberately not a follower count.
+   * Identity here is the depth of the collection, not the size of the
+   * audience. */
+  since: string
+  /** Hook line tailored to each collector — shown above the curator's
+   * note. Different framing per card to vary the read. */
+  hook: string
+  /** Curator quote shown below the jewels. Each collector gets a
+   * distinct line; the marketing-side template was previously identical
+   * across all three, which read flat. */
+  note: string
   jewels: [string, string, string]
   hueKey: "cyan" | "orange" | "volt"
 }
@@ -531,7 +570,9 @@ export const COLLECTORS: CollectorCard[] = [
     name: "whitney.r",
     tag: "BLUE NOTE OGs",
     count: "142 pieces",
-    followers: "4,218",
+    since: "Cataloging since 2019",
+    hook: "What she owns",
+    note: "the only complete first-pressing run of the 1500 series I&rsquo;ve seen documented anywhere.",
     jewels: [PHOTOS.vinyl, PHOTOS.cards, PHOTOS.coin],
     hueKey: "cyan",
   },
@@ -539,7 +580,9 @@ export const COLLECTORS: CollectorCard[] = [
     name: "grailcave",
     tag: "AJ1 1985\u201386",
     count: "38 pieces",
-    followers: "11,402",
+    since: "Curating since 2017",
+    hook: "How he curates",
+    note: "every pair photographed on the same plinth, same light, same angle &mdash; an archive, not a flex.",
     jewels: [PHOTOS.sneaker, PHOTOS.cards, PHOTOS.watch],
     hueKey: "orange",
   },
@@ -547,7 +590,9 @@ export const COLLECTORS: CollectorCard[] = [
     name: "h.ledger",
     tag: "SPEEDY ARCHIVE",
     count: "24 pieces",
-    followers: "2,840",
+    since: "Hunting since 2014",
+    hook: "Why he matters",
+    note: "writes the dossier you wish was on the listing &mdash; provenance, caliber, dial variant, the whole spec.",
     jewels: [PHOTOS.watch, PHOTOS.camera, PHOTOS.cards],
     hueKey: "volt",
   },

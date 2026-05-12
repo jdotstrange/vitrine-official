@@ -50,7 +50,17 @@ export function ActivityArea() {
               </em>
             </>
           }
-          sub="Followers move pieces. Comps land. Status flips from NFST to For Sale. Activity surfaces the changes that matter to you, ranked by relevance, quiet by default."
+          sub={
+            <>
+              Activity is the social-signal feed for the people and pieces
+              you actually care about. A collector you follow listed a
+              grail. A piece in your watchlist flipped from NFST to For
+              Sale. A new comp landed inside your tolerance. A Showcase
+              you saved updated its crown jewel. Ranked by relevance to
+              your collection, quiet by default, never an algorithm
+              optimizing for outrage.
+            </>
+          }
         />
         <FrostCard hover={false} style={{ marginTop: 80, overflow: "hidden" }}>
           <div

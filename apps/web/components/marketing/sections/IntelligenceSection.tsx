@@ -57,7 +57,7 @@ export function IntelligenceSection() {
           kicker="INTELLIGENCE"
           title={
             <>
-              Four photos.{" "}
+              Tell us nothing.{" "}
               <em
                 style={{
                   fontFamily: T.fontDisplay,
@@ -65,13 +65,21 @@ export function IntelligenceSection() {
                   color: T.volt,
                 }}
               >
-                Four seconds.
+                We read the piece.
               </em>
-              <br />
-              You already know exactly what you own.
             </>
           }
-          sub="Vitrine's AI doesn't guess. It classifies the category, detects trait overlays, extracts cert numbers straight off the label, and writes the listing — in the time it takes to pull the piece out of the case. Every free user gets this from day one."
+          sub={
+            <>
+              Drop in the photo &mdash; not the brand, not the year, not the
+              cert number, not what corner of what taxonomy you think it
+              belongs in. Vitrine&rsquo;s Looking Glass classifies the
+              category, detects every trait overlay, extracts cert numbers
+              verbatim off the label, and writes the listing in the time
+              it takes to slide the piece back into the case. Every free
+              user gets this on day one.
+            </>
+          }
         />
 
         <div

@@ -4,7 +4,11 @@ import {
   FrostCard,
   Kicker,
 } from "@/components/marketing/primitives"
-import { AUCTION_HOUSE_LOGOS, PRESS_QUOTES } from "@/lib/marketing/constants"
+import {
+  AUCTION_HOUSE_LOGOS,
+  PRESS_QUOTES,
+  type Quote,
+} from "@/lib/marketing/constants"
 
 export function PressSection() {
   return (
@@ -17,7 +21,7 @@ export function PressSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <Kicker color={T.volt} style={{ textAlign: "center" }}>
-          §08 · BUILT BY COLLECTORS
+          §08 &middot; BUILT BY COLLECTORS
         </Kicker>
         <h2
           style={{
@@ -54,30 +58,7 @@ export function PressSection() {
           }}
         >
           {PRESS_QUOTES.map((q, i) => (
-            <FrostCard
-              key={i}
-              hover={false}
-              style={{
-                padding: 32,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                minHeight: 240,
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: T.fontCaslon,
-                  fontSize: 22,
-                  lineHeight: 1.4,
-                  color: T.fg1,
-                  fontStyle: "italic",
-                }}
-              >
-                &quot;{q.q}&quot;
-              </div>
-              <Kicker style={{ marginTop: 24 }}>{q.a}</Kicker>
-            </FrostCard>
+            <QuoteCard key={i} quote={q} />
           ))}
         </div>
 
@@ -120,9 +101,69 @@ export function PressSection() {
             letterSpacing: 0.5,
           }}
         >
-          AUCTION HOUSE & MARKETPLACE INTEGRATIONS
+          AUCTION HOUSE &amp; MARKETPLACE INTEGRATIONS
         </div>
       </div>
     </section>
+  )
+}
+
+interface QuoteCardProps {
+  quote: Quote
+}
+
+function QuoteCard({ quote }: QuoteCardProps) {
+  const isPlaceholder = quote.placeholder === true
+  return (
+    <FrostCard
+      hover={false}
+      style={{
+        padding: 32,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        minHeight: 240,
+        borderStyle: isPlaceholder ? "dashed" : "solid",
+        opacity: isPlaceholder ? 0.85 : 1,
+        background: isPlaceholder
+          ? "rgba(214,235,253,0.01)"
+          : undefined,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: T.fontCaslon,
+          fontSize: 22,
+          lineHeight: 1.4,
+          color: isPlaceholder ? T.fg2 : T.fg1,
+          fontStyle: "italic",
+        }}
+        dangerouslySetInnerHTML={{ __html: `&ldquo;${quote.quote}&rdquo;` }}
+      />
+      <div style={{ marginTop: 24 }}>
+        <div
+          style={{
+            fontFamily: T.fontDisplay,
+            fontSize: 16,
+            letterSpacing: -0.2,
+            color: isPlaceholder ? T.fg3 : T.fg1,
+          }}
+        >
+          {quote.name}
+        </div>
+        <div
+          style={{
+            marginTop: 4,
+            fontFamily: T.fontGrotesk,
+            fontWeight: 700,
+            fontSize: 10.5,
+            letterSpacing: 1.2,
+            textTransform: "uppercase",
+            color: isPlaceholder ? T.volt : T.fg3,
+          }}
+          dangerouslySetInnerHTML={{ __html: quote.role }}
+        />
+      </div>
+    </FrostCard>
   )
 }

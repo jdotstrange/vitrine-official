@@ -144,16 +144,17 @@ export function Hero() {
 
           <p
             style={{
-              maxWidth: 560,
+              maxWidth: 580,
               margin: "32px 0 0",
               fontSize: 18,
               lineHeight: 1.55,
               color: T.fg2,
             }}
           >
-            An AI that reads the piece. An engine that watches the market. A
-            room full of collectors who own the same thing. The collection
-            you've been keeping in your head — finally, in your pocket.
+            One photo. Every field, extracted. The market, watched. The
+            comp, found. The piece, valued. The crowd you actually want to
+            show — already inside. Your collection, finally, given the
+            apparatus it deserved.
           </p>
 
           <div
