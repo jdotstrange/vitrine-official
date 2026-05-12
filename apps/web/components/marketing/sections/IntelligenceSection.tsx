@@ -52,18 +52,48 @@ export function IntelligenceSection() {
         style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}
       >
         <Reveal y={16}>
-          <Kicker style={{ marginBottom: 24, color: T.fg3 }}>
-            INTRODUCING:{" "}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
             <span
               style={{
-                color: T.volt,
-                letterSpacing: 2.4,
-                fontStyle: "italic",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "2px 8px",
+                borderRadius: 9999,
+                border: `1px solid ${T.oliveBorder}`,
+                background: T.oliveFill,
+                fontFamily: T.fontGrotesk,
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: 1.2,
+                color: T.olive,
+                textTransform: "uppercase" as const,
               }}
             >
-              LOOKING GLASS
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: T.olive,
+                  boxShadow: `0 0 6px ${T.olive}`,
+                  animation: "pulseGlow 1.4s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              />
+              Now Live
             </span>
-          </Kicker>
+            <span
+              style={{
+                fontFamily: T.fontInter,
+                fontSize: 13,
+                fontWeight: 500,
+                color: T.fg1,
+              }}
+            >
+              Looking Glass (v1)
+            </span>
+          </div>
           <h2
             data-marketing-section-title
             style={{
@@ -75,7 +105,7 @@ export function IntelligenceSection() {
               margin: 0,
             }}
           >
-            Tell us nothing.{" "}
+            AI powered OCR data extraction.{" "}
             <em
               style={{
                 fontFamily: T.fontDisplay,
@@ -83,7 +113,7 @@ export function IntelligenceSection() {
                 color: T.volt,
               }}
             >
-              We read the piece.
+              Engineered by real collectors.
             </em>
           </h2>
           <p
@@ -96,13 +126,12 @@ export function IntelligenceSection() {
               marginBottom: 80,
             }}
           >
-            Drop in the photo &mdash; not the brand, not the year, not the
-            cert number, not what corner of what taxonomy you think it
-            belongs in. Vitrine&rsquo;s Looking Glass classifies the
-            category, detects every trait overlay, extracts cert numbers
-            verbatim off the label, and writes the listing in the time
-            it takes to slide the piece back into the case. Every free
-            user gets this on day one.
+            Architected by collectors who were tired of filling
+            in confusing fields by hand. One photo is all it takes &mdash;
+            Looking Glass identifies your piece, pulls the cert number, detects the grade,
+            identifies a signature, and crafts a full listing.
+            No taxonomy guessing, no manual data entry,
+            no subscription wall. Free at every level.
           </p>
         </Reveal>
 
@@ -148,13 +177,33 @@ export function IntelligenceSection() {
           </div>
           <div
             style={{
-              fontFamily: T.fontMono,
-              fontSize: 10.5,
-              color: T.fg3,
-              letterSpacing: 0.5,
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
             }}
           >
-            AVG EXTRACTION · 30.0s · AVG CONFIDENCE · 94%
+            <span
+              style={{
+                fontFamily: T.fontMono,
+                fontSize: 10.5,
+                color: T.fg3,
+                letterSpacing: 0.5,
+              }}
+            >
+              AVG EXTRACTION · 30.0s · AVG CONFIDENCE · 94%
+            </span>
+            <a
+              href="/intelligence"
+              style={{
+                fontFamily: T.fontMono,
+                fontSize: 10.5,
+                color: T.volt,
+                letterSpacing: 0.5,
+                textDecoration: "none",
+              }}
+            >
+              Learn more →
+            </a>
           </div>
         </div>
 

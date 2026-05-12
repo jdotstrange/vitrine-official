@@ -142,7 +142,7 @@ export function Hero() {
               textAlign: "center",
             }}
           >
-            Drop a photo, get every field extracted, graded, and valued automatically.
+            One photo. Every field identified, extracted, and listed — no manual entry required.
           </span>
           <span
             style={{
