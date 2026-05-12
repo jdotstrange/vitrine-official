@@ -1,7 +1,83 @@
 # Implementation Log
 
-Last updated: 2026-05-11
-Last verified: 2026-05-11
+Last updated: 2026-05-12
+Last verified: 2026-05-12
+
+## 2026-05-12 - Vitrine Marketing Site V3 Rebuild (single-page, dark-first)
+
+- Summary: Replaced the legacy multi-page web marketing site (light "Contemporary Gallery" + ~20 home/about/pricing/features/explore/contact components) with a single-page V3-aligned port of the `c:\Users\johnj\vitrine-2026` HTML mockup. Re-skinned the three share resolvers (`/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`) in matching frost-on-void aesthetic so the brand reads as one app from first impression through download. Killed all six legacy marketing routes with permanent 301s to `#anchor` sections of `/`. Replaced static `/icon.svg` favicon with dynamic Next.js `next/og` icon + apple-icon + opengraph-image endpoints, all rendering the canonical Vitrine crown-in-vitrine mark from a single shared path-data module. Mobile responsive across all 20 marketing sections + share resolvers via two breakpoints (≤1024px tablet, ≤768px phone) with hamburger nav. Six atomic commits, build green at every step.
+
+- Phase 1 — Foundation (`Rewire web to V3 design tokens + canonical brand assets`):
+  - Rewrote `apps/web/app/globals.css` `:root` block with V3 dark palette sourced from `@vitrine/design-tokens` `DARK_COLORS`. Mapped existing shadcn vars (`--background`, `--foreground`, `--primary`, etc.) onto V3 values so authenticated UI components keep working. Added marketing-specific vars: `--fg1` `--fg2` `--fg3` `--frost-divider` `--frost-border(-strong)` `--brand-volt(-fill/-border)` semantic colors (`--green/blue/orange/red` + fills/borders), trait colors (`--pink/violet/olive/cyan` + fills/borders), `--sheet-bg` `--press-overlay` `--scrim`. Updated the `@theme inline {}` block to expose new vars as Tailwind utilities.
+  - Switched `viewport.themeColor` to `#000000`, `colorScheme: "dark"` in `apps/web/app/layout.tsx`. Swapped fonts: kept Inter + JetBrains Mono, added Space Grotesk (Manrope replacement), Libre Caslon Text (Instrument Serif replacement, both regular + italic), and Electrolize. All via `next/font/google`. CSS variables: `--font-electrolize` `--font-grotesk` `--font-inter` `--font-jetbrains-mono` `--font-caslon`.
+  - Brand assets: copied `apps/native/assets/logo.svg` → `apps/web/public/logo.svg` with `fill="#F0F4FA"` swapped to `fill="currentColor"` so the wordmark adapts to its container's text color. Created `apps/web/components/marketing/VitrineLogo.tsx` (full lockup React wrapper) and `apps/web/components/marketing/VitrineMark.tsx` (standalone crown mark, mirrored from `apps/native/components/vault/icons/vitrine-mark-icon.tsx`).
+  - Token bridge: `apps/web/lib/marketing/tokens.ts` exports a `T` object resolving CSS vars (`void: "var(--background)"`, `volt: "var(--brand-volt)"`, `frostDiv: "var(--frost-divider)"`, etc.) so section components consume tokens as `T.void` / `T.volt` rather than re-typing every `var(--…)` reference. This makes the JSX port a near-1:1 translation of the mockup.
+  - Added marketing keyframes to `globals.css`: `pulseGlow`, `feedFadeIn`, `marqueeX`, `ctaGlow`, `lineDraw`, `printoutIn`, `holoSheen`, `blink`.
+
+- Phase 2 — Primitives & motion hooks (`Add marketing primitives & motion hooks for V3 rebuild`):
+  - 11 primitives in `apps/web/components/marketing/primitives/`: `FrostCard.tsx` (frost-bordered card with hover state), `Pill.tsx` (status variants: `for_sale`, `for_trade`, `sell_trade`, `nfst`, `rookie`, `signed`, `game_used`, `graded`, `volt`), `Kicker.tsx` (Space Grotesk uppercase label), `MIcon.tsx` (lucide-react wrapper with kebab→Pascal helper so the mockup's `<MIcon name="arrow-up-right">` works as-is), `AppStoreBadge.tsx` (Apple/Google badges with inline SVGs), `PulseRow.tsx` (single feed-event row), `Button.tsx` (solid/volt/frost/ghost variants), `CompRow.tsx`, `HolographicFrame.tsx`, `GradientVeil.tsx`, plus a barrel `index.ts`.
+  - 7 motion + util modules in `apps/web/lib/marketing/`: `hooks.ts` (`useTicker`, `useDriftingPrice`, `usePulseFeed`, `usePrefersReducedMotion`, `useInView`, `useScrollProgress`, `useScrollY`, `useActiveSection`, `timeAgo`), `Reveal.tsx` (fade-up wrapper), `Stagger.tsx` (child stagger), `Parallax.tsx` (scroll-bound translateY), `photos.ts` (the 8 Unsplash URLs from the mockup's `blocks.jsx`), `constants.ts` (`SCHEMAS` 5 per-category field schemas, `CATS` 38 categories, `INTEL_STAGES` theater stage timings, `KICKER_CYCLE` hero category carousel, `PULSE_TEMPLATES` 9 feed templates), and the existing `tokens.ts` from Phase 1. Most primitives + all hooks marked `"use client"`.
+
+- Phase 3 — 20 section components + `MarketingSite` composition (`Port marketing sections + compose MarketingSite for V3 rebuild`):
+  - Ported every section from `c:\Users\johnj\vitrine-2026\marketing-{site,sections}.jsx` into `apps/web/components/marketing/sections/`: `SectionHeader`, `SiteNav`, `Hero` (+ `HeroPhone`, `PhoneFrame`, `PhoneScreen`, `ScreenIndicator`, `LiveStat`, `PhoneAppHome/Lens/Pulse`, kicker carousel), `PulseSection`, `ProblemSection`, `ThesisSection`, `IntelligenceSection` (+ `TheaterInputPanel`, `ExtractionArtifact`, `CapabilityTile`, `TaxonomyChip`, the 4.8s loop), `CatalogingSection` (CARD/WATCH/COMIC/SNEAKER/COIN tab switcher with cascading printout), `ShowcasesSection` (+ `ShowcaseCard`, parallax stagger), `TrackingSection` (left-text/right-SVG-chart with volatility band), `CompsSection` (+ `CompTier`), `CommunitySection` (3 collector cards with jewel grids), `CategoriesSection` (6×6 grid with hot highlighting), `HowItWorksSection` (3-step rail), `LiveComingSection` (Live Now / Roadmap split), `ExploreSection` (+ `SpatialCard`, filter chips, 4×2 grid), `ProSection` (+ `VARCard`, `AARCard`, `MarketPulseCard`, `AutoShowcaseCard`, `RuleChip`, Pro Covenant pull-quote), `PressSection` (3 quote cards + auction-house logo strip), `FAQSection` (+ `FAQItem` accordion), `FinalCTA`, `Footer`.
+  - Mechanical swaps applied per file:
+    - `const T = window.tokens` → `import { T } from "@/lib/marketing/tokens"`.
+    - `const PHOTOS = ...` → `import { PHOTOS } from "@/lib/marketing/photos"`.
+    - `window.useTicker` (etc.) → `import { useTicker } from "@/lib/marketing/hooks"`.
+    - `window.lucide` MIcon → `<MIcon name="..." />` from primitives.
+    - `accent.color` → hardcoded `T.volt`; `ACCENTS` palette object dropped (no volt/cyan/pink/amber injection).
+    - `headline.lead/mid/tail` → hardcoded `Everything serious collectors deserve.` (`HEADLINES` map dropped).
+    - `ctaLabel` → hardcoded `Get the app` (`CTA_COPY` map dropped).
+    - `<TweaksUI>` and `useTweaks` → removed entirely.
+    - `T.frost` / `T.frostStrong` / `T.sheet` → `T.frostBorder` / `T.frostBorderStrong` / `T.sheetBg` (V3 token names).
+  - Composed everything in `apps/web/components/marketing/MarketingSite.tsx` (mirrors the mockup's section order, `"use client"`).
+  - Replaced `apps/web/app/page.tsx` content with `<MarketingSite />` — no more `getMosaicImages` / `getCategoryTypes` / `getFieldExamples` data-loading.
+  - Added `.nav-link`, `.cta-glow`, `details summary` polish to `globals.css` so `SiteNav` anchors and CTA pills get global hover/active treatments without per-component `<style>` blocks. All glows use V3 ivory (`rgba(232,224,212,…)`) instead of the original cyan/volt mix.
+
+- Phase 4 — Mobile + tablet responsive (`Add tablet + phone breakpoints to marketing site`):
+  - Two-tier responsive layer driven entirely from `globals.css` using `data-marketing-*` attributes that section components carry on every `<section>` and grid div. Section components include `data-marketing-section="<name>"`, `data-marketing-grid="<grid-id>"`, `data-marketing-section-header`, `data-marketing-section-num`, `data-marketing-section-title`, `data-marketing-hero(-grid|-title|-stats|-phone)`, `data-marketing-nav(-links|-actions|-cta|-signin)`, `data-marketing-mobile-nav`, `data-marketing-cta-title`.
+  - **Tablet (≤1024px)**: section padding `140px 40px → 100px 24px`; hero collapses to single column (phone stacks under text); h1 `92 → 64`; SectionHeader stacks (`180px 1fr → 1fr`), §num `64 → 48`, h2 `76 → 56`; 4-col grids → 2-col; 6-col grid (Categories) → 3-col; 3-col grids → 2-col; all two-pane splits → stacked.
+  - **Phone (≤768px)**: section padding → `72px 20px` (Pro/CTA → `96px 20px`); hero h1 `64 → 44`, hero phone hidden (type-led); hero stats 4-col → 2×2 wrap; SectionHeader §num `48 → 36`, h2 `56 → 36`; all multi-col grids → single column; Categories 3-col → 2-col; Footer top stacks; Explore filters → horizontal scroll, items 2-up; Final CTA title → 56px.
+  - Hamburger nav: new `MobileNav.tsx` primitive — 38px circular toggle, slide-down fullscreen panel (anchor links + sign-in + ivory CTA), ESC-closes, body scroll-locks while open. Desktop links/sign-in/CTA hidden via `[data-marketing-nav-links]` / `[data-marketing-nav-actions]` on phone; mobile button hidden on desktop.
+  - All overrides use `!important` because section components carry inline styles for `gridTemplateColumns`, `padding`, and `fontSize`. Inline-style specificity beats every external rule short of `!important`. Trade-off accepted — this stylesheet is the single source of truth for breakpoints, no cascade ambiguity.
+
+- Phase 5 — Share-resolver re-skin (`Re-skin share resolvers in V3 frost-on-void + mobile responsive`):
+  - `apps/web/components/share/share-landing.tsx` rewritten end-to-end. Pure void background with the same faint grid + warm halo used in `Hero`. Wordmark header bar (`VitrineLogo`) with frost "Get the app" pill on the right. Stack: Kicker → image card (frost-bordered, aspect-ratio 1:1) → display title (Electrolize, balanced wrap) → italic Caslon subtitle → optional description → stats row (JetBrains Mono with kicker labels) → ivory CTA pill (`var(--brand-volt)` / `cta-glow` className) → muted Google Play text link → fine-print.
+  - 404 state: oversized `404` numeral in volt, italic Caslon explainer line, ivory CTA back home.
+  - Re-uses marketing primitives so the design system stays single-source: `T` token bridge, `Kicker`, `VitrineLogo`, `cta-glow` className.
+  - Mobile responsive (≤768px / ≤420px) handled in `globals.css` via new `data-share-*` attributes (`data-share-page` / `-header` / `-stack` / `-title` / `-stats` / `-image` / `-header-cta`).
+  - Direct Supabase queries in `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]` are unchanged — the resolver pages still render `<ShareLanding />` with the same prop shape so all three URL types pick up the new design automatically.
+
+- Phase 6 — Cleanup, redirects, OG/icons (`Marketing cleanup: kill legacy routes, refresh OG/icons, update memory`):
+  - **Routes deleted**: `apps/web/app/{about,pricing,identity,features,contact,explore}/`.
+  - **Components deleted**: every file under `apps/web/components/{home,about,pricing,features,contact,explore,identity,app-ui}/` (~40 files), plus root-level orphans `navigation.tsx`, `footer.tsx`, `universal-cta.tsx`, `tilt-card.tsx`, `live-ticker.tsx`, `error-state.tsx`, `page-transition.tsx`, `download-modal.tsx`, `custom-cursor.tsx`, `scroll-reveal.tsx`, `spatial-background.tsx`, `theme-provider.tsx`, `category-orbs.tsx`, `magnetic-button.tsx`, `empty-state.tsx`, `loading-state.tsx`, `profile-ring.tsx`, `data-stream.tsx`, `adaptive-image.tsx`, `chromatic-logo.tsx`, `section-label.tsx`. Verified zero remaining importers via grep before each delete sweep. Shadcn `apps/web/components/ui/*` kept in place (no current importers but reusable for future authenticated routes).
+  - **Orphaned data files deleted**: `apps/web/lib/explore-data.ts`, `apps/web/lib/category-data.ts`. `apps/web/lib/` now contains only `api.ts`, `supabase.ts`, `utils.ts`, plus the `marketing/` subtree.
+  - **`apps/web/app/not-found.tsx` rewritten** in V3 frost-on-void (it previously imported the deleted `Navigation` and `Footer`). Same atmosphere as ShareLanding.
+  - **Redirects** added to `apps/web/next.config.mjs`:
+    - `/about → /#thesis` `/pricing → /#pro` `/features → /#intelligence` `/explore → /#explore` `/contact → /#footer` `/identity → /` (all `permanent: true`).
+  - **Dynamic icon endpoints** at `apps/web/app/{icon,apple-icon,opengraph-image}.tsx` using `next/og` `ImageResponse` on the Edge runtime. All three render the crown mark from a shared path-data module `apps/web/lib/marketing/brand-paths.ts` (`VITRINE_MARK_VIEWBOX` + `VITRINE_MARK_PATHS` array). `VitrineMark` component refactored to consume the same module so brand changes propagate to all three endpoints + the in-page mark in lockstep. Icon: 64×64 ivory mark on void. Apple-icon: 180×180 same. OG: 1200×630 with mark + ELECTROLIZE wordmark + headline + tagline + warm halo.
+  - Removed static `apps/web/app/icon.svg` (replaced by dynamic `icon.tsx`) and removed the `metadata.icons` block from `layout.tsx` (Next picks up `icon.tsx` automatically).
+
+- Files Changed:
+  - **New (Phase 1-2)**: `apps/web/app/globals.css` (rewired), `apps/web/app/layout.tsx` (fonts + metadata), `apps/web/public/logo.svg`, `apps/web/components/marketing/{VitrineLogo,VitrineMark}.tsx`, `apps/web/lib/marketing/{tokens,hooks,photos,constants,Reveal,Stagger,Parallax}.{ts,tsx}`, `apps/web/components/marketing/primitives/{FrostCard,Pill,Kicker,MIcon,AppStoreBadge,PulseRow,Button,CompRow,HolographicFrame,GradientVeil,index}.{ts,tsx}`.
+  - **New (Phase 3)**: `apps/web/components/marketing/MarketingSite.tsx`, `apps/web/components/marketing/sections/{SectionHeader,SiteNav,Hero,PulseSection,ProblemSection,ThesisSection,IntelligenceSection,CatalogingSection,ShowcasesSection,TrackingSection,CompsSection,CommunitySection,CategoriesSection,HowItWorksSection,LiveComingSection,ExploreSection,ProSection,PressSection,FAQSection,FinalCTA,Footer,index}.{ts,tsx}`. `apps/web/app/page.tsx` reduced to a single `<MarketingSite />` render.
+  - **New (Phase 4)**: `apps/web/components/marketing/sections/MobileNav.tsx`. Responsive CSS appended to `apps/web/app/globals.css`. SiteNav + SectionHeader instrumented with `data-marketing-*` attributes.
+  - **New (Phase 5)**: `apps/web/components/share/share-landing.tsx` (full rewrite). Share responsive CSS appended to `globals.css`.
+  - **New (Phase 6)**: `apps/web/app/{icon,apple-icon,opengraph-image}.tsx`, `apps/web/lib/marketing/brand-paths.ts`. `apps/web/app/not-found.tsx` rewritten. `apps/web/next.config.mjs` redirects added. `VitrineMark.tsx` refactored to consume `brand-paths.ts`.
+  - **Deleted (Phase 6)**: 6 route directories, 7 component-category directories, ~21 root-level orphan components, 2 orphaned data files, static `icon.svg`. See per-phase commits for the exhaustive list.
+
+- Validation:
+  - `pnpm --filter @vitrine/web build` after every phase → green. Final route inventory: `/`, `/_not-found`, `/icon`, `/apple-icon`, `/opengraph-image`, `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`. Down from 12 routes pre-rebuild.
+  - `ReadLints` clean on every new + modified file.
+  - Build successfully generates dynamic icon, apple-icon, OG image (Edge runtime, Satori-rendered SVG path data).
+
+- Notes:
+  - Inline styles preserved across section components (rather than rewritten to Tailwind) because the mockup encodes hundreds of micro-decisions (`letterSpacing: -1.4`, `lineHeight: 0.94`, etc.) that don't translate cleanly to utility classes. Every color/font/spacing reference still flows through CSS variables fed by `@vitrine/design-tokens` via the `T` bridge — token consistency without rewrite cost.
+  - `cta-glow` className is shared by SiteNav, ShareLanding, and 404 because all three need the same hover treatment. Defined once in `globals.css` so future surfaces just opt in.
+  - `data-marketing-*` attribute system was chosen over per-component `<style jsx>` blocks because (a) it keeps all breakpoint logic in one file, (b) section components stay framework-agnostic (work in any React tree), and (c) inline-style overrides require `!important` regardless of where the media query lives.
+  - `next/og` Satori does support `<svg><path>` so the dynamic icon endpoints can render the canonical brand mark without rasterizing. Single source of truth for the path data lives in `brand-paths.ts`; both `VitrineMark` and the three icon endpoints consume it. If the brand mark ever changes, edit one file.
+  - Legacy `apps/web/components/ui/*` (shadcn) kept intentionally — no current importers, but the eventual authenticated web app will need the primitives. Tree-shaken out of the marketing bundle.
+  - 301 redirect for `/identity → /` (no anchor analog) is the only "soft" redirect; the rest map to thematically-closest sections of the new single-page narrative.
 
 ## 2026-05-11 - Day 2 Shared Packages: design-tokens, constants, types, api
 

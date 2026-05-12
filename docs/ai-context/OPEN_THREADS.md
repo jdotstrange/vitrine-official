@@ -1,9 +1,18 @@
 # Open Threads
 
-Last updated: 2026-05-11
-Last verified: 2026-05-11
+Last updated: 2026-05-12
+Last verified: 2026-05-12
 
 ## Product / Design Threads
+
+### Marketing site copy iteration
+The V3 marketing site shipped with copy ported verbatim from the `vitrine-2026` HTML mockup. Per the user, the structure is right but the narrative needs another iteration — outside the hero, most copy is "filler and not fully realized." The Pro section (pricing) in particular needs to land with intent. Iteration is a separate pass on top of the now-stable structure.
+
+### Marketing site real assets
+The 8 image URLs in `apps/web/lib/marketing/photos.ts` are Unsplash placeholders. Real brand assets to be provided. Swap is a one-file edit. Same applies to the 3 collector avatars in `CommunitySection`, the 3 quote portraits in `PressSection`, and the 8 spatial cards in `ExploreSection`. The roadmap dates in `LiveComingSection` / `ProSection` are also stale (months-old mockup) and should be refreshed during the copy pass.
+
+### Marketing site shadcn `ui/*` cleanup
+`apps/web/components/ui/*` (shadcn) currently has zero importers but was deliberately retained for the eventual authenticated web app. If a year passes without web auth shipping, prune to remove the dead weight.
 
 ### Showcase curated sort + drag-to-reorder (v2)
 The COLLECTION lens on showcase detail defaults to `recent` sort. The right long-term owner experience is curated/manual ordering with drag-to-reorder. Requires a `position` column on `showcase_collectibles`, write-path support, and a sort handle on each card primitive.
@@ -106,6 +115,7 @@ Any external push notification deep-links targeting `/(tabs)/profile?lens=X` nee
 - `getTrackedCollectionItems` performs acceptably for users tracking 200+ items (currently capped at 50 sources in the comps RPC).
 
 ## Resolved Threads (since last update)
+- ~~Web marketing site visual misalignment with V3~~ → Resolved by full V3 rebuild. Single-page, dark-first, frost-on-void, brand-correct ivory accent. 20 sections ported from the `vitrine-2026` mockup, share resolvers re-skinned to match, 6 legacy routes 301'd, dynamic icon/OG endpoints rendering the canonical crown mark, mobile responsive across 3 breakpoints. Six atomic commits in `git log`.
 - ~~Light/Dark mode toggle~~ → Fully implemented. ThemeProvider + useTheme hook, 3-state segmented control on settings header, ~100 V3 components migrated, AsyncStorage persistence, Auto mode via system-follow.
 - ~~Settings screen V3 redesign~~ → Full V3 overhaul complete. Theme toggle, account management (sign out, delete account with username confirm), blocked users wired, support shipped dark, auto-updating app version.
 - ~~Alive activity component on PROFILE lens~~ → Activity Banner built and live. Slides in when `unseenCount > 0`, shows count + smart summary, tapping navigates to ACTIVITY lens, dismissible via X button.

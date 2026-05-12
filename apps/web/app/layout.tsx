@@ -84,9 +84,6 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  icons: {
-    icon: "/icon.svg",
-  },
 }
 
 export const viewport: Viewport = {
