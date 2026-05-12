@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DARK_COLORS, LIGHT_COLORS, type ThemeColors } from './tokens';
+import { DARK_COLORS, LIGHT_COLORS, type ThemeColors } from '@vitrine/design-tokens';
 
 // ---------------------------------------------------------------------------
 // Types

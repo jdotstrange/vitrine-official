@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { useTheme } from '@/lib/design';
-import { DARK_COLORS } from '@/lib/design/tokens';
+import { DARK_COLORS } from '@vitrine/design-tokens';
 
 export interface SparklineProps {
   /** Numeric series, oldest → newest. Empty array renders a flat baseline. */

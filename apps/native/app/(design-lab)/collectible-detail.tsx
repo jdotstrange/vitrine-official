@@ -58,7 +58,7 @@ import { getCollectible, type CreateCollectibleResponse } from '@/lib/api/collec
 import { formatAddedOn } from '@/lib/format-time';
 import { getOptimizedUrl, IMAGE_SIZES } from '@/lib/image-utils';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { SHARE_URLS } from '@/lib/constants';
+import { SHARE_URLS } from '@vitrine/constants';
 import { QRCodeModal } from '@/components/shared/qr-code-modal';
 import { supabase } from '@/lib/supabase';
 

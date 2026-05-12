@@ -19,7 +19,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { ArrowLeftRight, DollarSign, Handshake } from 'lucide-react-native';
 
-import { COLORS } from './tokens';
+import { COLORS } from '@vitrine/design-tokens';
 
 // ---------------------------------------------------------------------------
 // STATUS KEYS

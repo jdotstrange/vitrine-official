@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL, PLAY_STORE_URL } from "@vitrine/constants"
 
 interface DownloadModalProps {
   open?: boolean

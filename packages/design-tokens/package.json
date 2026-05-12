@@ -1,0 +1,15 @@
+{
+  "name": "@vitrine/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitrine V3 design tokens — colors (light/dark), typography, spacing, radii, trait config, comps match-tier thresholds. Platform-agnostic primitives shared across native and web.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false
+}

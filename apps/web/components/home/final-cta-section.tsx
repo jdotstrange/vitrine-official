@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import { motion, useInView } from "framer-motion"
 import { MagneticButton } from "@/components/magnetic-button"
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL, PLAY_STORE_URL } from "@vitrine/constants"
 import { PhoneFrame } from "@/components/app-ui/phone-frame"
 
 function AppleIcon({ className }: { className?: string }) {

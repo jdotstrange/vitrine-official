@@ -12,8 +12,9 @@
  *     systems coexist during the V3 rollout and must not cross-pollinate.
  *   - Numeric spacing/radii values are semantic, not raw — adjust the
  *     token, not the call site.
- *   - For themed colors, use `useTheme()` from `@/lib/design`. Only import
- *     DARK_COLORS / LIGHT_COLORS directly for elements that opt out of theming.
+ *   - For themed colors on native, use `useTheme()` from `@/lib/design`.
+ *     Only import DARK_COLORS / LIGHT_COLORS directly for elements that
+ *     opt out of theming.
  *
  * The trailing comment on each line names the eventual dotted token path
  * (e.g. color.text.primary) so tools/generators can round-trip this
@@ -27,7 +28,7 @@
 export const DARK_COLORS = {
   // Canvas
   void: '#000000',                                   // color.bg.canvas
-  
+
   // Text
   textPrimary: '#f0f0f0',                            // color.text.primary
   textSecondary: '#a1a4a5',                          // color.text.secondary
@@ -150,7 +151,7 @@ export const LIGHT_COLORS = {
 
 // ---------------------------------------------------------------------------
 // BACKWARD COMPAT — `COLORS` alias points to DARK_COLORS.
-// Consumers should migrate to `useTheme()` for theme-aware access.
+// Consumers should migrate to native's `useTheme()` for theme-aware access.
 // This alias allows non-component code (StyleSheet outside components,
 // utility modules) to still import COLORS without breaking.
 // ---------------------------------------------------------------------------
@@ -165,7 +166,8 @@ export type ThemeColors = typeof DARK_COLORS;
 
 // ---------------------------------------------------------------------------
 // TYPOGRAPHY — font family keys (mapped to loaded @expo-google-fonts faces
-// in app/_layout.tsx). These do NOT change between themes.
+// in app/_layout.tsx for native; web wires its own faces). These do NOT
+// change between themes.
 // ---------------------------------------------------------------------------
 
 export const TYPE = {

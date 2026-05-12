@@ -17,42 +17,13 @@
 import { supabase } from '@/lib/supabase';
 import { logger } from '../logger';
 
+// JOURNAL verb taxonomy + entry shape live in @vitrine/types so web RSC and
+// Edge functions share the contract. Re-exported so existing
+// `import { type JournalEntry } from '@/lib/api/activity'` keeps working.
+import type { JournalVerb, JournalEntry, GetJournalOptions } from '@vitrine/types';
+export type { JournalVerb, JournalEntry, GetJournalOptions };
+
 const log = logger.create('ActivityAPI');
-
-/**
- * JOURNAL verb taxonomy. Mirrors verbs from notifications.ts but kept
- * separate so the type system enforces "JOURNAL verbs are never sent
- * through the notification feed."
- */
-export type JournalVerb =
-  | 'you_listed_collectible'
-  | 'you_created_showcase'
-  | 'you_changed_status'
-  | 'you_changed_value';
-
-export interface JournalEntry {
-  /** Stable id for FlatList keys + read/seen tracking. */
-  id: string;
-  verb: JournalVerb;
-  /** ISO timestamp; sortable as a string (UTC). */
-  time: string;
-  /** Object the action was performed on. */
-  collectibleId?: string;
-  collectibleTitle?: string;
-  collectibleImage?: string;
-  showcaseId?: string;
-  showcaseTitle?: string;
-  /** For status/value verbs. */
-  prevValue?: unknown;
-  newValue?: unknown;
-}
-
-export interface GetJournalOptions {
-  /** Cap per-source pull. Default 25; the merged result is sliced separately. */
-  limit?: number;
-  /** Chronology cutoff — only return entries newer than this. */
-  since?: Date;
-}
 
 /**
  * Pull journal entries for a single user from three source tables:

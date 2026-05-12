@@ -10,36 +10,13 @@ import { supabase } from '@/lib/supabase';
 import { uploadWithVariants } from '@/lib/image-utils';
 import { logger } from '../logger';
 
+// Domain types now live in @vitrine/types so web RSC + future Edge functions
+// share the same User shape. Re-exported here so existing
+// `import { type User } from '@/lib/api/auth'` call sites keep working.
+import type { User, ProfileStatus } from '@vitrine/types';
+export type { User, ProfileStatus };
+
 const log = logger.create('Auth');
-
-export interface User {
-  id: string;
-  email: string | null;
-  phoneNumber: string | null;
-  displayName: string | null;
-  username: string | null;
-  avatarUrl: string | null;
-  bio?: string | null;
-  featuredShowcaseId?: string | null;
-  crownJewelCollectibleId?: string | null;
-  onboardingCompletedAt?: string | null;
-  followersCount?: number;
-  followingCount?: number;
-  collectiblesCount?: number;
-  showcasesCount?: number;
-  /**
-   * V3 Network surface privacy gate. Controls whether visitors can see
-   * this user's Followers / Following chips on the NETWORK lens. Owners
-   * always bypass the gate when viewing their own profile.
-   */
-  followListsVisibility?: 'public' | 'private';
-  createdAt?: string | null;
-}
-
-export interface ProfileStatus {
-  isComplete: boolean;
-  missing: ('displayName' | 'username' | 'email')[];
-}
 
 export interface VerifyOtpResponse {
   user: User;

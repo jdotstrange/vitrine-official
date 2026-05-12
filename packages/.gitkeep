@@ -1,4 +1,0 @@
-# Placeholder so git tracks the packages/ directory.
-# Day 2 will populate this with @vitrine/design-tokens, @vitrine/types,
-# @vitrine/api, @vitrine/constants, @vitrine/domain.
-# See docs/MONOREPO_STRUCTURE.md for the extraction plan.

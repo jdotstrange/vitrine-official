@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { SectionLabel } from "./section-label"
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL, PLAY_STORE_URL } from "@vitrine/constants"
 
 const footerLinks = {
   product: [

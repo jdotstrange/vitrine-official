@@ -1,6 +1,10 @@
 import { colors } from '@/lib/colors';
 
-export type ListingStatus = 'SELL_TRADE' | 'FOR_SALE' | 'FOR_TRADE' | 'NFST';
+// Canonical ListingStatus union lives in @vitrine/types. Re-exported so
+// existing `import { type ListingStatus } from '@/lib/status-utils'`
+// continues to work.
+import type { ListingStatus } from '@vitrine/types';
+export type { ListingStatus };
 
 export interface StatusConfig {
   label: string;

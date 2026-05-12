@@ -11,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { useTheme, RADII, TYPE } from '@/lib/design';
-import { DARK_COLORS } from '@/lib/design/tokens';
+import { DARK_COLORS } from '@vitrine/design-tokens';
 
 /**
  * Button — the V3 CTA primitive.

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL, PLAY_STORE_URL } from "@vitrine/constants"
 
 interface ShareLandingProps {
   type: "collectible" | "showcase" | "profile"

@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { Trash2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/lib/colors';
-import { SHARE_URLS } from '@/lib/constants';
+import { SHARE_URLS } from '@vitrine/constants';
 import { getStatusConfig, type ListingStatus } from '@/lib/status-utils';
 import { deleteTradingCard, type TradingCard } from '@/lib/api/trading-cards';
 import { logger } from '@/lib/logger';

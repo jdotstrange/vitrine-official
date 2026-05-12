@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Share2, Flag, Copy } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
-import { SHARE_URLS } from '@/lib/constants';
+import { SHARE_URLS } from '@vitrine/constants';
 import { formatTimeAgo } from '@/lib/format-time';
 
 export interface DetailFooterProps {

@@ -43,7 +43,7 @@ import { sendNotification } from '@/lib/api/notifications';
 import { recordView } from '@/lib/api/views';
 import { blockUser } from '@/lib/api/blocked';
 import { formatCount } from '@/lib/format-count';
-import { SHARE_URLS } from '@/lib/constants';
+import { SHARE_URLS } from '@vitrine/constants';
 import {
   AssetMatrixCard,
   CollectibleGridCard,

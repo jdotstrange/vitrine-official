@@ -12,10 +12,10 @@ import { sendNotification } from './notifications';
 
 const log = logger.create('API');
 
-/**
- * Listing Status
- */
-export type ListingStatus = 'NFST' | 'FOR_SALE' | 'FOR_TRADE' | 'SELL_TRADE';
+// Domain enums live in @vitrine/types. Re-exported so existing
+// `import { type ListingStatus } from '@/lib/api/collectibles'` keeps working.
+import type { ListingStatus, CollectibleType } from '@vitrine/types';
+export type { ListingStatus, CollectibleType };
 
 /**
  * Create Collectible Request
@@ -33,8 +33,6 @@ export interface CreateCollectibleRequest {
   value?: number;
   showcaseId?: string;
 }
-
-export type CollectibleType = 'memorabilia' | 'trading_card';
 
 function mapRowToResponse(item: Record<string, any>): CreateCollectibleResponse {
   return {

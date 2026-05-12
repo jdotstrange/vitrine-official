@@ -12,7 +12,7 @@ import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { Chip } from '@/components/vault';
-import { TRAIT_CONFIG, TRAIT_ORDER } from '@/lib/design';
+import { TRAIT_CONFIG, TRAIT_ORDER } from '@vitrine/design-tokens';
 
 export interface ChipRailItem {
   kind: 'type' | 'trait';

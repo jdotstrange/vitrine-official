@@ -7,7 +7,7 @@ import { SectionLabel } from "@/components/section-label"
 import { useState } from "react"
 import { MagneticButton } from "@/components/magnetic-button"
 import { PhoneFrame } from "@/components/app-ui/phone-frame"
-import { APP_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL } from "@vitrine/constants"
 import type { FieldExample } from "@/lib/category-data"
 
 interface Props {

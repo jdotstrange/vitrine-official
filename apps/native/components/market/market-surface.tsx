@@ -24,7 +24,7 @@ import {
   type MarketFilterState,
 } from '@/components/collectibles/market-search-filter-sheet';
 import type { FilterOption } from '@/components/collectibles/collection-filter-controls';
-import { TRAIT_CONFIG, TRAIT_ORDER } from '@/lib/design';
+import { TRAIT_CONFIG, TRAIT_ORDER } from '@vitrine/design-tokens';
 import {
   addRecentSearch,
   getRecentSearches,

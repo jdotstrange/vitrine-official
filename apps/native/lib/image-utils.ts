@@ -1,6 +1,6 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
-import { IMAGE_UPLOAD } from './constants';
+import { IMAGE_UPLOAD } from '@vitrine/constants';
 import { supabase } from './supabase';
 import { logger } from './logger';
 

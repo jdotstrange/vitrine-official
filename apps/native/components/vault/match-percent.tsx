@@ -14,7 +14,7 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
 
-import { TYPE, getMatchTier } from '@/lib/design';
+import { TYPE, getMatchTier } from '@vitrine/design-tokens';
 
 type Props = {
   pct: number;

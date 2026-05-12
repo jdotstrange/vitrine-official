@@ -42,7 +42,7 @@ import {
 } from 'lucide-react-native';
 import type { Href } from 'expo-router';
 
-import { COLORS } from './tokens';
+import { COLORS } from '@vitrine/design-tokens';
 import { CollectibleIcon, ShowcaseIcon } from '@/components/vault/icons';
 
 import type { NotificationType, PreferenceSection } from '@/lib/api/notifications';

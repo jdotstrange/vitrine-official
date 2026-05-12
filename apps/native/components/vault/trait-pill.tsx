@@ -14,7 +14,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { DARK_COLORS, RADII, TYPE, getTraitChrome } from '@/lib/design';
+import { DARK_COLORS, RADII, TYPE, getTraitChrome } from '@vitrine/design-tokens';
 
 type Props = {
   traitKey: string;

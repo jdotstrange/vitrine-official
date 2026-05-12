@@ -32,7 +32,7 @@ import {
 } from '@/lib/api/tracking';
 import { sendNotification } from '@/lib/api/notifications';
 import { recordView } from '@/lib/api/views';
-import { SHARE_URLS } from '@/lib/constants';
+import { SHARE_URLS } from '@vitrine/constants';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import {

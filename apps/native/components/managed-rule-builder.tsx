@@ -40,7 +40,7 @@ import {
   type RuleMatchMode,
   type RuleOp,
 } from '@/lib/api/managed-rules';
-import { TRAIT_CONFIG, type TraitKey } from '@/lib/design/trait-config';
+import { TRAIT_CONFIG, type TraitKey } from '@vitrine/design-tokens';
 import { STATUS_CONFIG, type ListingStatus } from '@/lib/design/status-config';
 import { useTheme, RADII, SPACING, TYPE } from '@/lib/design';
 

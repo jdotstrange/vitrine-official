@@ -1,0 +1,15 @@
+{
+  "name": "@vitrine/types",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitrine shared domain types — User, Collectible status enums, Managed Showcase rule grammar, Activity journal entries, etc. Pure types, no runtime dependencies. Will host the generated Supabase Database type once `supabase gen types typescript` is wired into CI.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false
+}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion"
 import { MagneticButton } from "@/components/magnetic-button"
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/constants"
+import { APP_STORE_URL, PLAY_STORE_URL } from "@vitrine/constants"
 
 function AppleIcon({ className }: { className?: string }) {
   return (
