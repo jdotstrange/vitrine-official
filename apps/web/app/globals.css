@@ -4,231 +4,214 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =============================================================================
-   VITRINE DESIGN SYSTEM — Contemporary Gallery (Light Theme Adaptation)
-   1:1 token parity with consumer app's lib/colors.ts + DESIGN_SYSTEM_CURRENT.md
-   All visual decisions flow through these variables — no hardcoded values.
+   VITRINE DESIGN SYSTEM — V3 "Vault" (Dark-First, Frost-on-Void)
+   Source of truth: packages/design-tokens/src/tokens.ts (DARK_COLORS)
+   Every visual decision flows through these CSS variables.
    ============================================================================= */
 
 :root {
   /* -------------------------------------------------------------------------
-     FOUNDATION — Light mode adaptation of the warm dark base
-     Dark app: background #0C0C10, foreground #EFEFE7
-     Light site: inverted — warm off-white bg, near-black text
+     V3 NATIVE TOKENS — direct mirror of DARK_COLORS in @vitrine/design-tokens.
+     These are the new canonical names; the legacy names below are aliases.
      ------------------------------------------------------------------------- */
-  --background: #EFEFE7;
-  --foreground: #0C0C10;
+
+  /* Canvas */
+  --void: #000000;
+
+  /* Text — fg1/fg2/fg3 are the marketing aliases for primary/secondary/tertiary */
+  --text-primary: #f0f0f0;
+  --text-secondary: #a1a4a5;
+  --text-tertiary: #5c5c5c;
+  --text-inverse: #000000;
+  --fg1: #f0f0f0;
+  --fg2: #a1a4a5;
+  --fg3: #5c5c5c;
+
+  /* Frost borders — cool-white at varying alpha on void */
+  --frost-border: rgba(214, 235, 253, 0.19);
+  --frost-divider: rgba(214, 235, 253, 0.12);
+  --frost-border-strong: rgba(214, 235, 253, 0.32);
+
+  /* Surfaces */
+  --sheet-bg: #0a0a0a;
+  --press-overlay: rgba(255, 255, 255, 0.06);
+  --scrim: rgba(0, 0, 0, 0.7);
+
+  /* Brand — warm ivory monochrome (the only chromatic accent in V3) */
+  --brand-volt: #E8E0D4;
+  --brand-volt-fill: rgba(232, 224, 212, 0.10);
+  --brand-volt-border: rgba(232, 224, 212, 0.28);
+
+  /* Semantic — status + destructive */
+  --semantic-green: #11ff99;
+  --semantic-green-fill: rgba(17, 255, 153, 0.18);
+  --semantic-green-border: rgba(17, 255, 153, 0.35);
+  --semantic-blue: #3b9eff;
+  --semantic-blue-fill: rgba(59, 158, 255, 0.20);
+  --semantic-blue-border: rgba(59, 158, 255, 0.40);
+  --semantic-orange: #ff801f;
+  --semantic-orange-fill: rgba(255, 128, 31, 0.20);
+  --semantic-orange-border: rgba(255, 128, 31, 0.40);
+  --semantic-silver-fill: rgba(214, 235, 253, 0.12);
+  --semantic-red: #ff2047;
+
+  /* Trait accents — fills 18% / borders 40% */
+  --trait-pink: #ec4899;
+  --trait-pink-fill: rgba(236, 72, 153, 0.18);
+  --trait-pink-border: rgba(236, 72, 153, 0.40);
+  --trait-violet: #a78bfa;
+  --trait-violet-fill: rgba(167, 139, 250, 0.18);
+  --trait-violet-border: rgba(167, 139, 250, 0.40);
+  --trait-olive: #bbca3a;
+  --trait-olive-fill: rgba(187, 202, 58, 0.18);
+  --trait-olive-border: rgba(187, 202, 58, 0.40);
+  --trait-cyan: #22d3ee;
+  --trait-cyan-fill: rgba(34, 211, 238, 0.18);
+  --trait-cyan-border: rgba(34, 211, 238, 0.40);
+
+  /* Match grades (comp-confidence tiers) */
+  --match-perfect: var(--semantic-green);
+  --match-strong: var(--semantic-blue);
+  --match-loose: var(--fg1);
 
   /* -------------------------------------------------------------------------
-     SURFACES — Inverted elevation system
-     Dark app: card #161618, surfaceElevated #1E1E22
-     Light site: card white, elevated slightly warm
+     SHADCN / TAILWIND COMPAT — legacy variable names mapped to V3 values.
+     Keeps every shipped UI component working without per-file rewrites.
      ------------------------------------------------------------------------- */
-  --card: #FFFFFF;
-  --card-foreground: #0C0C10;
-  --surface: #FFFFFF;
-  --surface-elevated: #F5F5F0;
 
-  /* -------------------------------------------------------------------------
-     BRAND ACCENT — Mint (#D3FFC3)
-     The primary brand color. Used for CTAs, active states, highlights,
-     and the memorabilia category identity.
-     On light backgrounds: mint bg with dark text for CTAs.
-     ------------------------------------------------------------------------- */
-  --primary: #D3FFC3;
-  --primary-foreground: #0C0C10;
-  --primary-muted: rgba(211, 255, 195, 0.40);
-  --primary-glow: rgba(234, 239, 222, 0.18);
+  --background: var(--void);
+  --foreground: var(--fg1);
+  --card: var(--sheet-bg);
+  --card-foreground: var(--fg1);
+  --popover: var(--sheet-bg);
+  --popover-foreground: var(--fg1);
+  --surface: var(--sheet-bg);
+  --surface-elevated: var(--sheet-bg);
 
-  /* -------------------------------------------------------------------------
-     ATTENTION — Deep Green (#2D9B4C)
-     The only saturated color. Used sparingly for text accents on light,
-     success states, online indicators, and value-up indicators.
-     On the dark app this is success/attention; on light it serves
-     as the high-contrast text accent where mint would be invisible.
-     ------------------------------------------------------------------------- */
-  --attention: #2D9B4C;
+  --primary: var(--brand-volt);
+  --primary-foreground: var(--text-inverse);
+  --primary-muted: var(--brand-volt-fill);
+  --primary-glow: var(--brand-volt-fill);
 
-  /* -------------------------------------------------------------------------
-     ACCENT — Warm Sand (#E7D5BA)
-     Secondary accent. Trading card category identity. Warm decorative tints.
-     ------------------------------------------------------------------------- */
-  --accent: #E7D5BA;
-  --accent-foreground: #0C0C10;
-  --accent-muted: rgba(231, 213, 186, 0.40);
-  --accent-glow: rgba(231, 213, 186, 0.18);
+  --secondary: var(--sheet-bg);
+  --secondary-foreground: var(--fg1);
+  --secondary-hover: var(--press-overlay);
 
-  /* -------------------------------------------------------------------------
-     WARM UI PALETTE — Trawelt-derived warm tones
-     ------------------------------------------------------------------------- */
-  --warm-sand: #E7D5BA;
-  --warm-sage: #EAEFDE;
-  --warm-ivory: #EFEFE7;
+  --muted: var(--frost-divider);
+  --muted-foreground: var(--fg2);
 
-  /* -------------------------------------------------------------------------
-     SECONDARY — Light mode adaptation
-     Dark app: #1E1E22 bg, #E4E9DC text
-     Light site: warm sage bg, dark text
-     ------------------------------------------------------------------------- */
-  --secondary: #EAEFDE;
-  --secondary-foreground: #3A3A38;
-  --secondary-hover: #DDE5CE;
+  --accent: var(--brand-volt);
+  --accent-foreground: var(--text-inverse);
+  --accent-muted: var(--brand-volt-fill);
+  --accent-glow: var(--brand-volt-fill);
 
-  /* -------------------------------------------------------------------------
-     MUTED
-     Dark app: #1E1E22 bg, #C1C1C1 text
-     Light site: warm ivory bg, medium gray text
-     ------------------------------------------------------------------------- */
-  --muted: #F5F5F0;
-  --muted-foreground: #7A7A80;
+  --destructive: var(--semantic-red);
+  --destructive-foreground: var(--fg1);
+  --success: var(--semantic-green);
+  --success-foreground: var(--text-inverse);
+  --warning: var(--semantic-orange);
+  --warning-foreground: var(--text-inverse);
+  --attention: var(--brand-volt);
 
-  /* -------------------------------------------------------------------------
-     STATUS QUARTET — Muted Jewels
-     Scannable by hue. Identical on dark and light.
-     ------------------------------------------------------------------------- */
-  --status-sale: #C47878;
-  --status-trade: #6B9EB5;
-  --status-sell-trade: #C49B5A;
-  --status-nfst: #7A7A80;
+  --positive: var(--semantic-green);
+  --negative: var(--semantic-red);
+  --neutral: var(--fg2);
 
-  /* -------------------------------------------------------------------------
-     SEMANTIC / FUNCTIONAL
-     ------------------------------------------------------------------------- */
-  --destructive: #C4655A;
-  --destructive-foreground: #FFFFFF;
-  --success: #2D9B4C;
-  --success-foreground: #FFFFFF;
-  --warning: #C49B5A;
-  --warning-foreground: #0C0C10;
+  --border: var(--frost-border);
+  --border-subtle: var(--frost-divider);
+  --border-accent: var(--frost-border-strong);
+  --input: var(--sheet-bg);
+  --ring: var(--brand-volt-border);
 
-  /* Value change indicators */
-  --positive: #2D9B4C;
-  --negative: #C4655A;
-  --neutral: #7A7A80;
+  /* Status quartet — mapped to semantic V3 hues */
+  --status-sale: var(--semantic-green);
+  --status-trade: var(--semantic-blue);
+  --status-sell-trade: var(--semantic-orange);
+  --status-nfst: var(--fg2);
 
-  /* Detail coverage density */
-  --density-low: #C1C1C1;
-  --density-medium: #E4E9DC;
-  --density-high: #D3FFC3;
+  /* Density (legacy detail-coverage indicator) */
+  --density-low: var(--fg3);
+  --density-medium: var(--fg2);
+  --density-high: var(--brand-volt);
 
-  /* Online / offline */
-  --online-dot: #2D9B4C;
-  --offline-text: #C1C1C1;
+  --online-dot: var(--semantic-green);
+  --offline-text: var(--fg3);
 
-  /* -------------------------------------------------------------------------
-     BORDERS — Light mode adaptation
-     Dark app: rgba(255, 255, 255, 0.08)
-     Light site: rgba(0, 0, 0, 0.08)
-     ------------------------------------------------------------------------- */
-  --border: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.04);
-  --border-accent: rgba(0, 0, 0, 0.10);
-  --input: #FFFFFF;
-  --ring: rgba(0, 0, 0, 0.15);
-
-  /* -------------------------------------------------------------------------
-     GLASS EFFECTS — Light mode adaptation
-     Dark app: rgba(22, 22, 24, 0.8) + rgba(255, 255, 255, 0.06) border
-     Light site: frosted white with dark border
-     ------------------------------------------------------------------------- */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-bg-light: rgba(255, 255, 255, 0.60);
-  --glass-border: rgba(0, 0, 0, 0.06);
-  --glass-blur: 20px;
+  /* Glass — frosted dark sheets */
+  --glass-bg: rgba(10, 10, 10, 0.72);
+  --glass-bg-light: rgba(10, 10, 10, 0.50);
+  --glass-border: var(--frost-border);
+  --glass-blur: 24px;
   --glass-blur-heavy: 40px;
-  --gradient-overlay: rgba(250, 250, 247, 0.85);
+  --gradient-overlay: rgba(0, 0, 0, 0.72);
 
-  /* -------------------------------------------------------------------------
-     GLOW — Mint-tinted for light mode
-     Dark app: rgba(211, 255, 195, 0.18)
-     Light site: same mint glow, slightly stronger for visibility
-     ------------------------------------------------------------------------- */
-  --glow-mint: rgba(234, 239, 222, 0.25);
-  --glow-sand: rgba(231, 213, 186, 0.25);
+  /* Glow */
+  --glow-mint: var(--brand-volt-fill);
+  --glow-sand: var(--brand-volt-fill);
 
-  /* -------------------------------------------------------------------------
-     SHADOW SYSTEM — Warm, subtle shadows for light mode
-     ------------------------------------------------------------------------- */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
-  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* Shadows — kept neutral on dark */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40), 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.40), 0 2px 4px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.45), 0 4px 8px rgba(0, 0, 0, 0.30);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 16px rgba(0, 0, 0, 0.40);
+  --shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-accent: 0 4px 12px rgba(232, 224, 212, 0.18);
+  --shadow-accent-lg: 0 8px 24px rgba(232, 224, 212, 0.28);
+  --shadow-accent-sand: 0 4px 12px rgba(232, 224, 212, 0.18);
 
-  /* Mint-tinted accent shadows */
-  --shadow-accent: 0 4px 12px rgba(211, 255, 195, 0.30);
-  --shadow-accent-lg: 0 8px 24px rgba(211, 255, 195, 0.40);
-  /* Sand-tinted accent shadows */
-  --shadow-accent-sand: 0 4px 12px rgba(231, 213, 186, 0.30);
+  /* Grid texture — barely-there frost on void */
+  --grid-line-color: rgba(214, 235, 253, 0.04);
+  --grid-line-color-accent: rgba(214, 235, 253, 0.06);
 
-  /* -------------------------------------------------------------------------
-     GRID TEXTURE
-     ------------------------------------------------------------------------- */
-  --grid-line-color: rgba(0, 0, 0, 0.03);
-  --grid-line-color-accent: rgba(0, 0, 0, 0.04);
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, var(--brand-volt) 0%, var(--frost-border-strong) 100%);
+  --gradient-mint: var(--gradient-primary);
+  --gradient-surface: linear-gradient(180deg, var(--sheet-bg) 0%, var(--void) 100%);
+  --gradient-radial-primary: radial-gradient(ellipse at center, var(--brand-volt-fill) 0%, transparent 70%);
+  --gradient-cyan: var(--brand-volt);
+  --gradient-teal: var(--frost-border-strong);
+  --gradient-pink: var(--semantic-red);
+  --gradient-rose: var(--semantic-red);
 
-  /* -------------------------------------------------------------------------
-     GRADIENTS
-     Upload flow gradient system from design system
-     ------------------------------------------------------------------------- */
-  --gradient-primary: linear-gradient(135deg, #D3FFC3 0%, #EAEFDE 100%);
-  --gradient-mint: linear-gradient(135deg, #D3FFC3 0%, #EAEFDE 100%);
-  --gradient-surface: linear-gradient(180deg, #FAFAF7 0%, #F5F5F0 100%);
-  --gradient-radial-primary: radial-gradient(ellipse at center, rgba(211, 255, 195, 0.10) 0%, transparent 70%);
+  /* Category identity (legacy compat) */
+  --category-memorabilia: var(--brand-volt);
+  --category-memorabilia-muted: var(--brand-volt-fill);
+  --category-memorabilia-glow: var(--brand-volt-fill);
+  --category-memorabilia-text: var(--fg1);
+  --category-cards: var(--brand-volt);
+  --category-cards-muted: var(--brand-volt-fill);
+  --category-cards-glow: var(--brand-volt-fill);
+  --category-cards-text: var(--fg1);
 
-  /* Upload flow gradient tokens */
-  --gradient-cyan: #D3FFC3;
-  --gradient-teal: #EAEFDE;
-  --gradient-pink: #C4655A;
-  --gradient-rose: #B55A50;
+  /* Warm UI palette (legacy compat — collapsed to V3) */
+  --warm-sand: var(--brand-volt);
+  --warm-sage: var(--frost-divider);
+  --warm-ivory: var(--brand-volt);
 
-  /* -------------------------------------------------------------------------
-     CATEGORY IDENTITY
-     Mint (cool) = Memorabilia — physical collectibles
-     Sand (warm) = Trading Cards — API-driven catalog
-     Neutral = Mixed contexts (no category tinting)
-     ------------------------------------------------------------------------- */
-  --category-memorabilia: #EAEFDE;
-  --category-memorabilia-muted: rgba(234, 239, 222, 0.40);
-  --category-memorabilia-glow: rgba(234, 239, 222, 0.18);
-  --category-memorabilia-text: #3A3A38;
+  /* Backward-compat void-* aliases */
+  --void-deep: var(--void);
+  --void-base: var(--sheet-bg);
+  --void-elevated: var(--sheet-bg);
+  --void-surface: var(--sheet-bg);
+  --void-light: var(--frost-divider);
 
-  --category-cards: #E7D5BA;
-  --category-cards-muted: rgba(231, 213, 186, 0.40);
-  --category-cards-glow: rgba(231, 213, 186, 0.18);
-  --category-cards-text: #8B7A5F;
-
-  /* -------------------------------------------------------------------------
-     BACKWARD-COMPATIBLE ALIASES
-     Old variable names → new gallery values.
-     Tailwind utility classes resolve through these.
-     ------------------------------------------------------------------------- */
-  --void-deep: var(--background);
-  --void-base: #F5F5F0;
-  --void-elevated: var(--card);
-  --void-surface: var(--secondary);
-  --void-light: var(--muted);
-
-  /* cyan-glow → neutral muted (no green text) */
-  --cyan-glow: var(--muted-foreground);
-  --cyan-bright: #6A6A70;
-  --cyan-muted: #5A5A60;
-  --cyan-dim: #4A4A50;
-
-  /* magenta-glow → status-sale (rose jewel) */
-  --magenta-glow: var(--status-sale);
-  --magenta-bright: #B56B6B;
-  --magenta-muted: #A66060;
-  --magenta-dim: #975555;
-
-  --holo-green: var(--muted-foreground);
-  --holo-green-bright: #6A6A70;
-  --holo-green-muted: #5A5A60;
-  --holo-green-dim: #4A4A50;
-
-  --plasma-orange: var(--status-sell-trade);
-  --smart-amber: var(--status-sell-trade);
-  --void-purple: var(--status-nfst);
+  /* cyan-glow / magenta-glow legacy → neutral on V3 */
+  --cyan-glow: var(--fg2);
+  --cyan-bright: var(--fg2);
+  --cyan-muted: var(--fg2);
+  --cyan-dim: var(--fg3);
+  --magenta-glow: var(--semantic-red);
+  --magenta-bright: var(--semantic-red);
+  --magenta-muted: var(--semantic-red);
+  --magenta-dim: var(--fg2);
+  --holo-green: var(--fg2);
+  --holo-green-bright: var(--fg2);
+  --holo-green-muted: var(--fg2);
+  --holo-green-dim: var(--fg3);
+  --plasma-orange: var(--semantic-orange);
+  --smart-amber: var(--semantic-orange);
+  --void-purple: var(--fg3);
 
   /* -------------------------------------------------------------------------
      SPACING / RADII / TRANSITIONS / Z-INDEX
@@ -270,25 +253,21 @@
   --z-tooltip: 600;
 
   /* Sidebar (shadcn compat) */
-  --sidebar: #F5F5F0;
-  --sidebar-foreground: #0C0C10;
-  --sidebar-primary: #D3FFC3;
-  --sidebar-primary-foreground: #0C0C10;
-  --sidebar-accent: #EAEFDE;
-  --sidebar-accent-foreground: #0C0C10;
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar: var(--sheet-bg);
+  --sidebar-foreground: var(--fg1);
+  --sidebar-primary: var(--brand-volt);
+  --sidebar-primary-foreground: var(--text-inverse);
+  --sidebar-accent: var(--brand-volt-fill);
+  --sidebar-accent-foreground: var(--fg1);
+  --sidebar-border: var(--frost-border);
+  --sidebar-ring: var(--brand-volt-border);
 
   /* Chart colors */
-  --chart-1: var(--attention);
-  --chart-2: var(--status-sale);
-  --chart-3: var(--status-trade);
-  --chart-4: var(--status-sell-trade);
-  --chart-5: var(--status-nfst);
-
-  /* Popover */
-  --popover: var(--card);
-  --popover-foreground: var(--card-foreground);
+  --chart-1: var(--brand-volt);
+  --chart-2: var(--semantic-green);
+  --chart-3: var(--semantic-blue);
+  --chart-4: var(--semantic-orange);
+  --chart-5: var(--trait-violet);
 }
 
 /* =============================================================================
@@ -296,11 +275,15 @@
    ============================================================================= */
 
 @theme inline {
-  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
-  --font-heading: "Manrope", "Manrope Fallback", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", "Georgia", serif;
-  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
+  /* Fonts — V3 stack. Variables are wired in apps/web/app/layout.tsx */
+  --font-sans: var(--font-inter), "Inter Fallback", system-ui, sans-serif;
+  --font-display: var(--font-electrolize), "Inter Fallback", system-ui, sans-serif;
+  --font-grotesk: var(--font-grotesk), "Inter Fallback", system-ui, sans-serif;
+  --font-serif: var(--font-caslon), "Georgia", serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-grotesk), "Inter Fallback", system-ui, sans-serif;
 
+  /* shadcn / standard color utilities */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -320,48 +303,66 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-
-  /* Attention (deep green for text on light) */
   --color-attention: var(--attention);
 
-  /* Backward-compatible palette aliases */
+  /* V3 marketing tokens — exposed as Tailwind utilities */
+  --color-void: var(--void);
+  --color-fg1: var(--fg1);
+  --color-fg2: var(--fg2);
+  --color-fg3: var(--fg3);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-frost-border: var(--frost-border);
+  --color-frost-divider: var(--frost-divider);
+  --color-frost-border-strong: var(--frost-border-strong);
+
+  --color-sheet: var(--sheet-bg);
+
+  --color-brand-volt: var(--brand-volt);
+  --color-brand-volt-fill: var(--brand-volt-fill);
+  --color-brand-volt-border: var(--brand-volt-border);
+
+  --color-semantic-green: var(--semantic-green);
+  --color-semantic-blue: var(--semantic-blue);
+  --color-semantic-orange: var(--semantic-orange);
+  --color-semantic-red: var(--semantic-red);
+
+  --color-trait-pink: var(--trait-pink);
+  --color-trait-violet: var(--trait-violet);
+  --color-trait-olive: var(--trait-olive);
+  --color-trait-cyan: var(--trait-cyan);
+
+  /* Backward-compat palette aliases */
   --color-void-deep: var(--void-deep);
   --color-void-base: var(--void-base);
   --color-void-elevated: var(--void-elevated);
   --color-void-surface: var(--void-surface);
   --color-void-light: var(--void-light);
-
   --color-cyan-glow: var(--cyan-glow);
   --color-cyan-bright: var(--cyan-bright);
   --color-cyan-muted: var(--cyan-muted);
   --color-cyan-dim: var(--cyan-dim);
-
   --color-magenta-glow: var(--magenta-glow);
   --color-magenta-bright: var(--magenta-bright);
   --color-magenta-muted: var(--magenta-muted);
   --color-magenta-dim: var(--magenta-dim);
-
   --color-success: var(--success);
   --color-warning: var(--warning);
-
   --color-holo-green: var(--holo-green);
   --color-plasma-orange: var(--plasma-orange);
   --color-smart-amber: var(--smart-amber);
   --color-void-purple: var(--void-purple);
-
-  /* Design system named colors */
   --color-mint: var(--primary);
   --color-warm-sand: var(--warm-sand);
   --color-warm-sage: var(--warm-sage);
   --color-warm-ivory: var(--warm-ivory);
-
-  /* Status quartet */
   --color-status-sale: var(--status-sale);
   --color-status-trade: var(--status-trade);
   --color-status-sell-trade: var(--status-sell-trade);
   --color-status-nfst: var(--status-nfst);
-
-  /* Category identity */
   --color-category-memorabilia: var(--category-memorabilia);
   --color-category-cards: var(--category-cards);
 
@@ -400,6 +401,8 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background: var(--void);
+    color: var(--fg1);
   }
 
   body {
@@ -413,15 +416,14 @@
     @apply font-bold tracking-tight;
   }
 
-  /* JetBrains Mono — dollar amounts / prices ONLY */
   .price, [data-type="price"], [data-type="value"] {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
   ::selection {
-    background: var(--primary-muted);
-    color: var(--foreground);
+    background: var(--brand-volt-fill);
+    color: var(--fg1);
   }
 
   ::-webkit-scrollbar {
@@ -430,25 +432,25 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--surface-elevated);
+    background: var(--void);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--warm-ivory);
+    background: var(--frost-divider);
     border-radius: var(--radius-full);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-foreground);
+    background: var(--frost-border);
   }
 }
 
 /* =============================================================================
-   UTILITY CLASSES
+   LEGACY UTILITY CLASSES — kept alive (rewired to V3) for any remaining
+   consumers. Will be cleaned up alongside legacy components in Phase 6.
    ============================================================================= */
 
 @layer utilities {
-  /* Glass effect — light mode frosted glass */
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));
@@ -471,7 +473,6 @@
     box-shadow: var(--shadow-lg);
   }
 
-  /* Header overlay */
   .hud-overlay {
     background: var(--gradient-overlay);
     backdrop-filter: blur(20px) saturate(1.1);
@@ -479,7 +480,6 @@
     border: 1px solid var(--glass-border);
   }
 
-  /* Shadow utilities */
   .shadow-glow {
     box-shadow: var(--shadow-accent-lg);
   }
@@ -488,19 +488,17 @@
     box-shadow: var(--shadow-accent);
   }
 
-  /* Gradient text — neutral foreground spectrum */
   .text-gradient {
-    background: linear-gradient(135deg, var(--foreground) 0%, var(--muted-foreground) 100%);
+    background: linear-gradient(135deg, var(--fg1) 0%, var(--fg2) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .text-gradient-animated {
-    color: var(--muted-foreground);
+    color: var(--fg2);
   }
 
-  /* Gradient border */
   .border-gradient {
     position: relative;
     border: none;
@@ -520,7 +518,6 @@
     pointer-events: none;
   }
 
-  /* Background grid texture */
   .bg-grid {
     background-image:
       linear-gradient(var(--grid-line-color) 1px, transparent 1px),
@@ -528,7 +525,6 @@
     background-size: 60px 60px;
   }
 
-  /* Ambient glow backgrounds */
   .ambient-primary {
     position: relative;
   }
@@ -541,38 +537,34 @@
     pointer-events: none;
   }
 
-  /* Section label style — uppercase tracking label in heading font */
   .section-label {
-    font-family: var(--font-heading);
+    font-family: var(--font-grotesk);
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--attention);
+    color: var(--brand-volt);
   }
 
-  /* Uppercase tracking label (heading font) — for status indicators, category labels, etc. */
   .label-caps {
-    font-family: var(--font-heading);
+    font-family: var(--font-grotesk);
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
-  /* Brand wordmark */
   .wordmark {
-    font-family: var(--font-heading);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
-  /* Dollar amounts / prices — the ONLY use of JetBrains Mono */
   .font-price {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
-  /* Hide scrollbar */
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -582,16 +574,13 @@
     display: none;
   }
 
-  /* Safe area padding */
   .safe-top { padding-top: env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-  /* Hero text shadow — subtle on light */
   .hero-text-shadow {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
   }
 
-  /* Hover lift */
   .hover-lift {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }
@@ -601,7 +590,6 @@
     box-shadow: var(--shadow-xl);
   }
 
-  /* 3D perspective */
   .perspective-container {
     perspective: 1000px;
     transform-style: preserve-3d;
@@ -612,12 +600,10 @@
     transform: translateZ(0);
   }
 
-  /* Button glow animation — mint pulse */
   .glow-animate {
     animation: glow-pulse 3s ease-in-out infinite;
   }
 
-  /* Stagger delay utilities */
   .stagger-1 { animation-delay: 0.1s; }
   .stagger-2 { animation-delay: 0.2s; }
   .stagger-3 { animation-delay: 0.3s; }
@@ -625,7 +611,6 @@
   .stagger-5 { animation-delay: 0.5s; }
   .stagger-6 { animation-delay: 0.6s; }
 
-  /* Animation utilities */
   .animate-float { animation: float 3s ease-in-out infinite; }
   .animate-fade-in { animation: fade-in 0.5s ease-out; }
   .animate-slide-up { animation: slide-up 0.5s ease-out; }
@@ -635,7 +620,7 @@
 }
 
 /* =============================================================================
-   KEYFRAMES
+   KEYFRAMES — base set + V3 marketing-site additions
    ============================================================================= */
 
 @keyframes float {
@@ -651,10 +636,10 @@
 
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 4px 12px rgba(211, 255, 195, 0.20);
+    box-shadow: 0 4px 12px rgba(232, 224, 212, 0.20);
   }
   50% {
-    box-shadow: 0 4px 20px rgba(211, 255, 195, 0.40);
+    box-shadow: 0 4px 20px rgba(232, 224, 212, 0.40);
   }
 }
 
@@ -681,4 +666,50 @@
 @keyframes reveal-blur {
   from { opacity: 0; filter: blur(10px); transform: translateY(20px); }
   to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
+/* V3 marketing-site keyframes (used by sections in Phase 3) */
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(232, 224, 212, 0);
+  }
+  50% {
+    box-shadow: 0 0 24px 0 rgba(232, 224, 212, 0.18);
+  }
+}
+
+@keyframes feedFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marqueeX {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes ctaGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 224, 212, 0); }
+  50% { box-shadow: 0 0 32px 0 rgba(232, 224, 212, 0.30); }
+}
+
+@keyframes lineDraw {
+  from { stroke-dashoffset: 100%; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes printoutIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes holoSheen {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }

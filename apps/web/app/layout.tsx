@@ -1,6 +1,12 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Inter, Manrope, JetBrains_Mono, Instrument_Serif } from "next/font/google"
+import {
+  Inter,
+  Space_Grotesk,
+  Electrolize,
+  Libre_Caslon_Text,
+  JetBrains_Mono,
+} from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
@@ -10,10 +16,25 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
-const manrope = Manrope({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-manrope",
+  variable: "--font-grotesk",
+})
+
+const electrolize = Electrolize({
+  subsets: ["latin"],
+  display: "swap",
+  weight: "400",
+  variable: "--font-electrolize",
+})
+
+const libreCaslonText = Libre_Caslon_Text({
+  subsets: ["latin"],
+  display: "swap",
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-caslon",
 })
 
 const jetbrainsMono = JetBrains_Mono({
@@ -22,21 +43,13 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
 })
 
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  display: "swap",
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-instrument-serif",
-})
-
 export const metadata: Metadata = {
   title: {
-    default: "Vitrine | Where Collections Come Alive",
+    default: "Vitrine — Everything serious collectors deserve.",
     template: "%s | Vitrine",
   },
   description:
-    "The premier platform for collectors to catalog, showcase, and connect. Transform your passion into a stunning digital collection.",
+    "Catalog, present, track, and transact your collection. Built for serious collectors of cards, watches, comics, sneakers, coins, and beyond.",
   keywords: [
     "collectibles",
     "collection app",
@@ -44,9 +57,10 @@ export const metadata: Metadata = {
     "showcase",
     "collectors",
     "trading cards",
-    "vinyl",
+    "watches",
+    "comics",
     "sneakers",
-    "vintage",
+    "coins",
   ],
   authors: [{ name: "Vitrine" }],
   creator: "Vitrine",
@@ -56,22 +70,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Vitrine",
-    title: "Vitrine | Where Collections Come Alive",
-    description: "The premier platform for collectors to catalog, showcase, and connect.",
-    images: [
-      {
-        url: "/OG_image.png",
-        width: 1200,
-        height: 630,
-        alt: "Vitrine - Where Collections Come Alive",
-      },
-    ],
+    title: "Vitrine — Everything serious collectors deserve.",
+    description:
+      "Catalog, present, track, and transact your collection. Built for serious collectors.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vitrine | Where Collections Come Alive",
-    description: "The premier platform for collectors to catalog, showcase, and connect.",
-    images: ["/OG_image.png"],
+    title: "Vitrine — Everything serious collectors deserve.",
+    description:
+      "Catalog, present, track, and transact your collection. Built for serious collectors.",
   },
   robots: {
     index: true,
@@ -80,12 +87,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.svg",
   },
-    generator: 'v0.app'
 }
 
 export const viewport: Viewport = {
-  themeColor: "#FAFAF7",
-  colorScheme: "light",
+  themeColor: "#000000",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -98,9 +104,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${spaceGrotesk.variable} ${electrolize.variable} ${libreCaslonText.variable} ${jetbrainsMono.variable}`}
+    >
       <body className="font-sans antialiased bg-background text-foreground">
-        {/* Custom cursor disabled for better UX */}
         {children}
         <Analytics />
       </body>
