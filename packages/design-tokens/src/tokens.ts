@@ -22,10 +22,71 @@
  */
 
 // ---------------------------------------------------------------------------
+// COLOR SHAPE — explicit interface so palette values are typed as `string`
+// instead of literal hex tokens. Without this, `as const` would force every
+// property to its specific literal type (`'#11ff99'` rather than `string`),
+// which prevents reassigning colors of the same shape (e.g. theming a label
+// from textTertiary -> traitOlive).
+// ---------------------------------------------------------------------------
+
+export interface ThemeColors {
+  // Canvas
+  void: string;
+
+  // Text
+  textPrimary: string;
+  textSecondary: string;
+  textTertiary: string;
+  textInverse: string;
+
+  // Structure
+  frostBorder: string;
+  frostDivider: string;
+  frostBorderStrong: string;
+
+  // Surfaces
+  sheetBg: string;
+  pressOverlay: string;
+  scrim: string;
+
+  // Brand
+  brandVolt: string;
+  brandVoltFill: string;
+  brandVoltBorder: string;
+
+  // Semantic
+  semanticGreen: string;
+  semanticGreenFill: string;
+  semanticGreenBorder: string;
+  semanticBlue: string;
+  semanticBlueFill: string;
+  semanticBlueBorder: string;
+  semanticOrange: string;
+  semanticOrangeFill: string;
+  semanticOrangeBorder: string;
+  semanticSilverFill: string;
+  semanticRed: string;
+
+  // Trait
+  traitPink: string;
+  traitPinkFill: string;
+  traitPinkBorder: string;
+  traitViolet: string;
+  traitVioletFill: string;
+  traitVioletBorder: string;
+  traitOlive: string;
+  traitOliveFill: string;
+  traitOliveBorder: string;
+  traitCyan: string;
+  traitCyanFill: string;
+  traitCyanBorder: string;
+}
+
+// ---------------------------------------------------------------------------
 // COLOR — DARK MODE (default, premium archive aesthetic)
 // ---------------------------------------------------------------------------
 
-export const DARK_COLORS = {
+export const DARK_COLORS: ThemeColors = {
   // Canvas
   void: '#000000',                                   // color.bg.canvas
 
@@ -83,13 +144,13 @@ export const DARK_COLORS = {
   traitCyan: '#22d3ee',                              // color.trait.graded
   traitCyanFill: 'rgba(34, 211, 238, 0.18)',         // color.trait.graded.fill
   traitCyanBorder: 'rgba(34, 211, 238, 0.40)',       // color.trait.graded.border
-} as const;
+};
 
 // ---------------------------------------------------------------------------
 // COLOR — LIGHT MODE (clean catalog / gallery aesthetic)
 // ---------------------------------------------------------------------------
 
-export const LIGHT_COLORS = {
+export const LIGHT_COLORS: ThemeColors = {
   // Canvas
   void: '#FFFFFF',                                   // color.bg.canvas
 
@@ -147,7 +208,7 @@ export const LIGHT_COLORS = {
   traitCyan: '#1AADCC',                              // color.trait.graded
   traitCyanFill: 'rgba(26, 173, 204, 0.10)',         // color.trait.graded.fill
   traitCyanBorder: 'rgba(26, 173, 204, 0.30)',       // color.trait.graded.border
-} as const;
+};
 
 // ---------------------------------------------------------------------------
 // BACKWARD COMPAT — `COLORS` alias points to DARK_COLORS.
@@ -157,12 +218,6 @@ export const LIGHT_COLORS = {
 // ---------------------------------------------------------------------------
 
 export const COLORS = DARK_COLORS;
-
-// ---------------------------------------------------------------------------
-// COLOR SHAPE — type derived from the token objects for the theme system.
-// ---------------------------------------------------------------------------
-
-export type ThemeColors = typeof DARK_COLORS;
 
 // ---------------------------------------------------------------------------
 // TYPOGRAPHY — font family keys (mapped to loaded @expo-google-fonts faces
