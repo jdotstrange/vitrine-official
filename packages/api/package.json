@@ -1,0 +1,21 @@
+{
+  "name": "@vitrine/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitrine API surface — Supabase queries + RPC wrappers + business helpers shared between native and web. Each module exposes a createXApi(supabase, logger) factory; the package's mega-factory createApi() composes them. A bindToSingleton() facade preserves native's flat function-call style.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@vitrine/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.98.0"
+  }
+}

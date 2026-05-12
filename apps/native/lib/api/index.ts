@@ -1,16 +1,51 @@
-// API module exports
-// Centralized exports for all API utilities
+/**
+ * Native API barrel.
+ *
+ * Day 2.5 monorepo migration: most modules now live in `@vitrine/api` and
+ * are bound to a process-wide singleton at boot via `bindToSingleton(...)`.
+ * The flat re-exports below preserve the pre-Day-2 import shape so existing
+ * call sites (`import { getCollectibleComps } from '@/lib/api'`) keep working.
+ *
+ * A handful of modules still live locally because they depend on platform-only
+ * APIs that have no web equivalent yet:
+ *   - auth, collectibles → uploadWithVariants (expo-image-manipulator)
+ *   - tracking            → CollectionItem from @/components
+ *   - market              → CollectionItem from @/components
+ *   - views               → expo-crypto, AsyncStorage device id
+ *   - trading-cards       → still on the legacy Railway client
+ *   - client              → ApiException helper, Railway-era only
+ *
+ * Those are re-exported below from their existing native paths.
+ */
 
-// Base client and configuration
-export { apiClient, ApiException, API_BASE_URL, API_TIMEOUT } from './client';
+import { bindToSingleton } from '@vitrine/api';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
-// Category API
-export { getCategoryTree, type CategoryTreeResponse, type CategoryTreeType, type CategoryTreeCategory, type CategoryTreeSubcategory } from './categories';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// Fields API
-export { resolveFields, type ResolvedField, type ResolvedFieldOption, type ResolveFieldsResponse } from './fields';
+// Bind the singleton at module load (idempotent if re-imported).
+bindToSingleton({
+  supabase,
+  logger,
+  env: { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY },
+});
 
-// Collectibles API
+// ───────────────────────────────────────────────────────────────────────────
+// Re-exports from @vitrine/api (the shared package)
+// ───────────────────────────────────────────────────────────────────────────
+
+export * from '@vitrine/api';
+
+// ───────────────────────────────────────────────────────────────────────────
+// Native-only modules (still in apps/native/lib/api/)
+// ───────────────────────────────────────────────────────────────────────────
+
+// Base client and configuration (Railway-era helper, used by trading-cards)
+export { ApiException } from './client';
+
+// Collectibles API (depends on uploadWithVariants → expo-image-manipulator)
 export {
   createCollectible,
   updateCollectible,
@@ -25,7 +60,7 @@ export {
   type KeyDetailsRequest,
 } from './collectibles';
 
-// Trading Cards API
+// Trading Cards API (legacy Railway client)
 export {
   searchCards,
   getCardDetails,
@@ -47,21 +82,7 @@ export {
   type TradingCard,
 } from './trading-cards';
 
-// Follows API
-export {
-  followUser,
-  unfollowUser,
-  isFollowing,
-  getFollowers,
-  getFollowing,
-  getMutualFollows,
-  getFollowCounts,
-  getFollowingIds,
-  type FollowUser,
-  type FollowCounts,
-} from './follows';
-
-// Auth / User API
+// Auth / User API (depends on uploadWithVariants for avatar uploads)
 export {
   getUserById,
   getUserByUsername,
@@ -70,53 +91,7 @@ export {
   type User,
 } from './auth';
 
-// Search API
-export {
-  searchUsers,
-  searchCollectibles,
-  type SearchUserResult,
-  type SearchCollectibleResult,
-} from './search';
-
-// Explore API
-export {
-  getHotItems,
-  getExploreCategories,
-  getNewListings,
-  getForSaleNow,
-  getCollectorsToFollow,
-  browseCollectibles,
-  type HotItem,
-  type ExploreCategory,
-  type NewListing as ExploreNewListing,
-  type ListedItem,
-  type FeaturedCollector as ExploreFeaturedCollector,
-  type BrowseFilters,
-  type BrowseResult,
-} from './explore';
-
-// Showcases API
-export {
-  createShowcase,
-  deleteShowcase,
-  updateShowcase,
-  updateShowcaseRules,
-  previewRuleMatches,
-  getShowcaseCollectibleIds,
-  getUserShowcases,
-  getShowcaseById,
-  type CreateShowcaseParams,
-  type CreateShowcaseManualParams,
-  type CreateShowcaseManagedParams,
-  type UpdateShowcaseParams,
-  type UpdateShowcaseRulesParams,
-  type UserShowcase,
-  type ShowcaseDetail,
-  type ShowcaseDetailCollectible,
-  type ShowcaseDetailItem,
-} from './showcases';
-
-// Tracking API
+// Tracking API (depends on @/components/collectibles/collection)
 export {
   trackItem,
   untrackItem,
@@ -130,18 +105,7 @@ export {
   type CategoryCount,
 } from './tracking';
 
-// Notifications API
-export {
-  sendNotification,
-  getNotificationPreferences,
-  saveNotificationPreferences,
-  type NotificationType,
-  type NotifyPayload,
-  type NotificationPreference,
-  type PreferenceSection,
-} from './notifications';
-
-// Views API (anonymous view tracking)
+// Views API (depends on expo-crypto + AsyncStorage device id)
 export {
   recordView,
   getViewCounts,
@@ -149,33 +113,7 @@ export {
   type ViewCounts,
 } from './views';
 
-// Activity API (JOURNAL stream + merge)
-export {
-  getJournalEntries,
-  mergeActivityStreams,
-  type JournalVerb,
-  type JournalEntry,
-  type GetJournalOptions,
-  type MergedActivityItem,
-} from './activity';
-
-// Network API (V3 NETWORK lens)
-export {
-  getSuggestedCollectors,
-  getMutualFollows as getMutualFollowsV2,
-  getFollowersWithPrivacy,
-  getFollowingWithPrivacy,
-  setFollowListsVisibility,
-  getFollowListsVisibility,
-  type SuggestedCollector,
-  type SuggestedReasonCode,
-  type SuggestedReasonMeta,
-  type GetSuggestedCollectorsOptions,
-  type FollowListsVisibility,
-  type FollowListResult,
-} from './network';
-
-// Market API (browse_market_v2 RPC + tiered search RPCs)
+// Market API (depends on @/components/collectibles/collection)
 export {
   browseMarket,
   getMarketOverviewStats,
@@ -190,39 +128,3 @@ export {
   type ShowcaseSearchResult,
   type MarketSearchChipFilters,
 } from './market';
-
-// Blocked Users API
-export {
-  getBlockedUsers,
-  blockUser,
-  unblockUser,
-  isBlocked,
-  type BlockedUser,
-} from './blocked';
-
-// Managed Showcase rule evaluator (shared with Edge functions)
-export {
-  isOpValidForField,
-  defaultOpForField,
-  opsForField,
-  validateRules,
-  itemMatchesManagedRules,
-  evaluateManagedRules,
-  evalRowFromDbRow,
-  evalRowFromCollectionItem,
-  normalizeText,
-  normalizeTraitToken,
-  labelForField,
-  labelForOp,
-  formatCondition,
-  formatRulesSummary,
-  type RuleField,
-  type RuleOp,
-  type RuleMatchMode,
-  type ConditionValue,
-  type Condition,
-  type ManagedRules,
-  type EvalCollectible,
-  type DbCollectibleRow,
-  type ValidationResult,
-} from './managed-rules';

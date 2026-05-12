@@ -1,26 +1,42 @@
 # Architecture
 
-Last updated: 2026-05-06
-Last verified: 2026-05-06
+Last updated: 2026-05-11
+Last verified: 2026-05-11
 
 ## System Overview
-Vitrine is an Expo React Native app with Expo Router screens, Supabase-backed data/auth/Edge Functions/cron, Stream-backed messaging/feeds, and a V3 design system with Light/Dark/Auto theming. The app uses a profile-as-home architecture where the collector's profile hub (five lenses) is the landing surface. Messages is a dedicated tab. The HUD overlay has been removed. Shared surface components and a hybrid client/server evaluation model power the managed showcase system.
+Vitrine is a pnpm + Turborepo monorepo with two apps (`apps/native` Expo + `apps/web` Next.js) sharing a single Supabase backend, Stream-backed messaging/feeds, and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). The native app uses a profile-as-home architecture where the collector's profile hub (five lenses) is the landing surface. Messages is a dedicated tab. The HUD overlay has been removed. Shared surface components and a hybrid client/server evaluation model power the managed showcase system. The web app currently delivers marketing pages plus public share resolvers (`/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`).
 
-## Frontend Architecture
-- Routes live under `app/`.
-- Design-lab/sandbox work lives under `app/(design-lab)/`.
-- Shared UI lives in `components/`.
-- V3 reusable UI lives in `components/vault/` (barrel-exported via `index.ts`).
+## Monorepo Layout
+- `apps/native` (`@vitrine/native`): Expo SDK 54, RN 0.81, Expo Router. iOS/Android builds via EAS.
+- `apps/web` (`@vitrine/web`): Next.js 16, React 19, Tailwind v4, shadcn/ui. Deploys to Vercel (`myvitrine.app`).
+- `packages/design-tokens` (`@vitrine/design-tokens`): platform-agnostic colors, typography, spacing, radii, trait/status/match-tier helpers. Pure TS, no RN deps.
+- `packages/constants` (`@vitrine/constants`): share URL helpers, store URLs, upload limits, pagination defaults.
+- `packages/types` (`@vitrine/types`): shared domain types + generated Supabase `Database` type. Type-only.
+- `packages/api` (`@vitrine/api`): Supabase API modules in factory form (`createXApi(supabase, logger, env)`) composed by `createApi()`, with a `bindToSingleton()` facade and flat re-exports for native call sites.
+- `supabase/`: migrations + Edge Functions (single project, used by both apps).
+
+## Frontend Architecture (native)
+- Routes live under `apps/native/app/`.
+- Design-lab/sandbox work lives under `apps/native/app/(design-lab)/`.
+- Shared UI lives in `apps/native/components/`.
+- V3 reusable UI lives in `apps/native/components/vault/` (barrel-exported via `index.ts`).
 - Feature-specific components live in `components/activity/`, `components/network/`, `components/collectibles/`, `components/market/`, `components/detail/`, `components/profile/`, `components/upload/`.
 - Shared cross-feature components live in `components/shared/` (e.g., `qr-code-modal.tsx`).
-- Design tokens/config live in `lib/design/` (`tokens.ts`, `status-config.ts`, `trait-config.ts`, `match-tiers.ts`, `theme-context.tsx`).
-- Context providers live in `lib/contexts/` (auth) and `lib/design/` (theme).
+- Design tokens are imported from `@vitrine/design-tokens` (color, typography, spacing, radii, trait/status/match-tier helpers). Native-only theme glue (`theme-context.tsx`, `useTheme()` hook) lives in `apps/native/lib/design/`.
+- Context providers live in `apps/native/lib/contexts/` (auth) and `apps/native/lib/design/` (theme).
 - Custom branded SVG icons live in `components/ui/custom-icons.tsx`.
+
+## Frontend Architecture (web)
+- Routes live under `apps/web/app/`.
+- Marketing pages: `/`, `/about`, `/contact`, `/explore`, `/features`, `/identity`, `/pricing`.
+- Public share resolvers: `/s/c/[id]` (collectible), `/s/p/[id]` (profile), `/s/s/[id]` (showcase). The showcase resolver uses `@vitrine/api`'s `getServerApi().showcases.getShowcaseById(id)`. Collectible and profile resolvers still use direct Supabase queries pending native-only modules being ported.
+- Web-side Supabase client lives in `apps/web/lib/supabase.ts`.
+- Web wraps `@vitrine/api` via `apps/web/lib/api.ts` (`getServerApi()` lazily builds a `VitrineApi` with the web Supabase client + console logger).
 
 ## Backend Architecture
 - Supabase is the primary app backend.
-- `lib/supabase.ts` owns the React Native Supabase client and auth helpers.
-- API modules in `lib/api/` wrap table queries and Edge Function calls.
+- `apps/native/lib/supabase.ts` owns the React Native Supabase client and auth helpers; `apps/web/lib/supabase.ts` owns the web client.
+- All Supabase API modules live in `packages/api/src/modules/` as factory functions and are consumed via `@vitrine/api`. The native app keeps shim files at `apps/native/lib/api/*.ts` for backward compatibility plus a small set of native-only modules (`auth`, `collectibles`, `tracking`, `market`, `views`, `trading-cards`, `client`, `config`, `messaging`) that depend on RN/Expo APIs.
 - Supabase migrations live in `supabase/migrations/`.
 - Edge Functions live in `supabase/functions/`.
 - Shared Edge Function code lives in `supabase/functions/_shared/` (e.g., `managed-eval.ts`).
@@ -28,6 +44,9 @@ Vitrine is an Expo React Native app with Expo Router screens, Supabase-backed da
 - Vault secrets (`vault.decrypted_secrets`) store `cron_secret` and `project_url` for cron auth.
 
 ## Key Architectural Patterns
+
+### Shared API Factory + Singleton Facade
+The `@vitrine/api` package exposes Supabase-backed modules as factories: `createBlockedApi(supabase)`, `createCommentsApi(supabase, logger)`, `createNotificationsApi(supabase, logger, env)`, `createFollowsApi(supabase, logger, notifications)`, etc. The mega-factory `createApi({ supabase, logger, env })` composes them and returns a typed `VitrineApi`. For backward compatibility with hundreds of legacy native call sites, `bindToSingleton(options)` stores the composed instance and the package re-exports flat functions (e.g., `getBlockedUsers`, `sendNotification`, `getShowcaseById`). The native app calls `bindToSingleton()` once at module load via `apps/native/lib/api/index.ts`, then `apps/native/lib/api/<module>.ts` shim files re-export the relevant flat functions so existing imports like `import { sendNotification } from '@/lib/api/notifications'` keep working. The web app skips the singleton and instead calls `getServerApi()` per request to obtain a `VitrineApi` typed instance bound to the web Supabase client.
 
 ### Profile-as-Home (Five-Lens Profile Hub)
 The profile hub (`collector-profile.tsx`) is the app's landing surface, mounted at `app/(tabs)/index.tsx`. It uses `LensSelector` + `LensPager` to present five swipeable lenses: PROFILE, COLLECTION, SHOWCASE, ACTIVITY, NETWORK. Messages graduated to a dedicated tab. URL params (`?lens=`, `?tab=`) enable deep linking.

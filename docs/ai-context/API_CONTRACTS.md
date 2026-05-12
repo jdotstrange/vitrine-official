@@ -1,25 +1,38 @@
 # API Contracts Context
 
-Last updated: 2026-05-05
-Last verified: 2026-05-05
+Last updated: 2026-05-11
+Last verified: 2026-05-11
 
 ## API Shape
-The app primarily uses Supabase directly from React Native through `lib/api/*` modules and `lib/supabase.ts`. Edge Functions handle server-side operations that need privileged access or scheduled execution.
+The app primarily uses Supabase. Most modules live in the shared `@vitrine/api` package as factory functions (`createXApi(supabase, logger, env)`). The native app composes them via `bindToSingleton()` and re-exports flat functions through `apps/native/lib/api/*.ts` shim files for backward compatibility. The web app calls `getServerApi()` (defined in `apps/web/lib/api.ts`) per request to obtain a `VitrineApi` instance bound to the web Supabase client. Edge Functions handle server-side operations that need privileged access or scheduled execution.
 
-## Core Modules
-- `lib/api/auth.ts`: public user profile, auth-user row linking, profile completion, featured showcase/crown jewel assignment.
-- `lib/api/collectibles.ts`: collectible CRUD/query/mapping.
-- `lib/api/showcases.ts`: showcase CRUD (discriminated manual|managed), `updateShowcaseRules`, `previewRuleMatches`, detail/preview queries with visitor visibility filtering.
-- `lib/api/managed-rules.ts`: pure TypeScript rule evaluator — `validateRules`, `itemMatchesManagedRules`, `evaluateManagedRules`, condition formatting, row hydration. Shared source of truth for rule semantics.
-- `lib/api/follows.ts`: follow counts, relationships, mutual check.
-- `lib/api/comps.ts`: comps-related queries/RPCs. Extended with `TrackedCompItem` interface (adds `sourceCollectibleId`, `sourceTitle`), `mapTrackedRow()`, and `getTrackedComps()` client wrapper for blended tracked comps.
-- `lib/api/activity.ts`: activity feed queries (inbox, signals, journal, all).
-- `lib/api/views.ts`: profile/collectible view recording and aggregation.
-- `lib/api/notifications.ts`: notification delivery via Stream and push.
-- `lib/api/tracking.ts`: collectible tracking (track/untrack/counts/IDs), `getTrackedCollectionItems()` (full AI-enriched join returning CollectionItem[] + ownerMap), `deriveTrackedOverviewStats()` (client-side metric derivation from items + ownerMap).
-- `lib/api/search.ts`: search queries.
-- `lib/api/explore.ts`: explore/discovery feed. Extended with market browse/search wrappers: `browseMarket()` (paginated browse via `browse_market_v2` RPC), `searchCollectiblesMarket()`, `searchShowcasesMarket()` (via `search_showcases_tiered` RPC), `searchCollectorsMarket()` (via `search_collectors_tiered` RPC).
-- `lib/api/index.ts`: barrel export for all public API types and functions.
+## Shared API Modules (`@vitrine/api`)
+Factory location: `packages/api/src/modules/<name>.ts`. Each exports `createXApi(...)` returning `XApi`. The mega-factory `createApi()` composes them all and `bindToSingleton()` registers the instance for flat exports.
+
+- `blocked` — `createBlockedApi(supabase)`: block/unblock helpers.
+- `comps` — `createCompsApi(supabase, logger)`: comps queries + `TrackedCompItem` mapping + `getTrackedComps()` wrapper.
+- `fields` — `createFieldsApi(supabase)`: dynamic field/option resolution.
+- `search` — `createSearchApi(supabase)`: cross-entity search.
+- `activity` — `createActivityApi(supabase, logger)`: inbox/signals/journal/all activity feeds.
+- `notifications` — `createNotificationsApi(supabase, logger, env)`: Stream + push notification dispatch and per-user preference storage. Requires `env.supabaseUrl` + `env.supabaseAnonKey`.
+- `follows` — `createFollowsApi(supabase, logger, notifications)`: follow counts, relationships, mutual check; emits new-follower notifications via injected `notifications`.
+- `network` — `createNetworkApi(supabase, logger)`: Network V3 — suggested collectors, mutual follows with privacy.
+- `categories` — `createCategoriesApi(supabase, logger)`: category tree fetching/management.
+- `extraction` — `createExtractionApi(supabase, logger, env)`: extraction-pipeline wrappers + Realtime collectible-row subscriptions. Requires `env.supabaseUrl` + `env.supabaseAnonKey`.
+- `explore` — `createExploreApi(supabase, logger)`: Discover lens RPCs + market browse/search (`browseMarket`, `searchCollectiblesMarket`, `searchShowcasesMarket`, `searchCollectorsMarket`).
+- `showcases` — `createShowcasesApi(supabase, logger, notifications)`: showcase CRUD (manual | managed), `updateShowcaseRules`, detail/preview queries. Re-exports the pure `previewRuleMatches()` and inlines `getTrackCounts()` so it stays portable.
+- `managed-rules` — pure TypeScript module (no factory). `validateRules`, `itemMatchesManagedRules`, `evaluateManagedRules`, `evalRowFromCollectionItem`, condition formatting. Mirrored on the Edge Function side at `supabase/functions/_shared/managed-eval.ts`.
+
+## Native-Only API Modules (`apps/native/lib/api/`)
+These remain in the native app because they depend on Expo / React Native APIs:
+- `auth.ts`: public user profile, auth-user row linking, profile completion, featured showcase/crown jewel assignment.
+- `collectibles.ts`: collectible CRUD/query/mapping (uses `expo-image-manipulator`).
+- `tracking.ts`: collectible tracking (`getTrackedCollectionItems`, `deriveTrackedOverviewStats`).
+- `views.ts`: profile/collectible view recording (uses `expo-crypto` + AsyncStorage for dedup).
+- `market.ts`: market data shapes coupled to native `CollectionItem`.
+- `trading-cards.ts`, `client.ts`, `config.ts`: thin wrappers around the native HTTP client + `getAuthToken`/`buildUrl`.
+- `messaging.ts`: Stream Chat integration.
+- `index.ts`: re-exports `@vitrine/api` plus the native-only modules.
 
 ## External APIs / Services
 - Supabase Auth/PostgREST/RPC/Edge Functions/Vault/pg_cron.
@@ -58,7 +71,7 @@ The app primarily uses Supabase directly from React Native through `lib/api/*` m
 - `network-suggested-cache-purge`: scheduled cache cleanup.
 
 ## Inputs / Outputs
-Use TypeScript interfaces in each `lib/api/*` module as the local contract source. Do not invent response shapes when interfaces already exist. Key discriminated unions:
+Domain types live in `@vitrine/types` (e.g., `User`, `Collectible`, `ShowcaseDetail`, `MarketItem`, `ManagedRules`, `JournalEntry`). API modules in `@vitrine/api` import these. The native-only modules in `apps/native/lib/api/*` should also import from `@vitrine/types` rather than redefining shapes. Key discriminated unions:
 - `CreateShowcaseParams = CreateShowcaseManualParams | CreateShowcaseManagedParams`
 - `ManagedRules = { match: 'all' | 'any'; conditions: Condition[] }`
 - `TrackedCompItem` extends `CompItem` with `sourceCollectibleId` and `sourceTitle`

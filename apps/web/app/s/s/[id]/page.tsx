@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { supabase } from "@/lib/supabase"
+import { getServerApi } from "@/lib/api"
 import { ShareLanding, ShareNotFound } from "@/components/share/share-landing"
 
 interface PageProps {
@@ -7,35 +7,16 @@ interface PageProps {
 }
 
 async function getShowcase(id: string) {
-  const { data: showcase, error } = await supabase
-    .from("showcases")
-    .select(
-      "id, title, description, visibility, user_id, users!showcases_user_id_fkey(display_name, username)"
-    )
-    .eq("id", id)
-    .single()
-
-  if (error || !showcase) return null
-  if ((showcase as any).visibility === "private") return null
-
-  const { data: items } = await supabase
-    .from("showcase_collectibles")
-    .select("collectibles(photos)")
-    .eq("showcase_id", id)
-    .order("display_order", { ascending: true })
-    .limit(1)
-
-  const previewImage = (items?.[0] as any)?.collectibles?.photos?.[0] ?? null
-
-  const { count } = await supabase
-    .from("showcase_collectibles")
-    .select("id", { count: "exact", head: true })
-    .eq("showcase_id", id)
+  const detail = await getServerApi().showcases.getShowcaseById(id)
+  if (!detail) return null
+  if (detail.visibility === "private") return null
 
   return {
-    ...(showcase as any),
-    previewImage,
-    itemCount: count ?? 0,
+    title: detail.title,
+    description: detail.description,
+    owner: detail.owner,
+    previewImage: detail.images[0] ?? null,
+    itemCount: detail.stats.totalItems,
   }
 }
 
@@ -47,8 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Showcase Not Found" }
   }
 
-  const owner = showcase.users ?? {}
-  const ownerName = owner.display_name || owner.username || "a collector"
+  const ownerName = showcase.owner.name || showcase.owner.username || "a collector"
   const desc = showcase.description
     || `${showcase.title} — ${showcase.itemCount} items curated by ${ownerName} on Vitrine`
 
@@ -81,8 +61,7 @@ export default async function ShowcaseSharePage({ params }: PageProps) {
     return <ShareNotFound type="showcase" />
   }
 
-  const owner = showcase.users ?? {}
-  const ownerName = owner.display_name || owner.username || "Collector"
+  const ownerName = showcase.owner.name || showcase.owner.username || "Collector"
 
   return (
     <ShareLanding

@@ -18,9 +18,18 @@ Collectibles-as-canvas. Native (Expo) + Web (Next.js) monorepo, sharing a single
 | Path | Purpose |
 |---|---|
 | `supabase/` | Database migrations + Edge Functions (single project, used by both apps) |
-| `packages/` | Shared workspace packages — design tokens, types, API client, constants, domain logic (populated in Day 2 of monorepo migration) |
+| `packages/` | Shared workspace packages (see below) |
 | `docs/` | All project documentation including `ai-context/` (project memory), brand operating system (`brand/`), and active plans |
 | `.cursor/` | Repo-wide Cursor rules and AI agent configuration |
+
+### Shared packages
+
+| Path | Package | Purpose |
+|---|---|---|
+| `packages/design-tokens` | `@vitrine/design-tokens` | Platform-agnostic design primitives — color tokens (`DARK_COLORS`, `LIGHT_COLORS`), typography, spacing, radii, trait config, status helpers, comps match-tier thresholds. Pure TS, no React Native deps. |
+| `packages/constants` | `@vitrine/constants` | Cross-platform constants — share URL helpers, App Store / Play Store URLs, image upload limits, pagination defaults. |
+| `packages/types` | `@vitrine/types` | Shared TypeScript domain types — User, Collectible, Showcase, ManagedRules, Activity journal entries, plus the generated Supabase `Database` type. Type-only, zero runtime. |
+| `packages/api` | `@vitrine/api` | Supabase API client. Per-module factories (`createXApi(supabase, logger, env)`) composed by `createApi()`, plus a `bindToSingleton()` facade and ~60 flat re-exports for the native app's existing call sites. |
 
 ---
 

@@ -1,7 +1,38 @@
 # Implementation Log
 
-Last updated: 2026-05-10
-Last verified: 2026-05-10
+Last updated: 2026-05-11
+Last verified: 2026-05-11
+
+## 2026-05-11 - Day 2 Shared Packages: design-tokens, constants, types, api
+
+- Summary: Completed Day 2 of the monorepo migration by extracting four shared workspace packages from the native codebase. Day 2.1 lifted design tokens (`tokens.ts`, `status-config.ts`, `trait-config.ts`, `match-tiers.ts`, `activity-verbs.ts`) into `@vitrine/design-tokens` and unified `APP_STORE_URL` / `PLAY_STORE_URL` / share-domain constants into `@vitrine/constants`. Day 2.2 extracted shared domain types (User, Collectible, ShowcaseDetail, MarketItem, ManagedRules, JournalEntry, ListingStatus, …) into `@vitrine/types`, including a generated Supabase `Database` type, and rewired ~20 native components + every API module to import from `@vitrine/types`. Day 2.5 (the most invasive phase) rebuilt the API layer: 12 portable Supabase modules were converted from singleton imports to factory functions (`createXApi(supabase, logger, env?)`) and moved into `packages/api/src/modules/`. A mega-factory `createApi({ supabase, logger, env })` composes them all and returns a typed `VitrineApi`. To avoid breaking hundreds of existing native call sites, `bindToSingleton()` stores the composed instance and the package re-exports ~60 flat functions; the native app calls `bindToSingleton()` once at module load via `apps/native/lib/api/index.ts` and 14 thin shim files (`apps/native/lib/api/notifications.ts`, etc.) re-export the relevant symbols under their original paths. Five modules stayed native-only because they depend on Expo / React Native APIs (`auth`, `collectibles`, `tracking`, `views`, `market`, `trading-cards`, `client`, `config`). The web app gained `apps/web/lib/api.ts` with a `getServerApi()` helper that lazily builds a `VitrineApi` against the web Supabase client; the showcase share resolver (`/s/s/[id]`) was migrated to use it. Notifications and extraction modules accept a small `env` object (`supabaseUrl`, `supabaseAnonKey`) so they don't reach for `process.env` directly. Follows now injects the notifications API for new-follower side effects. Showcases inlined `getTrackCounts` and the pure `previewRuleMatches` helper to stay portable without dragging in the native-only `tracking` module.
+- Files Changed:
+  - **New packages**:
+    - `packages/design-tokens/` — colors, typography, spacing, radii, status/trait/match-tier helpers. Pure TS.
+    - `packages/constants/` — share URL helpers, store URLs, image upload limits, pagination defaults.
+    - `packages/types/` — domain types + generated `Database` type.
+    - `packages/api/` — factory modules in `src/modules/` (`blocked`, `comps`, `fields`, `search`, `activity`, `notifications`, `follows`, `network`, `categories`, `extraction`, `explore`, `showcases`, `managed-rules`), `factory.ts`, `logger.ts`, `utils.ts`, `index.ts` (mega-factory + singleton facade + flat re-exports).
+  - **Native rewire**:
+    - `apps/native/package.json` — added `@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api` (`workspace:*`).
+    - `apps/native/lib/design/index.ts` — re-exports `@vitrine/design-tokens` plus the native-only `theme-context.tsx`.
+    - `apps/native/lib/api/index.ts` — calls `bindToSingleton()` once, re-exports `@vitrine/api` plus native-only modules (`auth`, `collectibles`, `tracking`, `views`, `market`, `trading-cards`, `client`, `config`, `messaging`).
+    - `apps/native/lib/api/{blocked,comps,fields,search,activity,notifications,follows,network,categories,extraction,explore,showcases,managed-rules}.ts` — replaced with shim files that import `@/lib/api` for singleton bind, then re-export from `@vitrine/api` (with type aliases where old barrel names differed, e.g. `ResolveFieldsResponse`, `getMutualFollowsV2`).
+    - ~20 components updated to import domain types from `@vitrine/types` and design primitives from `@vitrine/design-tokens`.
+  - **Web rewire**:
+    - `apps/web/package.json` — added `@vitrine/api`, `@vitrine/constants`, `@vitrine/types` (`workspace:*`).
+    - `apps/web/lib/api.ts` (new) — `getServerApi()` lazy-builds a `VitrineApi` with the web Supabase client + console logger.
+    - `apps/web/app/s/s/[id]/page.tsx` — share resolver migrated to `getServerApi().showcases.getShowcaseById(id)`.
+- Validation:
+  - `pnpm install` clean.
+  - `pnpm --filter @vitrine/api exec tsc --noEmit` → 0 errors.
+  - `pnpm --filter @vitrine/web build` → all 12 routes build.
+  - `pnpm --filter @vitrine/native exec tsc --noEmit` → 125 errors (down from 137 pre-Day-2 baseline; all remaining errors are pre-existing in legacy components, not introduced by this work).
+- Notes:
+  - The factory pattern was chosen over a global `setSupabaseClient(...)` mutator because it (a) makes the API trivially testable with a mock Supabase client and (b) lets the web side spin up a per-request client without polluting native singleton state.
+  - `bindToSingleton()` is the bridge that keeps the native app's hundreds of legacy `import { ... } from '@/lib/api/...'` call sites working unchanged. Long-term the plan is to migrate native call sites to the API instance directly, but that's a separate sweep.
+  - `notifications` and `extraction` were the only modules that needed env injection; everything else is purely supabase + logger.
+  - `managed-rules` stayed a pure module (no factory) because it has zero Supabase dependency and is also mirrored on the Edge Function side.
+  - Web's collectible (`/s/c/[id]`) and profile (`/s/p/[id]`) share resolvers still use direct Supabase queries because the underlying data needs `collectibles` / `auth` modules that remain native-only. Migrating those is a Day 3 item.
 
 ## 2026-05-10 - Remove Onboarding Quiz: Simplify Auth Flow to Profile Completion Only
 
