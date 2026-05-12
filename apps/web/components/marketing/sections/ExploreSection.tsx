@@ -42,7 +42,7 @@ export function ExploreSection() {
         style={{ maxWidth: 1280, margin: "0 auto", position: "relative" }}
       >
         <SectionHeader
-          num="10"
+          num="06"
           kicker="EXPLORE"
           title={
             <>

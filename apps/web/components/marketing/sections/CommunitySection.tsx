@@ -21,7 +21,7 @@ export function CommunitySection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <SectionHeader
-          num="06"
+          num="07"
           kicker="COMMUNITY"
           title={
             <>

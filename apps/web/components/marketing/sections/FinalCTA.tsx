@@ -31,7 +31,7 @@ export function FinalCTA() {
         }}
       />
       <Kicker color={T.volt} style={{ marginBottom: 28 }}>
-        §14 · YOUR TURN
+        §09 · YOUR TURN
       </Kicker>
       <h2
         data-marketing-cta-title

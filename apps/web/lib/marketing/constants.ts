@@ -514,6 +514,86 @@ export const HOW_STEPS: HowStep[] = [
   },
 ]
 
+// ───────── Rapid-fire features (depth wall on /) ─────────
+
+export interface RapidFireTile {
+  /** kebab-case lucide icon name */
+  icon: string
+  /** Two-line headline — the claim */
+  headline: string
+  /** Single-line subhead — the qualifier */
+  sub: string
+  /** Optional flag rendered as a small pill (e.g. "PRO", "COLLECTOR") */
+  flag?: string
+}
+
+export const RAPID_FIRE_TILES: RapidFireTile[] = [
+  {
+    icon: "scan-line",
+    headline: "Looking Glass AI",
+    sub: "Photo-only extraction across 38 categories. Tell us nothing — we read the piece.",
+  },
+  {
+    icon: "layout-grid",
+    headline: "Per-category schemas",
+    sub: "38 categories, 38 form sets. Each kind has the fields it actually needs.",
+  },
+  {
+    icon: "crown",
+    headline: "Crown Jewel showcases",
+    sub: "Curate, don\u2019t dump. Every showcase anchored by its defining piece.",
+  },
+  {
+    icon: "scale",
+    headline: "Comps engine",
+    sub: "Math, not vibes. Perfect / Strong / Loose tiers, attribute-tagged on six axes.",
+  },
+  {
+    icon: "trending-up",
+    headline: "Live tracking",
+    sub: "Watch every piece move. 30-day, 90-day, 365-day windows on each item.",
+  },
+  {
+    icon: "shield-check",
+    headline: "VAR",
+    sub: "Variable Authentication Reports. Authentication you can argue with.",
+    flag: "PRO",
+  },
+  {
+    icon: "file-check",
+    headline: "AAR",
+    sub: "Authoritative Appraisal Reports. Appraisal-grade, on demand.",
+    flag: "PRO",
+  },
+  {
+    icon: "activity",
+    headline: "Pulse",
+    sub: "Per-item market intel. The signals you didn\u2019t know to ask for.",
+    flag: "PRO",
+  },
+  {
+    icon: "radio-tower",
+    headline: "Activity",
+    sub: "The signal layer for your network. Followers, status changes, comp alerts.",
+  },
+  {
+    icon: "sparkles",
+    headline: "Smart Collections",
+    sub: "Auto-organized by what\u2019s inside. AI-curated showcases.",
+    flag: "PRO",
+  },
+  {
+    icon: "share-2",
+    headline: "Vault sharing",
+    sub: "Drop a link in iMessage. They see your showcase. No install required.",
+  },
+  {
+    icon: "users",
+    headline: "Discover",
+    sub: "We find people who own what you own. Network-level recommendations.",
+  },
+]
+
 // ───────── Live capabilities ─────────
 
 export const LIVE_CAPABILITIES = [

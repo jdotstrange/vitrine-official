@@ -17,7 +17,7 @@ export function PressSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <Kicker color={T.volt} style={{ textAlign: "center" }}>
-          §11 · BUILT BY COLLECTORS
+          §08 · BUILT BY COLLECTORS
         </Kicker>
         <h2
           style={{

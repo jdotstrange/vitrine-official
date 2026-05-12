@@ -25,7 +25,7 @@ export function HowItWorksSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <SectionHeader
-          num="08"
+          num="04"
           kicker="HOW IT WORKS"
           title={
             <>

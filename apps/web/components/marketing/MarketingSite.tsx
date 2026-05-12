@@ -1,28 +1,30 @@
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
 import {
-  CatalogingSection,
-  CategoriesSection,
   CommunitySection,
-  CompsSection,
   ExploreSection,
-  FAQSection,
   FinalCTA,
   Footer,
   Hero,
   HowItWorksSection,
   IntelligenceSection,
-  LiveComingSection,
   PressSection,
   ProblemSection,
-  ProSection,
-  PulseSection,
-  ShowcasesSection,
+  RapidFireFeatures,
   SiteNav,
   ThesisSection,
-  TrackingSection,
 } from "./sections"
 
+/**
+ * MarketingSite — the new home page composition (10 narrative sections).
+ *
+ * Restructured from the original 18-section V3 build into a tight
+ * conversion narrative: Hook -> Problem -> Solution -> Wow -> Mechanics ->
+ * Depth wall -> Breadth -> Vibe -> Social proof -> Close. Sections that
+ * were feature deep-dives migrated to /product, /intelligence, or
+ * /pricing. The frozen 18-section snapshot lives at /lab during the build
+ * (see MarketingSiteLab).
+ */
 export function MarketingSite() {
   return (
     <div
@@ -36,22 +38,14 @@ export function MarketingSite() {
     >
       <SiteNav />
       <Hero />
-      <PulseSection />
       <ProblemSection />
       <ThesisSection />
       <IntelligenceSection />
-      <CatalogingSection />
-      <ShowcasesSection />
-      <TrackingSection />
-      <CompsSection />
-      <CommunitySection />
-      <CategoriesSection />
       <HowItWorksSection />
-      <LiveComingSection />
+      <RapidFireFeatures />
       <ExploreSection />
-      <ProSection />
+      <CommunitySection />
       <PressSection />
-      <FAQSection />
       <FinalCTA />
       <Footer />
     </div>

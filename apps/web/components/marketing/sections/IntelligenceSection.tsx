@@ -53,7 +53,7 @@ export function IntelligenceSection() {
         style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}
       >
         <SectionHeader
-          num="02B"
+          num="03"
           kicker="INTELLIGENCE"
           title={
             <>

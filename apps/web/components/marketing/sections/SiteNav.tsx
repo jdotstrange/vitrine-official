@@ -1,25 +1,30 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { T } from "@/lib/marketing/tokens"
-import { useActiveSection } from "@/lib/marketing/hooks"
 import { VitrineLogo } from "@/components/marketing/VitrineLogo"
 import { MobileNav } from "@/components/marketing/sections/MobileNav"
 
-const NAV_IDS = ["intelligence", "showcases", "tracking", "pro", "explore"]
+interface NavLink {
+  href: string
+  label: string
+  /** When true, the link is rendered with a temporary "lab" badge */
+  lab?: boolean
+}
 
-const NAV_LINKS: { id: string; label: string }[] = [
-  { id: "intelligence", label: "Intelligence" },
-  { id: "showcases", label: "Showcases" },
-  { id: "tracking", label: "Tracking" },
-  { id: "pro", label: "Pro" },
-  { id: "explore", label: "Explore" },
+const NAV_LINKS: NavLink[] = [
+  { href: "/intelligence", label: "Looking Glass" },
+  { href: "/product", label: "Product" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/lab", label: "Lab", lab: true },
 ]
 
 export function SiteNav() {
   const [scrolled, setScrolled] = useState(false)
-  const active = useActiveSection(NAV_IDS)
+  const pathname = usePathname()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -46,8 +51,9 @@ export function SiteNav() {
         transition: "background 200ms, border-color 200ms",
       }}
     >
-      <a
-        href="#top"
+      <Link
+        href="/"
+        aria-label="Vitrine home"
         style={{
           color: T.fg1,
           textDecoration: "none",
@@ -56,36 +62,60 @@ export function SiteNav() {
         }}
       >
         <VitrineLogo size={108} />
-      </a>
+      </Link>
       <nav
         data-marketing-nav-links
-        style={{ display: "flex", gap: 32, fontSize: 13 }}
+        style={{ display: "flex", gap: 32, fontSize: 13, alignItems: "center" }}
       >
-        {NAV_LINKS.map((link) => (
-          <a
-            key={link.id}
-            className="nav-link"
-            data-active={active === link.id}
-            href={`#${link.id}`}
-          >
-            {link.label}
-          </a>
-        ))}
+        {NAV_LINKS.map((link) => {
+          const active =
+            link.href === "/"
+              ? pathname === "/"
+              : pathname === link.href || pathname.startsWith(link.href + "/")
+          return (
+            <Link
+              key={link.href}
+              className="nav-link"
+              data-active={active}
+              href={link.href}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              {link.label}
+              {link.lab && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontFamily: T.fontMono,
+                    fontSize: 8.5,
+                    letterSpacing: 0.6,
+                    padding: "2px 5px",
+                    borderRadius: 3,
+                    background: T.voltFill,
+                    color: T.volt,
+                    border: `1px solid ${T.voltBorder}`,
+                  }}
+                >
+                  WIP
+                </span>
+              )}
+            </Link>
+          )
+        })}
       </nav>
       <div
         data-marketing-nav-actions
         style={{ display: "flex", gap: 12, alignItems: "center" }}
       >
-        <a
+        <Link
           className="nav-link"
-          href="#"
+          href="/login"
           style={{ fontSize: 13 }}
           data-marketing-nav-signin
         >
           Sign in
-        </a>
-        <a
-          href="#download"
+        </Link>
+        <Link
+          href="/#download"
           data-marketing-nav-cta
           style={{ textDecoration: "none" }}
         >
@@ -107,7 +137,7 @@ export function SiteNav() {
           >
             Get the app
           </span>
-        </a>
+        </Link>
       </div>
       <MobileNav />
     </header>

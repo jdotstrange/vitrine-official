@@ -1,16 +1,22 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { T } from "@/lib/marketing/tokens"
 
-const NAV_LINKS = [
-  { id: "intelligence", label: "Intelligence" },
-  { id: "showcases", label: "Showcases" },
-  { id: "tracking", label: "Tracking" },
-  { id: "pro", label: "Pro" },
-  { id: "explore", label: "Explore" },
-] as const
+interface MobileNavLink {
+  href: string
+  label: string
+  lab?: boolean
+}
+
+const NAV_LINKS: MobileNavLink[] = [
+  { href: "/intelligence", label: "Looking Glass" },
+  { href: "/product", label: "Product" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/lab", label: "Lab", lab: true },
+]
 
 /**
  * MobileNav — hamburger toggle + slide-down panel that mirrors the
@@ -54,7 +60,16 @@ export function MobileNav() {
           cursor: "pointer",
         }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           {open ? (
             <>
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -90,12 +105,14 @@ export function MobileNav() {
           }}
         >
           {NAV_LINKS.map((link) => (
-            <a
-              key={link.id}
-              href={`#${link.id}`}
+            <Link
+              key={link.href}
+              href={link.href}
               onClick={() => setOpen(false)}
               style={{
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
                 padding: "18px 8px",
                 fontFamily: T.fontDisplay,
                 fontSize: 28,
@@ -106,10 +123,27 @@ export function MobileNav() {
               }}
             >
               {link.label}
-            </a>
+              {link.lab && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontFamily: T.fontMono,
+                    fontSize: 9,
+                    letterSpacing: 0.6,
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    background: T.voltFill,
+                    color: T.volt,
+                    border: `1px solid ${T.voltBorder}`,
+                  }}
+                >
+                  WIP
+                </span>
+              )}
+            </Link>
           ))}
-          <a
-            href="#"
+          <Link
+            href="/login"
             onClick={() => setOpen(false)}
             style={{
               display: "block",
@@ -124,9 +158,9 @@ export function MobileNav() {
             }}
           >
             Sign in
-          </a>
-          <a
-            href="#download"
+          </Link>
+          <Link
+            href="/#download"
             onClick={() => setOpen(false)}
             style={{
               display: "inline-flex",
@@ -144,7 +178,7 @@ export function MobileNav() {
             }}
           >
             Get the app
-          </a>
+          </Link>
         </div>
       )}
     </div>
