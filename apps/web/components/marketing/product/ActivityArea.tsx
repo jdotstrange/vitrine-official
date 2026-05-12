@@ -8,14 +8,26 @@ import {
   PulseRow,
 } from "@/components/marketing/primitives"
 import { usePulseFeed } from "@/lib/marketing/hooks"
-import { SectionHeader } from "./SectionHeader"
+import { SectionHeader } from "@/components/marketing/sections/SectionHeader"
 
-export function PulseSection() {
+/**
+ * ActivityArea — migrated from sections/PulseSection.tsx for /product
+ * with the marketing-side rename "Pulse" -> "Activity". This eliminates
+ * the in-app naming collision where Pulse is the per-piece market intel
+ * lens (covered on /intelligence as PulseLensExplanation). Activity is
+ * the network-level signal layer: followers, status changes, comp alerts,
+ * showcase additions.
+ *
+ * The underlying PulseRow primitive name is retained for now — it ships
+ * the row UI and is shared with the lens; renaming the primitive is a
+ * separate refactor.
+ */
+export function ActivityArea() {
   const feed = usePulseFeed(2000, 8)
   return (
     <section
-      id="pulse"
-      data-marketing-section="pulse"
+      id="activity"
+      data-marketing-section="activity"
       style={{
         padding: "140px 40px",
         borderTop: `1px solid ${T.frostDiv}`,
@@ -23,23 +35,22 @@ export function PulseSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <SectionHeader
-          num="00"
-          kicker="PULSE"
+          num="04"
+          kicker="ACTIVITY"
           title={
             <>
-              The market,{" "}
+              The signal layer{" "}
               <em
                 style={{
                   fontFamily: T.fontDisplay,
                   fontStyle: "italic",
                 }}
               >
-                quietly
-              </em>{" "}
-              watching.
+                of your network.
+              </em>
             </>
           }
-          sub="Per-piece subscriptions, ranked by relevance. Quiet by default — only the signals you've asked for."
+          sub="Followers move pieces. Comps land. Status flips from NFST to For Sale. Activity surfaces the changes that matter to you, ranked by relevance, quiet by default."
         />
         <FrostCard hover={false} style={{ marginTop: 80, overflow: "hidden" }}>
           <div
@@ -68,7 +79,7 @@ export function PulseSection() {
                 color: T.fg2,
               }}
             >
-              your collection · 12,847 pieces tracked
+              your network &middot; 12,847 pieces tracked
             </span>
             <span
               style={{

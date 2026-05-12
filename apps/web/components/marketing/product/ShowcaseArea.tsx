@@ -6,7 +6,7 @@ import { T } from "@/lib/marketing/tokens"
 import { Kicker, Pill } from "@/components/marketing/primitives"
 import { Parallax } from "@/lib/marketing/Parallax"
 import { SHOWCASES, type ShowcaseEntry } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
+import { SectionHeader } from "@/components/marketing/sections/SectionHeader"
 
 const TONE_MAP: Record<ShowcaseEntry["tone"], string> = {
   blue: T.blue,
@@ -17,11 +17,15 @@ const TONE_MAP: Record<ShowcaseEntry["tone"], string> = {
   volt: T.volt,
 }
 
-export function ShowcasesSection() {
+/**
+ * ShowcaseArea — migrated from sections/ShowcasesSection.tsx for /product.
+ * Crown Jewel narrative — every showcase is anchored by its defining piece.
+ */
+export function ShowcaseArea() {
   return (
     <section
-      id="showcases"
-      data-marketing-section="showcases"
+      id="showcase"
+      data-marketing-section="showcase"
       style={{
         padding: "140px 40px",
         borderTop: `1px solid ${T.frostDiv}`,
@@ -47,8 +51,8 @@ export function ShowcasesSection() {
         style={{ maxWidth: 1280, margin: "0 auto", position: "relative" }}
       >
         <SectionHeader
-          num="04"
-          kicker="SHOWCASES"
+          num="02"
+          kicker="SHOWCASE"
           title={
             <>
               Curate a{" "}
@@ -63,7 +67,7 @@ export function ShowcasesSection() {
               </em>
             </>
           }
-          sub="Every Showcase is anchored by a Crown Jewel — the piece that defines the collection. The supporting cast frames it. Build as many as you want."
+          sub="Every Showcase is anchored by a Crown Jewel — the piece that defines the collection. The supporting cast frames it. Build as many as you want, public or private, share-by-link or sealed in your vault."
         />
         <div
           data-marketing-grid="showcases"
@@ -155,7 +159,7 @@ function ShowcaseCard({ photo, title, count, jewel, tag, tone }: ShowcaseCardPro
       </div>
       <div style={{ position: "absolute", left: 18, right: 18, bottom: 18 }}>
         <Kicker style={{ fontSize: 9.5, color: tone, marginBottom: 8 }}>
-          CROWN JEWEL · {jewel.toUpperCase()}
+          CROWN JEWEL &middot; {jewel.toUpperCase()}
         </Kicker>
         <div
           style={{
@@ -175,7 +179,7 @@ function ShowcaseCard({ photo, title, count, jewel, tag, tone }: ShowcaseCardPro
             marginTop: 4,
           }}
         >
-          {count} pieces · last updated 2d
+          {count} pieces &middot; last updated 2d
         </div>
       </div>
     </div>

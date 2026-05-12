@@ -1,11 +1,8 @@
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
 import {
-  CatalogingSection,
-  CategoriesSection,
   CommunitySection,
   ExploreSection,
-  FAQSection,
   FinalCTA,
   Footer,
   Hero,
@@ -15,16 +12,25 @@ import {
   PressSection,
   ProblemSection,
   ProSection,
-  PulseSection,
-  ShowcasesSection,
   SiteNav,
   ThesisSection,
-  TrackingSection,
 } from "./sections"
 import { CompsArea } from "@/components/marketing/intelligence/CompsArea"
+import {
+  ActivityArea,
+  CatalogArea,
+  CategoriesArea,
+  ProductFAQ,
+  ShowcaseArea,
+  TrackArea,
+} from "@/components/marketing/product"
 
 /**
- * MarketingSiteLab — frozen snapshot of the original 18-section V3 build.
+ * MarketingSiteLab — frozen snapshot of the original 18-section V3 build,
+ * now re-composed against the post-migration component locations. The
+ * narrative ordering matches the original lander; sections that moved to
+ * deep pages are imported from their new homes (intelligence/, product/)
+ * so /lab keeps rendering as a snapshot reference during the build.
  *
  * Mounted at `/lab` during the multi-page restructure as a parts/reference
  * surface so we can mine sections while building the new home + deep pages.
@@ -45,22 +51,22 @@ export function MarketingSiteLab() {
       <LabPreviewBanner />
       <SiteNav />
       <Hero />
-      <PulseSection />
+      <ActivityArea />
       <ProblemSection />
       <ThesisSection />
       <IntelligenceSection />
-      <CatalogingSection />
-      <ShowcasesSection />
-      <TrackingSection />
+      <CatalogArea />
+      <ShowcaseArea />
+      <TrackArea />
       <CompsArea />
       <CommunitySection />
-      <CategoriesSection />
+      <CategoriesArea />
       <HowItWorksSection />
       <LiveComingSection />
       <ExploreSection />
       <ProSection />
       <PressSection />
-      <FAQSection />
+      <ProductFAQ />
       <FinalCTA />
       <Footer />
     </div>
@@ -86,7 +92,7 @@ function LabPreviewBanner() {
         borderBottom: `1px solid ${T.void}`,
       }}
     >
-      Internal preview · work in progress · not for distribution
+      Internal preview &middot; work in progress &middot; not for distribution
     </div>
   )
 }

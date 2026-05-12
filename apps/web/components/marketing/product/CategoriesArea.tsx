@@ -7,15 +7,22 @@ import {
   usePrefersReducedMotion,
 } from "@/lib/marketing/hooks"
 import { CATS } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
+import { SectionHeader } from "@/components/marketing/sections/SectionHeader"
 
-export function CategoriesSection() {
+/**
+ * CategoriesArea — migrated from sections/CategoriesSection.tsx for
+ * /product. The 6x6 breadth-of-categories grid pairs naturally with
+ * the rapid-fire features wall on /home; here it's the inventory
+ * proof of the per-category schema model.
+ */
+export function CategoriesArea() {
   const reduced = usePrefersReducedMotion()
   const [gridRef, gridIn] = useInView<HTMLDivElement>({ threshold: 0.15 })
   const totalRows = Math.ceil(CATS.length / 6)
 
   return (
     <section
+      id="categories"
       data-marketing-section="categories"
       style={{
         padding: "160px 40px",
@@ -24,7 +31,7 @@ export function CategoriesSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <SectionHeader
-          num="07"
+          num="08"
           kicker="BREADTH"
           title={
             <>
@@ -167,7 +174,7 @@ export function CategoriesSection() {
           >
             DON&apos;T SEE YOURS?{" "}
             <span style={{ color: T.volt, cursor: "pointer" }}>
-              REQUEST A CATEGORY →
+              REQUEST A CATEGORY &rarr;
             </span>
           </div>
         </div>

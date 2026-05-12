@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
-import { Kicker, MIcon, Pill } from "@/components/marketing/primitives"
+import { MIcon, Pill } from "@/components/marketing/primitives"
 import { RAPID_FIRE_TILES } from "@/lib/marketing/constants"
 import { Reveal } from "@/lib/marketing/Reveal"
 import { SectionHeader } from "./SectionHeader"
@@ -181,5 +181,3 @@ function RapidFireTileCard({
     </div>
   )
 }
-
-export { Kicker }

@@ -11,7 +11,12 @@ import {
 } from "@/components/marketing/primitives"
 import { useTicker } from "@/lib/marketing/hooks"
 
-export function TrackingSection() {
+/**
+ * TrackArea — migrated from sections/TrackingSection.tsx for /product.
+ * Live FMV, volatility band, and event flag narrative anchored on the
+ * 365-day chart of a single piece.
+ */
+export function TrackArea() {
   const tick = useTicker(1100)
   const series = useMemo(() => {
     const out: number[] = []
@@ -42,8 +47,8 @@ export function TrackingSection() {
 
   return (
     <section
-      id="tracking"
-      data-marketing-section="tracking"
+      id="track"
+      data-marketing-section="track"
       style={{
         padding: "140px 40px",
         borderTop: `1px solid ${T.frostDiv}`,
@@ -62,7 +67,7 @@ export function TrackingSection() {
         }}
       >
         <div>
-          <Kicker color={T.volt}>§05 · TRACKING</Kicker>
+          <Kicker color={T.volt}>§03 &middot; TRACK</Kicker>
           <h2
             style={{
               fontFamily: T.fontDisplay,
@@ -93,7 +98,7 @@ export function TrackingSection() {
               maxWidth: 460,
             }}
           >
-            Volatility, demand, condition spread, event-driven shocks —
+            Volatility, demand, condition spread, event-driven shocks &mdash;
             modeled, not guessed. 30-day, 90-day, and 365-day windows on every
             piece in your Vitrine.
           </p>
@@ -102,7 +107,7 @@ export function TrackingSection() {
               ["Live FMV", "Refreshed every 4 seconds against weighted comps."],
               [
                 "Volatility band",
-                "±σ overlay so you know when prints are noise vs. signal.",
+                "\u00B1\u03C3 overlay so you know when prints are noise vs. signal.",
               ],
               [
                 "Event flags",
@@ -155,7 +160,7 @@ export function TrackingSection() {
             }}
           >
             <div>
-              <Kicker>365-DAY TRACK · 1986 FLEER JORDAN #57</Kicker>
+              <Kicker>365-DAY TRACK &middot; 1986 FLEER JORDAN #57</Kicker>
               <div
                 style={{
                   fontFamily: T.fontDisplay,
@@ -174,11 +179,11 @@ export function TrackingSection() {
                   marginTop: 4,
                 }}
               >
-                {trendUp ? "↗" : "↘"}{" "}
-                {(((last - first) / first) * 100).toFixed(2)}% YoY · σ ±4.2%
+                {trendUp ? "\u2197" : "\u2198"}{" "}
+                {(((last - first) / first) * 100).toFixed(2)}% YoY &middot; &sigma; &plusmn;4.2%
               </div>
             </div>
-            <Pill variant="volt">DEMAND · HIGH</Pill>
+            <Pill variant="volt">DEMAND &middot; HIGH</Pill>
           </div>
           <svg
             width="100%"
@@ -241,7 +246,7 @@ export function TrackingSection() {
                 ["30D", "+2.4%", T.green],
                 ["90D", "+8.1%", T.green],
                 ["1Y", "+24.6%", T.green],
-                ["σ", "±4.2%", T.fg1],
+                ["\u03C3", "\u00B14.2%", T.fg1],
               ] as const
             ).map(([k, v, c]) => (
               <div key={k}>

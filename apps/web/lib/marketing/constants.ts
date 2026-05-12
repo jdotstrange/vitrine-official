@@ -446,6 +446,42 @@ export const FAQS: FAQ[] = [
   },
 ]
 
+/**
+ * PRODUCT_FAQS — product-specific questions for the /product page.
+ * Pricing-specific FAQs live in lib/marketing/pricing-data.ts as
+ * PRICING_FAQS so the two surfaces stay tonally and topically distinct.
+ */
+export const PRODUCT_FAQS: FAQ[] = [
+  {
+    q: "Is Vitrine a marketplace?",
+    a: "Yes and no. Cataloging is the foundation; the marketplace layer (Buy / Sell / Trade with For Sale / For Trade / NFST signals on every piece) sits on top. You can catalog forever without ever transacting, or you can use Vitrine end-to-end.",
+  },
+  {
+    q: "How accurate is the Comps engine?",
+    a: "Every comp is tagged on six attributes: set, year, parallel, grade, condition, and provenance. Perfect comps match all six. Strong match most. Loose are direction-only. The math is shown — not hidden behind a single FMV number.",
+  },
+  {
+    q: "What categories does Vitrine support?",
+    a: "38 collecting categories at launch — cards (sports + TCG), watches, comics, coins, sneakers, vinyl, autographs, memorabilia, cameras, posters, jewelry, toys, stamps, and more. Each with a per-category attribute schema and its own comp logic.",
+  },
+  {
+    q: "How does sharing work?",
+    a: "Every showcase, collection, and piece has a shareable URL. Drop the link in iMessage and the recipient sees a beautifully rendered preview that opens to the showcase whether or not they have the app. Public showcase URLs are a Pro feature.",
+  },
+  {
+    q: "What's a Crown Jewel?",
+    a: "A Crown Jewel is the anchor piece of a showcase — the one that defines what the collection is about. Every showcase picks one. The supporting cast frames it. The result is curation, not a folder dump.",
+  },
+  {
+    q: "How is my data handled?",
+    a: "Your collection is yours. We never sell it, never advertise against it, and never auto-list it. Vitrine is a vault, not a feed.",
+  },
+  {
+    q: "When can I download?",
+    a: "Today. iOS 16+ and Android 10+. The download links above are real.",
+  },
+]
+
 // ───────── Community card seeds ─────────
 
 export interface CollectorCard {

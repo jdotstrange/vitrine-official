@@ -9,16 +9,23 @@ import {
   Pill,
 } from "@/components/marketing/primitives"
 import { SCHEMAS, type SchemaKey } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
+import { SectionHeader } from "@/components/marketing/sections/SectionHeader"
 
 const TABS: SchemaKey[] = ["CARD", "WATCH", "COMIC", "SNEAKER", "COIN"]
 
-export function CatalogingSection() {
+/**
+ * CatalogArea — migrated from sections/CatalogingSection.tsx for /product.
+ * Demonstrates per-category attribute schemas. The fields change with the
+ * piece — a Fleer rookie and a Speedmaster reference are not the same
+ * kind of object.
+ */
+export function CatalogArea() {
   const [active, setActive] = useState<SchemaKey>("CARD")
   const s = SCHEMAS[active]
   return (
     <section
-      data-marketing-section="cataloging"
+      id="catalog"
+      data-marketing-section="catalog"
       style={{
         padding: "160px 40px",
         borderTop: `1px solid ${T.frostDiv}`,
@@ -26,7 +33,7 @@ export function CatalogingSection() {
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <SectionHeader
-          num="03"
+          num="01"
           kicker="CATALOG"
           title={
             <>
@@ -143,7 +150,7 @@ export function CatalogingSection() {
           </div>
 
           <FrostCard hover={false} style={{ padding: 36 }}>
-            <Kicker color={T.volt}>SCHEMA · {active}</Kicker>
+            <Kicker color={T.volt}>SCHEMA &middot; {active}</Kicker>
             <div key={active} style={{ marginTop: 24 }}>
               {s.fields.map(([k, v], i) => (
                 <div
@@ -185,9 +192,9 @@ export function CatalogingSection() {
                 lineHeight: 1.55,
               }}
             >
-              + 12 more fields specific to {active.toLowerCase()}s — language,
-              edition flags, authenticator IDs, condition deltas. Vitrine
-              learns the vocabulary of each thing you collect.
+              + 12 more fields specific to {active.toLowerCase()}s &mdash;
+              language, edition flags, authenticator IDs, condition deltas.
+              Vitrine learns the vocabulary of each thing you collect.
             </div>
           </FrostCard>
         </div>

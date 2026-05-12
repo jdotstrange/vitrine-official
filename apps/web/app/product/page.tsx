@@ -1,42 +1,60 @@
 import type { Metadata } from "next"
-import { ComingSoonPage } from "@/components/marketing/ComingSoonPage"
+import { T } from "@/lib/marketing/tokens"
+import { SiteNav, Footer, FinalCTA } from "@/components/marketing/sections"
+import {
+  ProductHero,
+  CatalogArea,
+  ShowcaseArea,
+  TrackArea,
+  ActivityArea,
+  ShareArea,
+  TradeArea,
+  DiscoverArea,
+  CategoriesArea,
+  ProductFAQ,
+  ProductCTA,
+} from "@/components/marketing/product"
 
 export const metadata: Metadata = {
-  title: "Product",
+  title: "Product — Everything serious collectors deserve.",
   description:
-    "Catalog, Showcase, Track, Activity, Share, Trade, Discover — the full Vitrine toolkit. Everything that ships in the app.",
-  robots: {
-    index: false,
-    follow: false,
+    "Catalog, Showcase, Track, Activity, Share, Trade, Discover, Categories — the full Vitrine toolkit. Eight working surfaces in one app.",
+  openGraph: {
+    title: "Vitrine Product — Everything serious collectors deserve.",
+    description:
+      "Catalog, Showcase, Track, Activity, Share, Trade, Discover, Categories. Eight working surfaces, one vault.",
+  },
+  twitter: {
+    title: "Vitrine Product — Everything serious collectors deserve.",
+    description:
+      "Eight working surfaces, one vault. Catalog. Showcase. Track. Activity. Share. Trade. Discover. Categories.",
   },
 }
 
 export default function ProductPage() {
   return (
-    <ComingSoonPage
-      kicker="PRODUCT"
-      title={
-        <>
-          The full toolkit,{" "}
-          <em
-            style={{
-              fontFamily: "var(--font-electrolize), system-ui, sans-serif",
-              fontStyle: "italic",
-              color: "var(--brand-volt)",
-            }}
-          >
-            laid out.
-          </em>
-        </>
-      }
-      description={
-        <>
-          Catalog. Showcase. Track. Activity. Share. Trade. Discover.
-          Categories. Every surface in the app, in one page. Real page coming
-          in a later phase of the rebuild.
-        </>
-      }
-      cta={{ href: "/", label: "See the overview" }}
-    />
+    <main
+      style={{
+        background: T.void,
+        color: T.fg1,
+        fontFamily: T.fontInter,
+        minHeight: "100vh",
+      }}
+    >
+      <SiteNav />
+      <ProductHero />
+      <CatalogArea />
+      <ShowcaseArea />
+      <TrackArea />
+      <ActivityArea />
+      <ShareArea />
+      <TradeArea />
+      <DiscoverArea />
+      <CategoriesArea />
+      <ProductFAQ />
+      <ProductCTA />
+      <FinalCTA />
+      <Footer />
+    </main>
   )
 }
