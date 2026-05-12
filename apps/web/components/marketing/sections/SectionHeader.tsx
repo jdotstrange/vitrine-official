@@ -12,6 +12,7 @@ export interface SectionHeaderProps {
 export function SectionHeader({ num, kicker, title, sub }: SectionHeaderProps) {
   return (
     <div
+      data-marketing-section-header
       style={{
         display: "grid",
         gridTemplateColumns: "180px 1fr",
@@ -21,6 +22,7 @@ export function SectionHeader({ num, kicker, title, sub }: SectionHeaderProps) {
     >
       <div>
         <div
+          data-marketing-section-num
           style={{
             fontFamily: T.fontDisplay,
             fontSize: 64,
@@ -35,6 +37,7 @@ export function SectionHeader({ num, kicker, title, sub }: SectionHeaderProps) {
       </div>
       <div>
         <h2
+          data-marketing-section-title
           style={{
             fontFamily: T.fontDisplay,
             fontWeight: 400,

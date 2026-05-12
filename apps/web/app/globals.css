@@ -774,3 +774,212 @@ details summary::-webkit-details-marker { display: none; }
     transition-duration: 120ms !important;
   }
 }
+
+/* =============================================================================
+   MARKETING-SITE RESPONSIVE LAYER
+   Tablet (≤1024px): grids reflow to fewer columns, type scales ~20%, padding
+                     tightens. Hero phone stacks under text.
+   Phone  (≤768px):  all multi-col grids → 1col, hero phone hidden, nav links
+                     collapse to hamburger, type scales ~40%, padding minimal.
+
+   We have to use !important throughout because section components carry inline
+   styles (gridTemplateColumns, padding, fontSize, etc.). Inline style
+   specificity beats every external rule short of !important. The trade-off is
+   acceptable: this stylesheet is the single source of truth for breakpoints
+   so there's no cascade ambiguity.
+   ============================================================================= */
+
+/* Mobile nav hidden by default (desktop) */
+[data-marketing-mobile-nav] { display: none; }
+
+@media (max-width: 1024px) {
+  /* ---------- Nav ---------- */
+  [data-marketing-nav] { padding: 14px 24px !important; }
+
+  /* ---------- Section padding ---------- */
+  [data-marketing-hero] { padding: 56px 24px 80px !important; }
+  [data-marketing-section="problem"],
+  [data-marketing-section="thesis"],
+  [data-marketing-section="intelligence"],
+  [data-marketing-section="cataloging"],
+  [data-marketing-section="pulse"],
+  [data-marketing-section="showcases"],
+  [data-marketing-section="tracking"],
+  [data-marketing-section="comps"],
+  [data-marketing-section="community"],
+  [data-marketing-section="categories"],
+  [data-marketing-section="how"],
+  [data-marketing-section="state"],
+  [data-marketing-section="explore"],
+  [data-marketing-section="press"],
+  [data-marketing-section="faq"],
+  [data-marketing-section="footer"] { padding: 100px 24px !important; }
+  [data-marketing-section="pro"] { padding: 120px 24px 100px !important; }
+  [data-marketing-section="cta"] { padding: 120px 24px !important; }
+
+  /* ---------- Hero ---------- */
+  [data-marketing-hero-grid] {
+    grid-template-columns: 1fr !important;
+    gap: 48px !important;
+  }
+  [data-marketing-hero-title] { font-size: 64px !important; letter-spacing: -1.4px !important; }
+  [data-marketing-hero-phone] { display: flex !important; justify-content: center !important; }
+
+  /* ---------- Section header ---------- */
+  [data-marketing-section-header] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  [data-marketing-section-num] { font-size: 48px !important; }
+  [data-marketing-section-title] { font-size: 56px !important; letter-spacing: -1px !important; }
+
+  /* ---------- Grids: 4-col → 2-col, 6-col → 3-col, two-pane splits → stacked ---------- */
+  [data-marketing-grid="thesis-pillars"],
+  [data-marketing-grid="explore-items"],
+  [data-marketing-grid="footer-cols"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  [data-marketing-grid="categories"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  [data-marketing-grid="press-quotes"],
+  [data-marketing-grid="how-steps"],
+  [data-marketing-grid="comps-tiers"],
+  [data-marketing-grid="community"],
+  [data-marketing-grid="showcases"],
+  [data-marketing-grid="pro-trio"],
+  [data-marketing-grid="intel-tiles"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  [data-marketing-grid="problem-split"],
+  [data-marketing-grid="cataloging-split"],
+  [data-marketing-grid="intel-theater"],
+  [data-marketing-grid="tracking-split"],
+  [data-marketing-grid="live-coming"],
+  [data-marketing-grid="pro-auto"] {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* ---------- Nav: hide desktop links/sign-in/CTA, show hamburger ---------- */
+  [data-marketing-nav] { padding: 14px 20px !important; }
+  [data-marketing-nav-links],
+  [data-marketing-nav-actions] { display: none !important; }
+  [data-marketing-mobile-nav] { display: inline-flex !important; }
+
+  /* ---------- Section padding ---------- */
+  [data-marketing-hero] { padding: 40px 20px 60px !important; }
+  [data-marketing-section="problem"],
+  [data-marketing-section="thesis"],
+  [data-marketing-section="intelligence"],
+  [data-marketing-section="cataloging"],
+  [data-marketing-section="pulse"],
+  [data-marketing-section="showcases"],
+  [data-marketing-section="tracking"],
+  [data-marketing-section="comps"],
+  [data-marketing-section="community"],
+  [data-marketing-section="categories"],
+  [data-marketing-section="how"],
+  [data-marketing-section="state"],
+  [data-marketing-section="explore"],
+  [data-marketing-section="press"],
+  [data-marketing-section="faq"],
+  [data-marketing-section="footer"] { padding: 72px 20px !important; }
+  [data-marketing-section="pro"] { padding: 96px 20px 80px !important; }
+  [data-marketing-section="cta"] { padding: 96px 20px !important; }
+
+  /* ---------- Hero: type-led, phone hidden ---------- */
+  [data-marketing-hero-grid] {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+  [data-marketing-hero-title] {
+    font-size: 44px !important;
+    letter-spacing: -0.8px !important;
+    line-height: 1 !important;
+  }
+  [data-marketing-hero-phone] { display: none !important; }
+  [data-marketing-hero-stats] {
+    gap: 20px !important;
+    margin-top: 36px !important;
+    padding-top: 20px !important;
+  }
+  [data-marketing-hero-stats] > div { flex: 1 1 45% !important; }
+  [data-marketing-hero-stats] > div > div:last-child {
+    font-size: 26px !important;
+  }
+
+  /* ---------- Section header: smaller, tighter ---------- */
+  [data-marketing-section-header] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  [data-marketing-section-num] { font-size: 36px !important; }
+  [data-marketing-section-title] {
+    font-size: 36px !important;
+    letter-spacing: -0.6px !important;
+    line-height: 1.02 !important;
+  }
+
+  /* ---------- All multi-column grids → single column ---------- */
+  [data-marketing-grid="thesis-pillars"],
+  [data-marketing-grid="problem-split"],
+  [data-marketing-grid="problem-artifacts"],
+  [data-marketing-grid="cataloging-split"],
+  [data-marketing-grid="intel-theater"],
+  [data-marketing-grid="intel-tiles"],
+  [data-marketing-grid="showcases"],
+  [data-marketing-grid="tracking-split"],
+  [data-marketing-grid="comps-tiers"],
+  [data-marketing-grid="community"],
+  [data-marketing-grid="how-steps"],
+  [data-marketing-grid="live-coming"],
+  [data-marketing-grid="pro-trio"],
+  [data-marketing-grid="pro-auto"],
+  [data-marketing-grid="press-quotes"] {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  /* Categories: 6→2 grid, FinalCTA / Footer adjustments */
+  [data-marketing-grid="categories"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  [data-marketing-grid="footer-top"] {
+    flex-direction: column !important;
+    gap: 32px !important;
+    align-items: flex-start !important;
+  }
+  [data-marketing-grid="footer-cols"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 32px !important;
+  }
+
+  /* Explore: filters horizontal scroll, items 2-up */
+  [data-marketing-grid="explore-filters"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  [data-marketing-grid="explore-filters"]::-webkit-scrollbar { display: none; }
+  [data-marketing-grid="explore-filters"] > * { flex-shrink: 0 !important; }
+  [data-marketing-grid="explore-items"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Press logos: marquee already scrolls, just give more breathing room */
+  [data-marketing-grid="press-logos"] { padding: 16px 0 !important; }
+
+  /* CTA title scales down */
+  [data-marketing-cta-title] {
+    font-size: 56px !important;
+    letter-spacing: -1px !important;
+    line-height: 1 !important;
+  }
+}
+

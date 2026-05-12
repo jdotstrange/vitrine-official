@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { T } from "@/lib/marketing/tokens"
 import { useActiveSection } from "@/lib/marketing/hooks"
 import { VitrineLogo } from "@/components/marketing/VitrineLogo"
+import { MobileNav } from "@/components/marketing/sections/MobileNav"
 
 const NAV_IDS = ["intelligence", "showcases", "tracking", "pro", "explore"]
 
@@ -71,7 +72,10 @@ export function SiteNav() {
           </a>
         ))}
       </nav>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div
+        data-marketing-nav-actions
+        style={{ display: "flex", gap: 12, alignItems: "center" }}
+      >
         <a
           className="nav-link"
           href="#"
@@ -80,7 +84,11 @@ export function SiteNav() {
         >
           Sign in
         </a>
-        <a href="#download" style={{ textDecoration: "none" }}>
+        <a
+          href="#download"
+          data-marketing-nav-cta
+          style={{ textDecoration: "none" }}
+        >
           <span
             className="cta-glow"
             style={{
@@ -101,6 +109,7 @@ export function SiteNav() {
           </span>
         </a>
       </div>
+      <MobileNav />
     </header>
   )
 }
