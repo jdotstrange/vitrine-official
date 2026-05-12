@@ -983,3 +983,26 @@ details summary::-webkit-details-marker { display: none; }
   }
 }
 
+/* =============================================================================
+   SHARE-RESOLVER PAGE responsive — V3 frost-on-void already mobile-first,
+   but the title and header pad need to ease off on small screens.
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  [data-share-header] { padding: 16px 20px !important; }
+  [data-share-stack] { padding: 28px 20px 64px !important; }
+  [data-share-title] {
+    font-size: 32px !important;
+    letter-spacing: -0.5px !important;
+  }
+  [data-share-stats] { gap: 24px !important; }
+  [data-share-image] { max-width: 280px !important; }
+}
+
+@media (max-width: 420px) {
+  [data-share-header-cta] {
+    padding: 6px 10px !important;
+    font-size: 10.5px !important;
+  }
+}
+
