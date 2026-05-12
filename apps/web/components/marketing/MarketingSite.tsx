@@ -16,14 +16,13 @@ import {
 } from "./sections"
 
 /**
- * MarketingSite — the new home page composition (10 narrative sections).
+ * MarketingSite — the home page composition (10 narrative sections).
  *
  * Restructured from the original 18-section V3 build into a tight
  * conversion narrative: Hook -> Problem -> Solution -> Wow -> Mechanics ->
  * Depth wall -> Breadth -> Vibe -> Social proof -> Close. Sections that
- * were feature deep-dives migrated to /product, /intelligence, or
- * /pricing. The frozen 18-section snapshot lives at /lab during the build
- * (see MarketingSiteLab).
+ * were feature deep-dives migrated to /product, /intelligence, and
+ * /pricing in earlier phases of the multi-page restructure.
  */
 export function MarketingSite() {
   return (

@@ -4,109 +4,111 @@ Last updated: 2026-05-12
 Last verified: 2026-05-12
 
 ## Session Summary
-Replaced the legacy multi-page web marketing site (light "Contemporary Gallery" theme + ~20 home/about/pricing/features/explore/contact components, + ~21 root-level orphan components) with a single-page V3-aligned port of the `c:\Users\johnj\vitrine-2026` HTML mockup. Six atomic commits, build green at every step. Re-skinned the three share resolvers (`/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`) in matching frost-on-void aesthetic so the brand reads as one app from first impression through download. Killed all six legacy marketing routes with permanent 301s. Replaced static `/icon.svg` favicon with dynamic Next.js `next/og` icon + apple-icon + opengraph-image endpoints, all rendering the canonical Vitrine crown-in-vitrine mark from a single shared path-data module. Mobile responsive across all 20 marketing sections + share resolvers via two breakpoints (≤1024px tablet, ≤768px phone) with hamburger nav.
+Restructured the V3 web marketing site from a single-page lander into a hybrid multi-page architecture, then ran a copy/content refinement pass and a final cleanup. The shipped IA: a tight 10-section `/` lander plus three deep pages (`/pricing`, `/intelligence`, `/product`), a `/login` "Web App Coming Soon" placeholder, and draft `/privacy` + `/terms` legal pages. Seven atomic phases, build green at every step. The seventh phase deleted the temporary `/lab` snapshot route, the `MarketingSiteLab` composition, and two orphaned section files (`LiveComingSection`, `ProSection` — the latter's content folded into `/pricing` in Phase 2). Routes grew from 8 → 16. No /lab in production, no orphaned imports, sitemap + robots wired.
 
-Six commits in `git log`:
-1. Phase 1 — Rewire web to V3 design tokens + canonical brand assets
-2. Phase 2 — Add marketing primitives & motion hooks for V3 rebuild
-3. Phase 3 — Port marketing sections + compose MarketingSite for V3 rebuild
-4. Phase 4 — Add tablet + phone breakpoints to marketing site
-5. Phase 5 — Re-skin share resolvers in V3 frost-on-void + mobile responsive
-6. Phase 6 — Marketing cleanup: kill legacy routes, refresh OG/icons, update memory
+Seven commits in `git log`:
+1. Phase 1 — Multi-page restructure foundation (`marketing: phase 1`)
+2. Phase 2 — `/pricing` real page from `pricing-model.md` (`marketing: phase 2`)
+3. Phase 3 — `/intelligence` cornerstone Looking Glass page (`marketing: phase 3`)
+4. Phase 4 — `/product` full toolkit page (`marketing: phase 4`)
+5. Phase 5 — `/login` + `/privacy` + `/terms` + sitemap/robots (`marketing: phase 5`)
+6. Phase 6 — Copy + content refinement across all pages (`marketing: phase 6`)
+7. Phase 7 — Cleanup: delete `/lab`, orphaned sections, doc updates (`marketing: phase 7`)
 
 ## Current State
-- Web app routes shrunk from 12 → 8 (all needed): `/`, `/_not-found`, `/icon`, `/apple-icon`, `/opengraph-image`, `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`. Six 301 redirects in `next.config.mjs` cover legacy URLs.
-- `apps/web/app/page.tsx` is now `<MarketingSite />` and nothing else. The composition mirrors the mockup section order.
-- `apps/web/app/globals.css` is the single source of truth for tokens (`:root`), Tailwind theme (`@theme inline`), interactive styles (`.nav-link`, `.cta-glow`, `details summary`), keyframes, marketing breakpoints (`data-marketing-*`), and share-resolver breakpoints (`data-share-*`).
-- All section JSX uses inline styles fed by the `T` token bridge in `apps/web/lib/marketing/tokens.ts` so colors/fonts/spacing flow through CSS vars without rewriting to Tailwind.
-- 5 native-only API modules (Day 2 carry-over) still in `apps/native/lib/api/` — unchanged this session.
-- `apps/web/components/ui/*` (shadcn) kept intentionally — currently 0 importers but useful for the eventual authenticated web app.
+- **Routes (16 total)**: `/`, `/_not-found`, `/pricing`, `/intelligence`, `/product`, `/login`, `/privacy`, `/terms`, `/icon`, `/apple-icon`, `/opengraph-image`, `/robots.txt`, `/sitemap.xml`, `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`. No `/lab` (deleted in Phase 7).
+- **Home (`/`) — 10 sections**: SiteNav → Hero → Problem (`§01`) → Thesis (`§02`) → Intelligence (`§03`, "Tell us nothing. We read the piece.") → HowItWorks (`§04`) → RapidFireFeatures (`§05`, 12-tile feature wall) → Explore (`§06`, 4×2 spatial grid) → Community (`§07`, 3 collector cards with varied hooks) → Press (`§08`, testimonials with explicit `[Your name here]` placeholder slot) → FinalCTA (`§09`) → Footer.
+- **`/pricing`**: PricingHero → FoundersPricingBanner → PricingCards (Free / Pro $9.99 / Collector $24.99 with monthly/annual toggle) → ViewVsGenerateSection (the "everyone views, Pro+ generates" keystone) → MarketplaceFeeMath (10% Free/Pro vs 7% Collector + tier recommender) → ComparisonTable (collapsible full feature matrix) → PricingFAQ. All numbers live in `apps/web/lib/marketing/pricing-data.ts` keyed to `vitrinedb/docs/pricing-model.md`.
+- **`/intelligence`** (Looking Glass cornerstone): IntelligenceHero → MultiVerticalExamples (cards / watches / wine / coins / comics / vinyl extraction examples with field-level confidence) → BeforeAfterComparison → VARExplanation → AARExplanation → PulseLensExplanation (clarifies vs marketing-side Activity) → CompsArea (migrated from old `CompsSection`) → TechnicalCredibility (Gemini Flash / multi-pass / validation) → IntelligenceCTA. Data + report-card content in `apps/web/lib/marketing/intelligence-data.ts`. Shared `ReportExplanationCard` standardizes the VAR/AAR/Pulse layouts.
+- **`/product`** (the longest, deepest page — "we have features for days"): ProductHero (8 surfaces lined up) → CatalogArea → ShowcaseArea → TrackArea → ActivityArea (the social-signal feed for the network — formerly "Pulse" on the marketing side, renamed to eliminate the in-app-Pulse-lens collision) → ShareArea (drop a link in iMessage / `/s/c/[id]` resolvers) → TradeArea (marketplace summary + fee structure → `/pricing`) → DiscoverArea (network signals + suggested collectors) → CategoriesArea (6×6 category grid) → ProductFAQ → ProductCTA. ~11 areas total.
+- **`/login`** placeholder: V3-styled "Web App Coming Soon" page with App Store + Play badges, "your collection lives in your pocket" headline, link back to home. Noindexed via metadata. Replaces the bare skeleton from Phase 1.
+- **`/privacy` + `/terms`** drafts: shared `LegalPage.tsx` component with sticky DRAFT banner, plain-English placeholder copy flagged for legal review, structured by section. Both noindexed via metadata.
+- **Discovery files**: `apps/web/app/robots.ts` (`User-Agent: *  Allow: /` + sitemap pointer; no active disallow rules — the `/lab` rule was Phase 5 era and was removed in Phase 7 when `/lab` was deleted) and `apps/web/app/sitemap.ts` (includes `/`, `/pricing`, `/intelligence`, `/product`, `/privacy`, `/terms`; excludes `/login`).
+- **Footer** reads from `FOOTER_COLUMNS` constant. Items shape evolved from `string[]` to `FooterItem[] = { label, href? }`. Live links: Product → `/product`, Looking Glass → `/intelligence`, Pricing → `/pricing`, Get the app → `/#download`, Privacy → `/privacy`, Terms → `/terms`. Items without an `href` (Company / Resources columns: About, Press, Careers, Contact, Help, Status, Changelog) render as muted "coming soon" text.
+- **Cross-page nav**: `SiteNav.tsx` + `MobileNav.tsx` use `next/link` deep links + `usePathname()` for active state. Cross-page download CTA → `/#download` (so navigating from any deep page → "Get the app" reaches the home anchor). The "Lab" link was removed in Phase 7.
+- **Legacy redirects in `next.config.mjs`**: 5 active 308s — `/about → /#thesis`, `/features → /product`, `/explore → /#explore`, `/contact → /#footer`, `/identity → /`. The `/pricing → /#pro` redirect was deleted in Phase 2 — `/pricing` is a real page now.
+- **Data modules (`apps/web/lib/marketing/`)**: `pricing-data.ts`, `intelligence-data.ts`, `constants.ts` (now includes `RAPID_FIRE_TILES`, refined `Quote` + `CollectorCard` shapes, `FOOTER_COLUMNS` with hrefs, `PRODUCT_FAQS` split out from old `FAQS`), `photos.ts`, `tokens.ts`, `hooks.ts`, `Reveal.tsx`, `Stagger.tsx`, `Parallax.tsx`, `brand-paths.ts`.
 
 ## Files Changed Recently
 
-### New (Phase 1 — Foundation)
-- `apps/web/public/logo.svg` — canonical wordmark with `fill="currentColor"`.
-- `apps/web/components/marketing/{VitrineLogo,VitrineMark}.tsx` — React wrappers.
-- `apps/web/lib/marketing/tokens.ts` — `T` object resolving CSS vars.
-- `apps/web/app/globals.css` (rewired) — V3 dark palette, marketing vars, Tailwind theme bindings, keyframes.
-- `apps/web/app/layout.tsx` (rewired) — fonts (Electrolize / Space Grotesk / Inter / Libre Caslon Text / JetBrains Mono), V3 metadata, dark `themeColor` + `colorScheme`.
+### New (across the multi-page restructure)
+- `apps/web/app/{pricing,intelligence,product,login,privacy,terms}/page.tsx` — six new public route files.
+- `apps/web/app/{robots,sitemap}.ts` — discovery wiring.
+- `apps/web/components/marketing/{ComingSoonPage,LegalPage}.tsx` — shared layouts for skeleton + legal pages.
+- `apps/web/components/marketing/pricing/*` — `PricingHero`, `FoundersPricingBanner`, `PricingCards`, `ViewVsGenerateSection`, `MarketplaceFeeMath`, `ComparisonTable`, `PricingFAQ` (7 files).
+- `apps/web/components/marketing/intelligence/*` — `IntelligenceHero`, `MultiVerticalExamples`, `BeforeAfterComparison`, `VARExplanation`, `AARExplanation`, `PulseLensExplanation`, `CompsArea` (migrated), `TechnicalCredibility`, `IntelligenceCTA`, `ReportExplanationCard` (~10 files).
+- `apps/web/components/marketing/product/*` — `ProductHero`, `CatalogArea` (migrated), `ShowcaseArea` (migrated), `TrackArea` (migrated), `ActivityArea` (migrated + renamed from PulseSection), `ShareArea`, `TradeArea`, `DiscoverArea`, `CategoriesArea` (migrated), `ProductFAQ` (migrated), `ProductCTA` (~11 files).
+- `apps/web/components/marketing/sections/RapidFireFeatures.tsx` — new 12-tile feature wall on home.
+- `apps/web/lib/marketing/{pricing-data,intelligence-data}.ts` — new content modules.
 
-### New (Phase 2 — Primitives + hooks)
-- `apps/web/components/marketing/primitives/{FrostCard,Pill,Kicker,MIcon,AppStoreBadge,PulseRow,Button,CompRow,HolographicFrame,GradientVeil,index}.{ts,tsx}`.
-- `apps/web/lib/marketing/{hooks,Reveal,Stagger,Parallax,photos,constants}.{ts,tsx}`.
+### Modified
+- `apps/web/components/marketing/MarketingSite.tsx` — now composes 10 sections (down from 18). Doc comment updated in Phase 7 to drop the `/lab`/MarketingSiteLab reference.
+- `apps/web/components/marketing/sections/{SiteNav,MobileNav,Footer,Hero,IntelligenceSection,CommunitySection,PressSection,ThesisSection,ProblemSection,HowItWorksSection,ExploreSection,FinalCTA,SectionHeader,index}.tsx` — kicker numbers renumbered, deep-page nav links wired, copy refined per-section (Phase 6), Footer rebuilt with `next/link`. `index.ts` exports trimmed in Phase 7 (no more `LiveComingSection` / `ProSection`).
+- `apps/web/lib/marketing/constants.ts` — `RAPID_FIRE_TILES` added (Phase 1), `Quote` shape refactored from `{ q, a }` → `{ quote, name, role, placeholder? }` (Phase 6), `CollectorCard` shape refactored (no follower counts; new `since` / `hook` / `note` fields, Phase 6), `FOOTER_COLUMNS` now uses `FooterItem[]` with hrefs (Phase 5), `FAQS` split into `PRODUCT_FAQS` here + `PRICING_FAQS` in pricing-data.ts (Phase 4).
+- `apps/web/next.config.mjs` — removed legacy `/pricing → /#pro` redirect (Phase 2); updated `/features → /product` (Phase 1).
 
-### New (Phase 3 — Sections)
-- `apps/web/components/marketing/sections/{SectionHeader,SiteNav,Hero,PulseSection,ProblemSection,ThesisSection,IntelligenceSection,CatalogingSection,ShowcasesSection,TrackingSection,CompsSection,CommunitySection,CategoriesSection,HowItWorksSection,LiveComingSection,ExploreSection,ProSection,PressSection,FAQSection,FinalCTA,Footer,index}.{ts,tsx}`.
-- `apps/web/components/marketing/MarketingSite.tsx` — top-level composition.
-- `apps/web/app/page.tsx` (replaced) — single `<MarketingSite />` render.
-- `apps/web/app/globals.css` (extended) — `.nav-link`, `.cta-glow`, `details summary` polish.
+### Deleted (Phase 3-4 migrations)
+- `apps/web/components/marketing/sections/{CompsSection,CatalogingSection,ShowcasesSection,TrackingSection,PulseSection,CategoriesSection,FAQSection}.tsx` — all moved/renamed to `intelligence/` and `product/` directories.
 
-### New (Phase 4 — Responsive)
-- `apps/web/components/marketing/sections/MobileNav.tsx` — hamburger toggle + slide-down panel.
-- `apps/web/components/marketing/sections/SiteNav.tsx` (extended) — `data-marketing-*` attributes + `<MobileNav />` mount.
-- `apps/web/components/marketing/sections/SectionHeader.tsx` (extended) — `data-marketing-section-{header,num,title}` attributes.
-- `apps/web/app/globals.css` (extended) — full responsive layer (≤1024px and ≤768px breakpoints).
-
-### New (Phase 5 — Resolvers)
-- `apps/web/components/share/share-landing.tsx` (full rewrite) — V3 frost-on-void ShareLanding + ShareNotFound.
-- `apps/web/app/globals.css` (extended) — `data-share-*` responsive overrides.
-
-### New (Phase 6 — Cleanup)
-- `apps/web/lib/marketing/brand-paths.ts` — single source of truth for VitrineMark SVG path data.
-- `apps/web/components/marketing/VitrineMark.tsx` (refactored) — consumes `brand-paths.ts`.
-- `apps/web/app/{icon,apple-icon,opengraph-image}.tsx` — Edge-runtime `ImageResponse` endpoints.
-- `apps/web/app/not-found.tsx` (rewritten) — V3 frost-on-void 404.
-- `apps/web/next.config.mjs` (extended) — six 301 redirects.
-
-## Files Deleted Recently
-- **Routes**: `apps/web/app/{about,pricing,identity,features,contact,explore}/` (6 directories, all `page.tsx`s + nested files).
-- **Component categories**: `apps/web/components/{home,about,pricing,features,contact,explore,identity,app-ui}/` (~40 files total).
-- **Root-level orphans**: `apps/web/components/{navigation,footer,universal-cta,tilt-card,live-ticker,error-state,page-transition,download-modal,custom-cursor,scroll-reveal,spatial-background,theme-provider,category-orbs,magnetic-button,empty-state,loading-state,profile-ring,data-stream,adaptive-image,chromatic-logo,section-label}.tsx` (~21 files).
-- **Orphaned data files**: `apps/web/lib/{explore-data,category-data}.ts`.
-- **Static asset**: `apps/web/app/icon.svg` (replaced by dynamic `icon.tsx`).
+### Deleted (Phase 7 cleanup)
+- `apps/web/app/lab/page.tsx` — temporary snapshot route, no longer needed.
+- `apps/web/components/marketing/MarketingSiteLab.tsx` — frozen 18-section composition, no surviving consumer.
+- `apps/web/components/marketing/sections/LiveComingSection.tsx` — orphaned (excluded from new home IA).
+- `apps/web/components/marketing/sections/ProSection.tsx` — orphaned (content folded into `/pricing`).
 
 ## Incomplete Work
-- **Marketing copy is verbatim from the mockup.** Per the user: structure is right, but narrative needs another iteration. Outside the hero, most copy is "filler and not fully realized" — fixing it is a separate pass on top of the now-stable structure.
-- **Photos are Unsplash placeholders.** The 8 image URLs in `apps/web/lib/marketing/photos.ts` are temporary; real brand assets to be provided. Swap is a one-file edit.
-- **Roadmap dates** in `LiveComingSection` / `ProSection` are likely stale (ported from the months-old mockup). Fix when narrative iteration happens.
-- **Day 2 carry-over** — same as previous session:
+- **Real testimonial copy.** The third `PressSection` slot ships with an explicit `placeholder: true` entry rendering as "[Your name here]" / "OPEN SLOT · HELLO@VITRINE.APP" with a dashed border. When real testimonials land, swap the entry in `PRESS_QUOTES` in `apps/web/lib/marketing/constants.ts` and remove the flag — no component changes required. The first two cards are also generic placeholders ("Collector / 22 YR · CARDS" etc.) that should become real names + roles.
+- **Real photos.** The 8 image URLs in `apps/web/lib/marketing/photos.ts` remain Unsplash placeholders. Same applies to the 3 collector avatars in `CommunitySection` and the 8 spatial cards in `ExploreSection`. Swap is a one-file edit per location.
+- **Real ThesisSection app screenshots.** Plan called for inline visuals of FramedHero, lens architecture, dossier card. No real assets are available — flagged in OPEN_THREADS.
+- **Legal review on `/privacy` and `/terms`.** Both pages ship with a sticky DRAFT banner and `metadata.robots = { index: false, follow: false }`. Real legal review must happen before launch. The "first 10K Pro subscribers locked at $9.99 forever" founders pricing is referenced in both `/pricing` (`FoundersPricingBanner`) and `/terms` — keep them in sync if the offer changes.
+- **`/explore` real page deferred.** The home page keeps the 4×2 spatial Explore grid as a category visualizer; the wire-to-Supabase `/explore` page (real DB-backed proof page) is its own engineering project (~2-3 weeks), explicitly out of scope for this restructure.
+- **`/changelog` deferred.** The Live Now / Roadmap content from the deleted `LiveComingSection` could revive on a future `/changelog` page if there's product appetite.
+- **Day 2 carry-over** — same as previous sessions:
   - 5 native-only API modules (`auth`, `collectibles`, `tracking`, `views`, `market`, `trading-cards`, `client`, `config`, `messaging`) still in `apps/native/lib/api/`. Migrating them is essentially Day 3 web-buildout work (authenticated routes).
-  - Collectible (`/s/c/[id]`) and profile (`/s/p/[id]`) share resolvers still on direct Supabase queries — blocked by the 5 native-only modules above.
   - Web SSR Supabase client split (`@supabase/ssr` browser/server clients) deferred until web adds authenticated routes.
-  - Native tsc baseline at 107 errors (all pre-existing, none added this session).
+  - Native tsc baseline at 107 errors (pre-existing, none added this session).
 
 ## Validation Performed
 - `pnpm --filter @vitrine/web build` after every phase → green.
-- Final route inventory printed by `next build`: `/`, `/_not-found`, `/icon`, `/apple-icon`, `/opengraph-image`, `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`.
-- `ReadLints` clean on every new + modified file in this session (marketing/, share/, lib/marketing/, app routes, globals.css, next.config.mjs).
-- Pre-deletion grep sweeps confirmed zero remaining importers of every deleted file.
+- Final route inventory printed by `next build`: `/`, `/_not-found`, `/intelligence`, `/login`, `/pricing`, `/privacy`, `/product`, `/terms`, `/icon`, `/apple-icon`, `/opengraph-image`, `/robots.txt`, `/sitemap.xml`, `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`. (16 routes, vs. 8 pre-restructure, 0 of them `/lab`.)
+- Cross-page nav verified in dev: every header link resolves 200, footer Privacy / Terms / Product / Intelligence / Pricing all 200, "Get the app" → `/#download` from every deep page.
+- `ReadLints` clean on every new + modified file across all 7 phases.
+- Phase 7 specifically: grep sweep for `LiveComingSection|MarketingSiteLab|ProSection` returns zero matches; grep sweep for `/lab` paths returns zero matches.
 
 ## Risks And Warnings
-- **Inline-style overrides require `!important` in the responsive layer.** Section components carry inline `style={{ gridTemplateColumns, padding, fontSize }}`. Inline-style specificity beats every external rule short of `!important`. Trade-off accepted: `globals.css` is the single source of truth for breakpoints, no cascade ambiguity. If you add a new responsive override, follow the same pattern.
-- **Dynamic icon endpoints use the Edge runtime.** Disables static generation for those pages (Next prints `⚠ Using edge runtime on a page currently disables static generation`). Expected — they need to render `ImageResponse` per request. Don't move them off Edge unless you also stop using `next/og`.
-- **Brand mark path data lives in two places: `brand-paths.ts` (web) and `apps/native/components/vault/icons/vitrine-mark-icon.tsx` (native).** If the brand mark ever changes, update both files in lockstep. The native side has a separate component so it can ship as RN SVG.
-- **Shadcn `apps/web/components/ui/*` kept with zero importers.** Tree-shaken out of the marketing bundle so no runtime cost; deliberately retained for the eventual authenticated web app. If a future cleanup deletes them, also remove `apps/web/components/theme-provider.tsx` (already deleted) and any related wiring.
-- **`MIcon` does namespace import of `lucide-react`** (`import * as Icons from "lucide-react"`) so the kebab-case → PascalCase conversion works without an explicit registry. Tree-shaking still applies. If bundle size becomes a concern, swap to a shipped registry of the icons actually used.
+- **Inline-style overrides require `!important` in the responsive layer.** Same caveat as the V3 rebuild — section components carry inline `style={{ ... }}` so the `data-marketing-*` rules in `globals.css` use `!important` to win specificity. New responsive rules should follow the same pattern.
+- **Dynamic icon endpoints use the Edge runtime.** Disables static generation for those pages. Expected — they need to render `ImageResponse` per request. Don't move them off Edge unless you also stop using `next/og`.
+- **Brand mark path data lives in two places.** `apps/web/lib/marketing/brand-paths.ts` (web) and `apps/native/components/vault/icons/vitrine-mark-icon.tsx` (native). If the brand mark ever changes, update both files in lockstep.
+- **`apps/web/components/ui/*` (shadcn) kept with zero importers.** Tree-shaken out of the marketing bundle so no runtime cost; deliberately retained for the eventual authenticated web app.
+- **`PRESS_QUOTES` ships with a placeholder slot.** The third testimonial card is intentionally `placeholder: true` so the open slot is visually unambiguous to anyone editing the file. If a real testimonial lands but you forget to remove the flag, the dashed-border treatment will still ship. Toggle the flag.
+- **The Pulse → Activity rename happened only on the marketing side.** The in-app Pulse lens (per-piece market intel report) keeps its name; `intelligence/PulseLensExplanation.tsx` describes it. The marketing-side `ActivityArea` (under `/product`) is the social-signal feed for the collector network. Don't rename either side without updating the other's narrative.
+- **`/product` is heavy.** ~11 areas including the rich `TrackArea` SVG chart, the showcase parallax cards, the cataloging tab demo, etc. Worth profiling page weight if mobile load times degrade.
+- **Section kicker numbers (`§01`, `§02`, ...) are hardcoded per section.** Adding/removing a home section requires renumbering. Same for migrating a section between pages.
+- **Founders pricing referenced in two places.** `apps/web/lib/marketing/pricing-data.ts` `FOUNDERS_PRICING` constant + `apps/web/app/terms/page.tsx` placeholder copy. Keep them in sync.
 
 ## Next Best Task
-Two natural follow-ups, plus any of the existing Day 3 tracks:
-1. **Marketing narrative iteration.** Rewrite the section copy (Problem/Thesis/Pro/Press/FAQ in particular) to land the actual product story. Structure + design system are now stable — this is pure content work.
-2. **Real brand photos.** Swap the 8 Unsplash URLs in `apps/web/lib/marketing/photos.ts` for real assets (Showcases, Hero card variants, Categories highlights, Crown Jewel artwork).
-3. **Day 3 carry-overs**: web product buildout (`docs/VITRINE_WEB_PLAN.md`), EAS / TestFlight pipeline (`docs/EAS_MIGRATION_PLAN.md`, `docs/TESTFLIGHT_CHECKLIST.md`), or product features (Crown Jewel detail-screen assignment UI; AI upload flow QA).
+1. **Real testimonial copy + brand photos.** Structure + design system are stable; the third PressSection slot is wired as an explicit `[Your name here]` placeholder. Photos are still Unsplash placeholders. Real ThesisSection app screenshots (FramedHero / lens architecture / dossier card) also deferred.
+2. **Legal review on `/privacy` + `/terms`.** Both pages ship with a sticky DRAFT banner and noindex; real legal copy needs to land before launch.
+3. **EAS / TestFlight pipeline** (`docs/EAS_MIGRATION_PLAN.md`, `docs/TESTFLIGHT_CHECKLIST.md`) — gating any real device distribution.
+4. **Product features** — Crown Jewel detail-screen assignment UI; AI upload flow QA pass.
+5. **Day 3 web buildout** (`docs/VITRINE_WEB_PLAN.md`) — eventual authenticated web app surfaces.
 
 ## Suggested Starter Prompt
 ```
-/rehydrate-project-memory — then we're picking up after the V3 marketing site rebuild. Read the latest IMPLEMENTATION_LOG entry ("Vitrine Marketing Site V3 Rebuild") and the new CURRENT_STATE "Web Marketing Site (V3 — Live)" section to see the shipped structure. The site is up at /, share resolvers re-skinned, six legacy routes 301'd. Today I want to start with [marketing copy iteration | real brand photos | EAS pipeline | Day 3 web buildout].
+/rehydrate-project-memory — then we're picking up after the multi-page marketing site restructure (7 phases shipped). Read the latest IMPLEMENTATION_LOG entry ("Vitrine Marketing Site Multi-Page Restructure (7 phases)") and the refreshed CURRENT_STATE "Web Marketing Site (V3 — Multi-Page, Live)" section to see the shipped IA. Today I want to start with [real testimonial copy + photos | legal review on privacy/terms | EAS pipeline | product features | Day 3 web buildout].
 ```
 
 ## Memory Updates Made This Session
-- `IMPLEMENTATION_LOG.md` — appended entry: "Vitrine Marketing Site V3 Rebuild (single-page, dark-first)" covering Phases 1-6 in detail.
-- `CURRENT_STATE.md` — added "Web Marketing Site (V3 — Live)" section, refreshed Current Build Phase + Current Priority + timestamps.
-- `HANDOFF.md` — this file, full rewrite for the new session boundary.
+- `IMPLEMENTATION_LOG.md` — appended entry: "Vitrine Marketing Site Multi-Page Restructure (7 phases)" covering Phases 1-7 in detail.
+- `CURRENT_STATE.md` — replaced "Web Marketing Site (V3 — Live)" section with "Web Marketing Site (V3 — Multi-Page, Live)"; refreshed Current Build Phase + Current Priority + timestamps.
+- `HANDOFF.md` — this file, full rewrite for the multi-page session boundary.
+- `OPEN_THREADS.md` — closed the single-page V3 rebuild thread; opened new threads for real testimonial copy, real ThesisSection screenshots, legal review on `/privacy` + `/terms`, deferred `/explore` and `/changelog` pages.
 
 ## What Not To Touch
 - The `T` token bridge (`apps/web/lib/marketing/tokens.ts`). Section JSX assumes `T.void`, `T.volt`, `T.fg1` etc. exist with exactly those names. Add to it, don't rename.
-- `apps/web/lib/marketing/brand-paths.ts`. Both `VitrineMark` and the three icon endpoints consume it. Edit only when the actual brand mark changes; keep `VITRINE_MARK_VIEWBOX` and `VITRINE_MARK_PATHS` exported with those names.
-- The `data-marketing-*` and `data-share-*` attribute system. The responsive layer in `globals.css` targets these specifically. New sections should follow the same convention (`data-marketing-section="<name>"` on the outer `<section>`, `data-marketing-grid="<id>"` on grid divs).
-- `apps/web/components/ui/*` (shadcn). Zero current importers but valuable for the eventual authenticated app — don't delete.
-- The 5 native-only API modules (Day 2 carry-over) — same warning as last session. They depend on RN/Expo APIs and stay put until web actually needs them.
+- `apps/web/lib/marketing/brand-paths.ts`. Both `VitrineMark` and the three icon endpoints consume it.
+- The `data-marketing-*` and `data-share-*` attribute system. The responsive layer in `globals.css` targets these specifically.
+- `apps/web/components/ui/*` (shadcn). Zero current importers but valuable for the eventual authenticated app.
+- The 5 native-only API modules (Day 2 carry-over). They depend on RN/Expo APIs and stay put until web actually needs them.
+- The DRAFT banner on `/privacy` and `/terms`. It's the only thing visually distinguishing draft policy from finalized — leave it until legal sign-off.
+- `PRESS_QUOTES[2].placeholder = true`. Don't remove unless you're swapping in a real testimonial.

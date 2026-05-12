@@ -11,15 +11,12 @@ import { MobileNav } from "@/components/marketing/sections/MobileNav"
 interface NavLink {
   href: string
   label: string
-  /** When true, the link is rendered with a temporary "lab" badge */
-  lab?: boolean
 }
 
 const NAV_LINKS: NavLink[] = [
   { href: "/intelligence", label: "Looking Glass" },
   { href: "/product", label: "Product" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/lab", label: "Lab", lab: true },
 ]
 
 export function SiteNav() {
@@ -81,23 +78,6 @@ export function SiteNav() {
               style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               {link.label}
-              {link.lab && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    fontFamily: T.fontMono,
-                    fontSize: 8.5,
-                    letterSpacing: 0.6,
-                    padding: "2px 5px",
-                    borderRadius: 3,
-                    background: T.voltFill,
-                    color: T.volt,
-                    border: `1px solid ${T.voltBorder}`,
-                  }}
-                >
-                  WIP
-                </span>
-              )}
             </Link>
           )
         })}

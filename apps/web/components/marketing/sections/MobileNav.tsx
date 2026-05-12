@@ -8,14 +8,12 @@ import { T } from "@/lib/marketing/tokens"
 interface MobileNavLink {
   href: string
   label: string
-  lab?: boolean
 }
 
 const NAV_LINKS: MobileNavLink[] = [
   { href: "/intelligence", label: "Looking Glass" },
   { href: "/product", label: "Product" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/lab", label: "Lab", lab: true },
 ]
 
 /**
@@ -123,23 +121,6 @@ export function MobileNav() {
               }}
             >
               {link.label}
-              {link.lab && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    fontFamily: T.fontMono,
-                    fontSize: 9,
-                    letterSpacing: 0.6,
-                    padding: "2px 6px",
-                    borderRadius: 3,
-                    background: T.voltFill,
-                    color: T.volt,
-                    border: `1px solid ${T.voltBorder}`,
-                  }}
-                >
-                  WIP
-                </span>
-              )}
             </Link>
           ))}
           <Link
