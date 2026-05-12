@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { T } from "@/lib/marketing/tokens"
-import { SiteNav, Footer, FinalCTA } from "@/components/marketing/sections"
+import { SiteNav, Footer, FinalCTA, CommunitySection } from "@/components/marketing/sections"
 import {
   ProductHero,
   CatalogArea,
@@ -50,6 +50,7 @@ export default function ProductPage() {
       <ShareArea />
       <TradeArea />
       <DiscoverArea />
+      <CommunitySection />
       <CategoriesArea />
       <ProductFAQ />
       <ProductCTA />

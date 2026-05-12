@@ -62,6 +62,7 @@ export function Footer() {
         </div>
       </div>
       <div
+        data-marketing-footer-bottom
         style={{
           maxWidth: 1280,
           margin: "0 auto",
@@ -74,6 +75,8 @@ export function Footer() {
           fontSize: 10.5,
           color: T.fg3,
           letterSpacing: 0.5,
+          flexWrap: "wrap",
+          gap: 8,
         }}
       >
         <span>© 2026 VITRINE INC.</span>

@@ -9,8 +9,6 @@ import {
 } from "@/lib/marketing/hooks"
 import { Reveal } from "@/lib/marketing/Reveal"
 import { HOW_STEPS } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
-
 export function HowItWorksSection() {
   const reduced = usePrefersReducedMotion()
   const [lineRef, lineIn] = useInView<HTMLDivElement>({ threshold: 0.3 })
@@ -24,26 +22,40 @@ export function HowItWorksSection() {
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <SectionHeader
-          num="04"
-          kicker="HOW IT WORKS"
-          title={
-            <>
-              One piece is{" "}
-              <em
-                style={{
-                  fontFamily: T.fontDisplay,
-                  fontStyle: "italic",
-                  color: T.volt,
-                }}
-              >
-                enough
-              </em>{" "}
-              to start.
-            </>
-          }
-          sub="No bulk import. No spreadsheet migration. No setup wizard. Catalog one piece and the rest follows."
-        />
+        <h2
+          data-marketing-section-title
+          style={{
+            fontFamily: T.fontDisplay,
+            fontWeight: 400,
+            fontSize: 76,
+            lineHeight: 0.96,
+            letterSpacing: -1.6,
+            margin: 0,
+          }}
+        >
+          One piece is{" "}
+          <em
+            style={{
+              fontFamily: T.fontDisplay,
+              fontStyle: "italic",
+              color: T.volt,
+            }}
+          >
+            enough
+          </em>{" "}
+          to start.
+        </h2>
+        <p
+          style={{
+            fontSize: 17,
+            lineHeight: 1.55,
+            color: T.fg2,
+            maxWidth: 720,
+            marginTop: 24,
+          }}
+        >
+          No bulk import. No spreadsheet migration. No setup wizard. Catalog one piece and the rest follows.
+        </p>
 
         <div
           ref={lineRef}

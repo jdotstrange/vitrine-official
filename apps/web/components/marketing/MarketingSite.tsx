@@ -1,14 +1,11 @@
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
 import {
-  CommunitySection,
   ExploreSection,
   FinalCTA,
   Footer,
   Hero,
-  HowItWorksSection,
   IntelligenceSection,
-  PressSection,
   ProblemSection,
   RapidFireFeatures,
   SiteNav,
@@ -37,14 +34,11 @@ export function MarketingSite() {
     >
       <SiteNav />
       <Hero />
-      <ProblemSection />
       <ThesisSection />
-      <IntelligenceSection />
-      <HowItWorksSection />
+      <ProblemSection />
       <RapidFireFeatures />
+      <IntelligenceSection />
       <ExploreSection />
-      <CommunitySection />
-      <PressSection />
       <FinalCTA />
       <Footer />
     </div>

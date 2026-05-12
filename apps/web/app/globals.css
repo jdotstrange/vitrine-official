@@ -1006,3 +1006,288 @@ details summary::-webkit-details-marker { display: none; }
   }
 }
 
+/* =============================================================================
+   ENHANCED MOBILE PASS — design-led overrides for the home page (May 2026).
+   Applied after the base responsive layer so these selectors win on overlap.
+
+   Philosophy:
+     1. The hero phone is restored on mobile (it was hidden) — scaled via CSS
+        transform so the inner app screens stay pixel-perfect.
+     2. Density preserved where it carries meaning (Problem 2x2, RapidFire 2-up,
+        Explore 2-up). We don't 1-col everything.
+     3. Type that earns its space — h1 ~56px, section h2 ~42px on mobile.
+     4. App Store badges become full-width side-by-side rectangles with
+        proper touch targets.
+     5. Decorative elements that don't translate are hidden on mobile (CTA
+        line connector, Intelligence stage markers).
+     6. New small-phone breakpoint at 420px for the tightest layouts.
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  /* ---------- HERO ---------- */
+
+  [data-marketing-hero] {
+    padding: 32px 20px 56px !important;
+  }
+
+  [data-marketing-hero-grid] {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+
+  /* Larger, more impactful headline — was 44px, now 56px */
+  [data-marketing-hero-title] {
+    font-size: 56px !important;
+    letter-spacing: -1px !important;
+    line-height: 0.96 !important;
+  }
+
+  /* App Store badges become full-width 50/50 grid with centered content */
+  [data-marketing-hero-actions] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-top: 28px !important;
+  }
+  [data-marketing-hero-actions] > a {
+    width: 100% !important;
+    height: 56px !important;
+    padding: 0 14px !important;
+    justify-content: center !important;
+    box-sizing: border-box;
+  }
+
+  /* Stats: clean 2x2 grid, beefier numbers */
+  [data-marketing-hero-stats] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px 28px !important;
+    margin-top: 40px !important;
+    padding-top: 24px !important;
+  }
+  [data-marketing-hero-stats] > div {
+    flex: unset !important;
+    min-width: 0 !important;
+  }
+  [data-marketing-hero-stats] > div > div:last-child {
+    font-size: 30px !important;
+  }
+
+  /* RESTORE the phone mockup on mobile — the most compelling visual we have.
+     Scaled via transform so all internal proportions stay perfect; negative
+     margin absorbs the empty visual space the scale leaves behind. */
+  [data-marketing-hero-phone] {
+    display: flex !important;
+    justify-content: center !important;
+    transform: scale(0.78);
+    transform-origin: top center;
+    margin-bottom: -160px !important;
+  }
+
+  /* ---------- SECTION TITLES (consistent mobile scale) ---------- */
+  [data-marketing-section-title] {
+    font-size: 42px !important;
+    letter-spacing: -0.7px !important;
+    line-height: 1 !important;
+  }
+
+  /* ---------- THESIS ---------- */
+  [data-marketing-thesis-pillar] {
+    min-height: unset !important;
+    padding: 24px !important;
+  }
+  [data-marketing-thesis-num] {
+    font-size: 42px !important;
+  }
+
+  /* ---------- PROBLEM ---------- */
+  /* Override the base 1col rule for problem-artifacts — keep 2x2 to preserve
+     the "fragmented" visual density of all four tools at once. */
+  [data-marketing-grid="problem-artifacts"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+  [data-marketing-problem-card] {
+    padding: 16px !important;
+    min-height: unset !important;
+  }
+  [data-marketing-problem-card] [data-marketing-grid] { /* unused but reserved */ }
+
+  /* ---------- RAPID FIRE — 2-up grid (override base 1col) ---------- */
+  [data-marketing-grid="rapid-fire-tiles"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+  [data-marketing-rapid-tile] {
+    padding: 18px !important;
+    min-height: unset !important;
+    gap: 12px !important;
+  }
+
+  /* ---------- INTELLIGENCE ---------- */
+
+  /* Trim panel padding to give the dense theater room to breathe */
+  [data-marketing-intel-panel] {
+    padding: 20px !important;
+  }
+
+  /* The 6-stage marker bar (PHOTOS · SCAN · CLASSIFY...) becomes unreadable
+     at mobile widths. Hide it; the progress bar + stage label above it
+     already communicate state. */
+  [data-marketing-intel-stages] {
+    display: none !important;
+  }
+
+  /* Stat row becomes a vertical stack (italic on top, mono caption below) */
+  [data-marketing-intel-stat] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 14px 0 !important;
+  }
+
+  /* Field rows: kill the 150px label column, stack label-over-value */
+  [data-marketing-intel-field-row] {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 10px 0 !important;
+  }
+
+  /* Capability tiles get tighter padding, no min-height */
+  [data-marketing-intel-cap-tile] {
+    min-height: unset !important;
+    padding: 24px !important;
+  }
+
+  /* ---------- EXPLORE ---------- */
+  /* Already 2-up at 768px (base layer). No override needed. */
+
+  /* ---------- FINAL CTA ---------- */
+
+  [data-marketing-cta-title] {
+    font-size: 52px !important;
+    letter-spacing: -0.9px !important;
+    line-height: 0.98 !important;
+  }
+
+  /* The horizontal SVG connector across the 3 step badges only makes sense
+     when the steps are in a row. Stacked vertically, it's noise. */
+  [data-marketing-cta-line] {
+    display: none !important;
+  }
+
+  /* Steps stack 1col with sensible spacing; remove desktop's vertical
+     separator border between adjacent steps. */
+  [data-marketing-grid="how-steps"] {
+    gap: 32px !important;
+    margin-top: 56px !important;
+  }
+  [data-marketing-cta-step] {
+    border-left: none !important;
+    padding: 0 !important;
+  }
+
+  /* CTA App Store badges: same full-width 50/50 treatment as the hero */
+  [data-marketing-cta-actions] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-top: 56px !important;
+  }
+  [data-marketing-cta-actions] > a {
+    width: 100% !important;
+    height: 56px !important;
+    padding: 0 14px !important;
+    justify-content: center !important;
+    box-sizing: border-box;
+  }
+
+  /* ---------- FOOTER ---------- */
+  /* footer-bottom row already wraps via inline flexWrap; keep alignment tidy */
+  [data-marketing-footer-bottom] {
+    justify-content: flex-start !important;
+  }
+
+  /* ---------- NAV (mobile sheet polish) ---------- */
+  /* The hamburger button is 38x38 — good. The mobile sheet links at fontSize
+     28px are great. Just trim the open-sheet inset for proper alignment. */
+}
+
+@media (max-width: 420px) {
+  /* ---------- HERO at ~iPhone-mini size ---------- */
+  [data-marketing-hero] {
+    padding: 24px 16px 48px !important;
+  }
+  [data-marketing-hero-title] {
+    font-size: 48px !important;
+    letter-spacing: -0.6px !important;
+  }
+
+  /* Phone scales smaller still, more negative margin to compensate */
+  [data-marketing-hero-phone] {
+    transform: scale(0.7) !important;
+    margin-bottom: -210px !important;
+  }
+
+  /* Hero CTAs stack vertically at the smallest screens */
+  [data-marketing-hero-actions] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats become a single column too — 4 large values stacked is more
+     readable than four 22px values squeezed into 2x2 */
+  [data-marketing-hero-stats] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px 20px !important;
+  }
+  [data-marketing-hero-stats] > div > div:last-child {
+    font-size: 26px !important;
+  }
+
+  /* ---------- Sections scale further ---------- */
+  [data-marketing-section-title] {
+    font-size: 34px !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  /* RapidFire goes 1-up at the very smallest screens */
+  [data-marketing-grid="rapid-fire-tiles"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Problem artifacts — keep 2x2 even here; tighter gap */
+  [data-marketing-grid="problem-artifacts"] {
+    gap: 10px !important;
+  }
+  [data-marketing-problem-card] {
+    padding: 14px !important;
+  }
+
+  /* Explore items — keep 2-up but tighter gap */
+  [data-marketing-grid="explore-items"] {
+    gap: 10px !important;
+  }
+
+  /* Intel cap tiles get even tighter */
+  [data-marketing-intel-cap-tile] {
+    padding: 20px !important;
+  }
+  [data-marketing-intel-panel] {
+    padding: 16px !important;
+  }
+
+  /* CTA */
+  [data-marketing-cta-title] {
+    font-size: 42px !important;
+  }
+  [data-marketing-cta-actions] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Footer cols collapse to single column at this width */
+  [data-marketing-grid="footer-cols"] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+}
+

@@ -10,15 +10,15 @@ import { PHOTOS, type PhotoKey } from "./photos"
 // ───────── Hero kicker carousel ─────────
 
 export const KICKER_CYCLE = [
-  "CARDS",
-  "COINS",
-  "WATCHES",
-  "COMICS",
-  "SNEAKERS",
-  "VINYL",
-  "TCG",
-  "FUNKO",
-  "AUTOGRAPHS",
+  "sports",
+  "trading card",
+  "memorabilia",
+  "toy",
+  "video game",
+  "comic book",
+  "watch",
+  "coin",
+  "sneaker",
 ] as const
 
 // ───────── Hero categories marquee ─────────
@@ -767,36 +767,43 @@ export const PILLARS: Pillar[] = [
 
 // ───────── Problem / Status Quo artifacts ─────────
 
+export type ArtifactSlot = "excel" | "photos" | "notes" | "ebay"
+
 export interface Artifact {
   kicker: string
   body: string
   sub: string
   tone: string
+  slot: ArtifactSlot
 }
 
 export const PROBLEM_ARTIFACTS: Artifact[] = [
   {
+    slot: "excel",
     kicker: "EXCEL · TAB 7",
     body: "B14   \"1986 Fleer Jordan #57\"",
     sub: "cell-merged · color-coded · last edited 2 yrs ago",
-    tone: "#3a8a3a",
+    tone: "#21a366",
   },
   {
+    slot: "photos",
     kicker: "CAMERA ROLL",
     body: "4,218 photos",
     sub: "Card · card · card · receipt · card · cat · card",
-    tone: "#888",
+    tone: "#fc3d39",
   },
   {
+    slot: "notes",
     kicker: "NOTES.APP",
     body: "wishlist (final)",
     sub: "\u2014 PSA 9 jordan rc\n\u2014 speedy cal 321\n\u2014 blue train mono",
-    tone: "#f0c060",
+    tone: "#f5c93a",
   },
   {
+    slot: "ebay",
     kicker: "eBay · 14 TABS",
     body: "sold listings · \"trout rc psa 9\"",
     sub: "sort: ended · last 90 days · refresh",
-    tone: "#0064d2",
+    tone: "#0064d3",
   },
 ]

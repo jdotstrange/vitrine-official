@@ -2,6 +2,8 @@ import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
 import { Kicker } from "@/components/marketing/primitives"
 import { PROBLEM_ARTIFACTS } from "@/lib/marketing/constants"
+import { Reveal } from "@/lib/marketing/Reveal"
+import { BrandTile } from "./BrandTile"
 
 export function ProblemSection() {
   return (
@@ -22,16 +24,17 @@ export function ProblemSection() {
             alignItems: "center",
           }}
         >
-          <div>
-            <Kicker color={T.volt}>§01 · STATUS QUO</Kicker>
+          <Reveal y={16}>
+            <Kicker color={T.volt} style={{ marginBottom: 24 }}>THE PROBLEM IT SOLVES</Kicker>
             <h2
+              data-marketing-section-title
               style={{
                 fontFamily: T.fontDisplay,
                 fontWeight: 400,
                 fontSize: 72,
                 lineHeight: 0.96,
                 letterSpacing: -1.6,
-                margin: "20px 0 0",
+                margin: 0,
               }}
             >
               You already have a system.
@@ -93,7 +96,7 @@ export function ProblemSection() {
                 EVERY COLLECTOR · EVENTUALLY
               </div>
             </div>
-          </div>
+          </Reveal>
 
           <div
             data-marketing-grid="problem-artifacts"
@@ -104,52 +107,53 @@ export function ProblemSection() {
             }}
           >
             {PROBLEM_ARTIFACTS.map((a, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: 22,
-                  borderRadius: 12,
-                  border: `1px solid ${T.frostDiv}`,
-                  background: "rgba(214,235,253,0.015)",
-                  transform: i % 2 ? "rotate(0.6deg)" : "rotate(-0.4deg)",
-                  minHeight: 150,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span
+              <Reveal key={a.slot} delay={120 + i * 100} y={16}>
+                <div
+                  data-marketing-problem-card
+                  style={{
+                    padding: 22,
+                    borderRadius: 12,
+                    border: `1px solid ${T.frostDiv}`,
+                    background: "rgba(214,235,253,0.015)",
+                    transform: i % 2 ? "rotate(0.6deg)" : "rotate(-0.4deg)",
+                    minHeight: 150,
+                  }}
+                >
+                  <div
                     style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 2,
-                      background: a.tone,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
                     }}
-                  />
-                  <Kicker style={{ fontSize: 9 }}>{a.kicker}</Kicker>
+                  >
+                    <BrandTile slot={a.slot} size={32} />
+                    <Kicker style={{ fontSize: 9 }}>{a.kicker}</Kicker>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: T.fontMono,
+                      fontSize: 13,
+                      color: T.fg1,
+                      marginTop: 16,
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {a.body}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: T.fontMono,
+                      fontSize: 10.5,
+                      color: T.fg3,
+                      marginTop: 8,
+                      whiteSpace: "pre-line",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {a.sub}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontFamily: T.fontMono,
-                    fontSize: 13,
-                    color: T.fg1,
-                    marginTop: 14,
-                    whiteSpace: "pre-line",
-                  }}
-                >
-                  {a.body}
-                </div>
-                <div
-                  style={{
-                    fontFamily: T.fontMono,
-                    fontSize: 10.5,
-                    color: T.fg3,
-                    marginTop: 8,
-                    whiteSpace: "pre-line",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {a.sub}
-                </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>

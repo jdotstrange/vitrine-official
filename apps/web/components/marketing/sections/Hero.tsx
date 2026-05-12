@@ -2,25 +2,25 @@
 
 import * as React from "react"
 import { useEffect, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
 import { T } from "@/lib/marketing/tokens"
-import {
-  AppStoreBadge,
-  Kicker,
-  MIcon,
-  Pill,
-} from "@/components/marketing/primitives"
-import {
-  usePrefersReducedMotion,
-  useTicker,
-} from "@/lib/marketing/hooks"
+import { AppStoreBadge } from "@/components/marketing/primitives"
+import { usePrefersReducedMotion } from "@/lib/marketing/hooks"
 import { Parallax } from "@/lib/marketing/Parallax"
 import { KICKER_CYCLE } from "@/lib/marketing/constants"
 
-export function Hero() {
-  const tick = useTicker(2200)
-  const pieces = 12847 + Math.floor(Math.sin(tick / 4) * 40 + tick * 0.7)
-  const events = (4.12 + Math.sin(tick / 3) * 0.12).toFixed(2)
+// Real screen captures from production iOS build. Each PNG includes the iOS
+// status bar at the top; masked by the black bar inside PhoneFrame so only
+// the in-app chrome reads through.
+const HERO_SCREENS = [
+  { src: "/marketing/screens/hero-profile.png", alt: "Vitrine profile hub" },
+  { src: "/marketing/screens/hero-detail.png", alt: "Vitrine collectible detail" },
+  { src: "/marketing/screens/hero-radar.png", alt: "Vitrine tracking radar" },
+  { src: "/marketing/screens/hero-looking-glass.png", alt: "Vitrine Looking Glass extraction" },
+] as const
 
+export function Hero() {
   const [kIdx, setKIdx] = useState(0)
   useEffect(() => {
     const t = setInterval(
@@ -36,7 +36,7 @@ export function Hero() {
       data-marketing-hero
       style={{
         position: "relative",
-        padding: "80px 40px 120px",
+        padding: "40px 40px 120px",
         overflow: "hidden",
       }}
     >
@@ -67,43 +67,109 @@ export function Hero() {
       />
 
       <div
-        data-marketing-hero-grid
         style={{
           maxWidth: 1280,
           margin: "0 auto",
           position: "relative",
           zIndex: 2,
-          display: "grid",
-          gridTemplateColumns: "1.3fr 0.9fr",
-          gap: 60,
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
+          gap: 48,
         }}
       >
-        <div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "6px 14px",
-              borderRadius: 9999,
-              border: `1px solid ${T.voltBorder}`,
-              background: T.voltFill,
-            }}
-          >
+        <Link
+          href="/intelligence"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "6px 16px",
+            borderRadius: 9999,
+            border: `1px solid ${T.frostBorderStrong}`,
+            background: "rgba(214,235,253,0.03)",
+            textDecoration: "none",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <span
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                background: T.volt,
-                boxShadow: `0 0 8px ${T.volt}`,
-                animation: "pulseGlow 1.4s ease-in-out infinite",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "2px 8px",
+                borderRadius: 9999,
+                border: `1px solid ${T.oliveBorder}`,
+                background: T.oliveFill,
+                fontFamily: T.fontGrotesk,
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: 1.2,
+                color: T.olive,
+                textTransform: "uppercase" as const,
               }}
-            />
-            <Kicker color={T.volt}>VITRINE · INTELLIGENCE FOR COLLECTORS</Kicker>
-          </div>
+            >
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: T.olive,
+                  boxShadow: `0 0 6px ${T.olive}`,
+                  animation: "pulseGlow 1.4s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              />
+              Now Live
+            </span>
+            <span
+              style={{
+                fontFamily: T.fontInter,
+                fontSize: 13,
+                fontWeight: 500,
+                color: T.fg1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Looking Glass AI (v1)
+            </span>
+          </span>
+          <span
+            style={{
+              fontFamily: T.fontInter,
+              fontSize: 13,
+              color: T.fg2,
+              textAlign: "center",
+            }}
+          >
+            Drop a photo, get every field extracted, graded, and valued automatically.
+          </span>
+          <span
+            style={{
+              fontFamily: T.fontGrotesk,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.8,
+              color: T.volt,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            Learn more →
+          </span>
+        </Link>
 
+        <div
+          data-marketing-hero-grid
+          style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "1.3fr 0.9fr",
+            gap: 60,
+            alignItems: "center",
+          }}
+        >
+        <div>
           <h1
             data-marketing-hero-title
             style={{
@@ -112,33 +178,24 @@ export function Hero() {
               fontSize: 92,
               lineHeight: 0.94,
               letterSpacing: -2,
-              margin: "36px 0 0",
+              margin: 0,
               textWrap: "balance",
             }}
           >
             Everything
             <br />
-            serious{" "}
             <span
+              key={kIdx}
               style={{
-                position: "relative",
-                display: "inline-block",
-                minWidth: 240,
+                fontFamily: T.fontCaslon,
+                fontStyle: "italic",
+                color: T.volt,
+                animation: "feedFadeIn 380ms ease-out",
+                display: "block",
               }}
             >
-              <span
-                key={kIdx}
-                style={{
-                  fontFamily: T.fontCaslon,
-                  fontStyle: "italic",
-                  color: T.volt,
-                  animation: "feedFadeIn 380ms ease-out",
-                }}
-              >
-                {KICKER_CYCLE[kIdx].toLowerCase()}
-              </span>
+              {KICKER_CYCLE[kIdx].toLowerCase()}
             </span>
-            <br />
             collectors deserve.
           </h1>
 
@@ -151,13 +208,14 @@ export function Hero() {
               color: T.fg2,
             }}
           >
-            One photo. Every field, extracted. The market, watched. The
-            comp, found. The piece, valued. The crowd you actually want to
-            show — already inside. Your collection, finally, given the
-            apparatus it deserved.
+            The first collectibles platform that starts with the
+            collector. Catalog from a photo. Value against real comps.
+            Showcase what you&rsquo;ve built. Move pieces when
+            you&rsquo;re ready.
           </p>
 
           <div
+            data-marketing-hero-actions
             style={{
               display: "flex",
               gap: 14,
@@ -170,71 +228,14 @@ export function Hero() {
             <AppStoreBadge store="google" />
           </div>
 
-          <div
-            data-marketing-hero-stats
-            style={{
-              display: "flex",
-              gap: 32,
-              marginTop: 56,
-              paddingTop: 28,
-              borderTop: `1px solid ${T.frostDiv}`,
-              flexWrap: "wrap",
-            }}
-          >
-            <LiveStat
-              label="PIECES CATALOGED"
-              value={pieces.toLocaleString()}
-              live
-            />
-            <LiveStat label="PULSE EVENTS / DAY" value={`${events}M`} live />
-            <LiveStat label="AVG PERFECT MATCH" value="94%" />
-            <LiveStat label="CATEGORIES" value="38" />
-          </div>
         </div>
 
         <div data-marketing-hero-phone>
           <HeroPhone />
         </div>
+        </div>
       </div>
     </section>
-  )
-}
-
-interface LiveStatProps {
-  label: string
-  value: string
-  live?: boolean
-}
-
-function LiveStat({ label, value, live }: LiveStatProps) {
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        {live && (
-          <span
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: 3,
-              background: T.volt,
-              boxShadow: `0 0 6px ${T.volt}`,
-              animation: "pulseGlow 1.4s ease-in-out infinite",
-            }}
-          />
-        )}
-        <Kicker style={{ fontSize: 9.5 }}>{label}</Kicker>
-      </div>
-      <div
-        style={{
-          fontFamily: T.fontDisplay,
-          fontSize: 38,
-          lineHeight: 1,
-          letterSpacing: -0.6,
-        }}
-      >
-        {value}
-      </div>
-    </div>
   )
 }
 
@@ -243,7 +244,10 @@ function HeroPhone() {
   const [screenIdx, setScreenIdx] = useState(0)
   useEffect(() => {
     if (reduced) return
-    const t = setInterval(() => setScreenIdx((i) => (i + 1) % 3), 4200)
+    const t = setInterval(
+      () => setScreenIdx((i) => (i + 1) % HERO_SCREENS.length),
+      4200
+    )
     return () => clearInterval(t)
   }, [reduced])
   return (
@@ -266,16 +270,19 @@ function HeroPhone() {
         />
         <PhoneFrame>
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            <PhoneScreen visible={screenIdx === 0}>
-              <PhoneAppHome />
-            </PhoneScreen>
-            <PhoneScreen visible={screenIdx === 1}>
-              <PhoneAppLens />
-            </PhoneScreen>
-            <PhoneScreen visible={screenIdx === 2}>
-              <PhoneAppPulse />
-            </PhoneScreen>
-            <ScreenIndicator idx={screenIdx} />
+            {HERO_SCREENS.map((screen, i) => (
+              <PhoneScreen key={screen.src} visible={screenIdx === i}>
+                <Image
+                  src={screen.src}
+                  alt={screen.alt}
+                  fill
+                  sizes="320px"
+                  priority={i === 0}
+                  style={{ objectFit: "cover", objectPosition: "center top" }}
+                />
+              </PhoneScreen>
+            ))}
+            <ScreenIndicator idx={screenIdx} total={HERO_SCREENS.length} />
           </div>
         </PhoneFrame>
       </div>
@@ -307,7 +314,7 @@ function PhoneScreen({
   )
 }
 
-function ScreenIndicator({ idx }: { idx: number }) {
+function ScreenIndicator({ idx, total }: { idx: number; total: number }) {
   return (
     <div
       style={{
@@ -320,7 +327,7 @@ function ScreenIndicator({ idx }: { idx: number }) {
         zIndex: 10,
       }}
     >
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
           style={{
@@ -340,6 +347,7 @@ function ScreenIndicator({ idx }: { idx: number }) {
 function PhoneFrame({ children }: { children: React.ReactNode }) {
   return (
     <div
+      data-marketing-phone-frame
       style={{
         position: "relative",
         width: 340,
@@ -375,594 +383,24 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
         }}
       >
         {children}
-      </div>
-    </div>
-  )
-}
-
-function PhoneAppHome() {
-  return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: T.fontInter,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "14px 28px 0",
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        <span>9:41</span>
-        <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <MIcon name="signal" size={12} />
-          <MIcon name="wifi" size={12} />
-          <MIcon name="battery-full" size={14} />
-        </span>
-      </div>
-
-      <div
-        style={{
-          padding: "40px 20px 16px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <Kicker style={{ fontSize: 9 }}>YOUR VITRINE</Kicker>
-          <div
-            style={{
-              fontFamily: T.fontDisplay,
-              fontSize: 22,
-              marginTop: 4,
-              letterSpacing: -0.2,
-            }}
-          >
-            The Vintage Files
-          </div>
-        </div>
+        {/* Status-bar mask: covers the iOS time/cellular/wifi/battery
+            chrome baked into the screen captures so only the in-app UI
+            reads through. ~7% of the 680px inner height matches the iOS
+            status-bar ratio (59pt / 852pt on iPhone 14 Pro). The fake
+            notch from the outer frame sits in front of this mask. */}
         <div
+          aria-hidden
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            border: `1px solid ${T.frostBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            background: T.void,
+            zIndex: 4,
+            pointerEvents: "none",
           }}
-        >
-          <MIcon name="search" size={14} color={T.fg2} />
-        </div>
-      </div>
-
-      <div style={{ padding: "0 20px" }}>
-        <div
-          style={{
-            height: 220,
-            borderRadius: 16,
-            overflow: "hidden",
-            position: "relative",
-            background:
-              "radial-gradient(ellipse at 50% 35%, #c41a1a 0%, #5a0a0a 60%, #1a0606 100%)",
-            border: `1px solid ${T.frostDiv}`,
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(135deg, transparent 35%, rgba(255,255,255,0.08) 50%, transparent 65%)",
-            }}
-          />
-          <div style={{ position: "absolute", top: 12, left: 12 }}>
-            <Pill variant="volt">CROWN JEWEL</Pill>
-          </div>
-          <div style={{ position: "absolute", top: 12, right: 12 }}>
-            <Pill variant="graded">PSA 10</Pill>
-          </div>
-          <div
-            style={{
-              position: "absolute",
-              bottom: 12,
-              left: 12,
-              right: 12,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: T.fontDisplay,
-                fontSize: 18,
-                color: "#fff",
-                letterSpacing: -0.2,
-              }}
-            >
-              1986 Fleer Jordan #57
-            </div>
-            <div
-              style={{
-                fontFamily: T.fontMono,
-                fontSize: 10,
-                color: "rgba(255,255,255,0.7)",
-                marginTop: 2,
-              }}
-            >
-              FMV $84,500 · ↗ +4.2%
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          margin: "16px 20px 0",
-          display: "flex",
-          justifyContent: "space-between",
-          borderTop: `1px solid ${T.frostDiv}`,
-          borderBottom: `1px solid ${T.frostDiv}`,
-          padding: "10px 0",
-        }}
-      >
-        {["SPECS", "PULSE", "AAR", "VAR", "COMPS"].map((l, i) => (
-          <span
-            key={l}
-            style={{
-              fontFamily: T.fontGrotesk,
-              fontWeight: 700,
-              fontSize: 9.5,
-              letterSpacing: 1.2,
-              color: i === 1 ? T.volt : T.fg3,
-              paddingBottom: 4,
-              borderBottom: i === 1 ? `2px solid ${T.volt}` : "2px solid transparent",
-            }}
-          >
-            {l}
-          </span>
-        ))}
-      </div>
-
-      <div
-        style={{
-          padding: "12px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 0,
-          flex: 1,
-          overflow: "hidden",
-        }}
-      >
-        {[
-          {
-            dot: T.green,
-            t: "Perfect comp · $1,420",
-            s: "Topps Chrome Trout · 12s",
-          },
-          {
-            dot: T.blue,
-            t: "Trade pinged · @grailcave",
-            s: "Chicago AJ1 · 1m",
-          },
-          {
-            dot: T.volt,
-            t: "VAR refreshed · ±4.2%",
-            s: "Speedmaster · 2m",
-          },
-          {
-            dot: T.green,
-            t: "Strong comp · $58,200",
-            s: "Jordan #57 PSA 8 · 3m",
-          },
-        ].map((e, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 0",
-              borderTop: i ? `1px solid ${T.frostDiv}` : "none",
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                background: e.dot,
-                boxShadow: `0 0 8px ${e.dot}`,
-              }}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: T.fg1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {e.t}
-              </div>
-              <div
-                style={{
-                  fontFamily: T.fontMono,
-                  fontSize: 9,
-                  color: T.fg3,
-                  marginTop: 2,
-                }}
-              >
-                {e.s}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          margin: "0 20px 20px",
-          padding: "8px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          borderRadius: 16,
-          background: T.sheetBg,
-          border: `1px solid ${T.frostDiv}`,
-        }}
-      >
-        {["home", "compass", "plus", "target", "user"].map((ic, i) => (
-          <span
-            key={ic}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: i === 0 ? T.voltFill : "transparent",
-              color: i === 0 ? T.volt : T.fg2,
-            }}
-          >
-            <MIcon name={ic} size={16} />
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PhoneAppLens() {
-  return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: T.fontInter,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "14px 28px 0",
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        <span>9:41</span>
-        <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <MIcon name="signal" size={12} />
-          <MIcon name="wifi" size={12} />
-          <MIcon name="battery-full" size={14} />
-        </span>
-      </div>
-      <div
-        style={{
-          padding: "28px 20px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <MIcon name="arrow-left" size={16} color={T.fg2} />
-        <Kicker style={{ fontSize: 9 }}>JORDAN · #57 · PSA 10</Kicker>
-        <span style={{ marginLeft: "auto" }}>
-          <MIcon name="more-horizontal" size={16} color={T.fg2} />
-        </span>
-      </div>
-      <div style={{ padding: "0 20px" }}>
-        <div
-          style={{
-            height: 200,
-            borderRadius: 16,
-            overflow: "hidden",
-            background:
-              "radial-gradient(ellipse at 50% 35%, #c41a1a 0%, #5a0a0a 60%, #1a0606 100%)",
-            border: `1px solid ${T.frostDiv}`,
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(135deg, transparent 35%, rgba(255,255,255,0.1) 50%, transparent 65%)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: 12,
-              left: 14,
-              right: 14,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: T.fontDisplay,
-                fontSize: 16,
-                color: "#fff",
-                letterSpacing: -0.2,
-              }}
-            >
-              1986 Fleer #57
-            </div>
-            <div
-              style={{
-                fontFamily: T.fontMono,
-                fontSize: 10,
-                color: "rgba(255,255,255,0.7)",
-                marginTop: 2,
-              }}
-            >
-              FMV $84,500
-            </div>
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          margin: "14px 20px 0",
-          display: "flex",
-          justifyContent: "space-between",
-          borderTop: `1px solid ${T.frostDiv}`,
-          borderBottom: `1px solid ${T.frostDiv}`,
-          padding: "10px 0",
-        }}
-      >
-        {["SPECS", "PULSE", "AAR", "VAR", "COMPS"].map((l, i) => (
-          <span
-            key={l}
-            style={{
-              fontFamily: T.fontGrotesk,
-              fontWeight: 700,
-              fontSize: 9.5,
-              letterSpacing: 1.2,
-              color: i === 0 ? T.volt : T.fg3,
-              paddingBottom: 4,
-              borderBottom: i === 0 ? `2px solid ${T.volt}` : "2px solid transparent",
-            }}
-          >
-            {l}
-          </span>
-        ))}
-      </div>
-      <div style={{ padding: "14px 20px", flex: 1, overflow: "hidden" }}>
-        {[
-          ["Set", "Fleer · 1986\u201387"],
-          ["Card #", "57"],
-          ["Grade", "PSA 10 GEM MT"],
-          ["Cert", "24890132"],
-          ["Pop", "317"],
-          ["Subject", "Michael Jordan · RC"],
-          ["Provenance", "Goldin · 2023"],
-        ].map(([k, v], i) => (
-          <div
-            key={k}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "90px 1fr",
-              padding: "7px 0",
-              borderTop: i ? `1px solid ${T.frostDiv}` : "none",
-              alignItems: "baseline",
-            }}
-          >
-            <span
-              style={{
-                fontFamily: T.fontGrotesk,
-                fontWeight: 700,
-                fontSize: 9,
-                letterSpacing: 1.2,
-                color: T.fg3,
-                textTransform: "uppercase",
-              }}
-            >
-              {k}
-            </span>
-            <span
-              style={{
-                fontFamily: T.fontMono,
-                fontSize: 11.5,
-                color: T.fg1,
-              }}
-            >
-              {v}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PhoneAppPulse() {
-  const events = [
-    { dot: T.green, t: "Perfect comp · $1,420", s: "Topps Chrome Trout · 12s" },
-    { dot: T.blue, t: "Trade pinged · @grailcave", s: "Chicago AJ1 · 1m" },
-    { dot: T.volt, t: "VAR refreshed · ±4.2%", s: "Speedmaster · 2m" },
-    { dot: T.green, t: "Strong comp · $58,200", s: "Jordan #57 PSA 8 · 3m" },
-    { dot: T.orange, t: "Sell+Trade · 1969 Speedy", s: "WatchCollective · 4m" },
-    { dot: T.green, t: "Perfect comp · $11,850", s: "Blue Train mono · 6m" },
-  ]
-  return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: T.fontInter,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "14px 28px 0",
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        <span>9:41</span>
-        <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          <MIcon name="signal" size={12} />
-          <MIcon name="wifi" size={12} />
-          <MIcon name="battery-full" size={14} />
-        </span>
-      </div>
-      <div
-        style={{
-          padding: "36px 20px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <Kicker style={{ fontSize: 9 }}>PULSE</Kicker>
-          <div
-            style={{
-              fontFamily: T.fontDisplay,
-              fontSize: 22,
-              marginTop: 4,
-              letterSpacing: -0.2,
-            }}
-          >
-            Today
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              background: T.volt,
-              boxShadow: `0 0 6px ${T.volt}`,
-              animation: "pulseGlow 1.4s ease-in-out infinite",
-            }}
-          />
-          <span
-            style={{
-              fontFamily: T.fontMono,
-              fontSize: 9.5,
-              color: T.volt,
-              letterSpacing: 1,
-            }}
-          >
-            LIVE
-          </span>
-        </div>
-      </div>
-      <div style={{ flex: 1, overflow: "hidden", padding: "0 20px" }}>
-        {events.map((e, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              padding: "12px 0",
-              borderTop: i ? `1px solid ${T.frostDiv}` : "none",
-              opacity: i === 0 ? 1 : 1 - i * 0.06,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                background: e.dot,
-                boxShadow: `0 0 8px ${e.dot}`,
-                marginTop: 6,
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: T.fg1,
-                  lineHeight: 1.35,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {e.t}
-              </div>
-              <div
-                style={{
-                  fontFamily: T.fontMono,
-                  fontSize: 9,
-                  color: T.fg3,
-                  marginTop: 3,
-                }}
-              >
-                {e.s}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div
-        style={{
-          margin: "0 20px 20px",
-          padding: "8px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          borderRadius: 16,
-          background: T.sheetBg,
-          border: `1px solid ${T.frostDiv}`,
-        }}
-      >
-        {["home", "compass", "plus", "target", "user"].map((ic, i) => (
-          <span
-            key={ic}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: i === 3 ? T.voltFill : "transparent",
-              color: i === 3 ? T.volt : T.fg2,
-            }}
-          >
-            <MIcon name={ic} size={16} />
-          </span>
-        ))}
+        />
       </div>
     </div>
   )

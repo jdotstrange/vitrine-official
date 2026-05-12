@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { T } from "@/lib/marketing/tokens"
-import { SiteNav, Footer, FinalCTA } from "@/components/marketing/sections"
+import { SiteNav, Footer, FinalCTA, PressSection } from "@/components/marketing/sections"
 import {
   PricingHero,
   FoundersPricingBanner,
@@ -45,6 +45,7 @@ export default function PricingPage() {
       <MarketplaceFeeMath />
       <ComparisonTable />
       <PricingFAQ />
+      <PressSection />
       <FinalCTA />
       <Footer />
     </main>

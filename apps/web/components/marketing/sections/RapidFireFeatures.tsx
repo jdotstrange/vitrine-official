@@ -2,10 +2,9 @@
 
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
-import { MIcon, Pill } from "@/components/marketing/primitives"
+import { Kicker, MIcon, Pill } from "@/components/marketing/primitives"
 import { RAPID_FIRE_TILES } from "@/lib/marketing/constants"
 import { Reveal } from "@/lib/marketing/Reveal"
-import { SectionHeader } from "./SectionHeader"
 
 /**
  * RapidFireFeatures — the "we have features for days" wall.
@@ -30,25 +29,42 @@ export function RapidFireFeatures() {
       }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <SectionHeader
-          num="05"
-          kicker="THE TOOLKIT"
-          title={
-            <>
-              Twelve more reasons{" "}
-              <em
-                style={{
-                  fontFamily: T.fontDisplay,
-                  fontStyle: "italic",
-                  color: T.volt,
-                }}
-              >
-                to switch.
-              </em>
-            </>
-          }
-          sub="A quick tour through the rest of what shipped. Every tile is a real surface in the app today."
-        />
+        <Reveal y={16}>
+          <Kicker color={T.volt} style={{ marginBottom: 24 }}>THE TOOLKIT</Kicker>
+          <h2
+            data-marketing-section-title
+            style={{
+              fontFamily: T.fontDisplay,
+              fontWeight: 400,
+              fontSize: 76,
+              lineHeight: 0.96,
+              letterSpacing: -1.6,
+              margin: 0,
+            }}
+          >
+            Twelve more reasons{" "}
+            <em
+              style={{
+                fontFamily: T.fontDisplay,
+                fontStyle: "italic",
+                color: T.volt,
+              }}
+            >
+              to switch.
+            </em>
+          </h2>
+          <p
+            style={{
+              fontSize: 17,
+              lineHeight: 1.55,
+              color: T.fg2,
+              maxWidth: 720,
+              marginTop: 24,
+            }}
+          >
+            A quick tour through the rest of what shipped. Every tile is a real surface in the app today.
+          </p>
+        </Reveal>
 
         <div
           data-marketing-grid="rapid-fire-tiles"
@@ -116,6 +132,7 @@ function RapidFireTileCard({
   const [hover, setHover] = React.useState(false)
   return (
     <div
+      data-marketing-rapid-tile
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

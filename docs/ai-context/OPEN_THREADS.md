@@ -14,6 +14,13 @@ The 8 image URLs in `apps/web/lib/marketing/photos.ts` remain Unsplash placehold
 ### ThesisSection real app screenshots
 The multi-page restructure plan (Phase 6) called for inline visuals in `ThesisSection` of FramedHero, lens architecture, and a dossier card. No real assets are available yet — the section currently leans on type + frost layout without screenshots. When real visuals land, drop them into `apps/web/components/marketing/sections/ThesisSection.tsx`.
 
+### Mobile pass on deep pages (`/pricing`, `/intelligence`, `/product`)
+The May 12 mobile pass treated the home `/` as a first-class mobile surface — added a 420px breakpoint, restored the Hero phone (was hidden), forced 2-up RapidFire, kept Problem 2×2, hid decorative elements that don't translate. The three deep pages were intentionally NOT touched in that pass and still rely on only the base 2-tier responsive layer (1024 / 768) plus whatever inline `flexWrap` each section happens to carry. They need the same audit:
+- `/pricing` — `PricingCards` (3 plans side-by-side), `ComparisonTable` (collapsible matrix), `MarketplaceFeeMath` (tier recommender). Tables especially.
+- `/intelligence` — `MultiVerticalExamples`, `BeforeAfterComparison`, `VAR/AAR/PulseLensExplanation` cards, `CompsArea`. Heavy on side-by-side comparison cards.
+- `/product` — the longest page. ~11 areas. Worth profiling weight + reflow on mobile.
+The pattern is established: add `data-marketing-*` hooks to elements that need conditional layout, then write rules in the "ENHANCED MOBILE PASS" block in `apps/web/app/globals.css` (don't edit the older layer).
+
 ### Legal review on `/privacy` + `/terms`
 Both pages ship with a sticky DRAFT banner via `LegalPage.tsx` and `metadata.robots = { index: false, follow: false }`. Plain-English placeholder copy covers the right surface area (data collection, sharing/visibility, retention/export, marketplace, fees, acceptable use) but needs real legal review before public launch. The "first 10K Pro subscribers locked at $9.99 forever" founders pricing is referenced in both `/pricing` (`FoundersPricingBanner`) and `/terms` placeholder — keep them in sync if the offer changes.
 

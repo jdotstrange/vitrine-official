@@ -10,8 +10,7 @@ import {
   STATUS_LABEL,
   type ExploreItem,
 } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
-
+import { Reveal } from "@/lib/marketing/Reveal"
 export function ExploreSection() {
   return (
     <section
@@ -41,11 +40,20 @@ export function ExploreSection() {
       <div
         style={{ maxWidth: 1280, margin: "0 auto", position: "relative" }}
       >
-        <SectionHeader
-          num="06"
-          kicker="EXPLORE"
-          title={
-            <>
+        <Reveal y={16}>
+          <div style={{ textAlign: "center" }}>
+            <Kicker color={T.volt} style={{ marginBottom: 24 }}>EXPLORE</Kicker>
+            <h2
+              data-marketing-section-title
+              style={{
+                fontFamily: T.fontDisplay,
+                fontWeight: 400,
+                fontSize: 76,
+                lineHeight: 0.96,
+                letterSpacing: -1.6,
+                margin: 0,
+              }}
+            >
               Real pieces.{" "}
               <em
                 style={{
@@ -57,42 +65,55 @@ export function ExploreSection() {
                 Live
               </em>{" "}
               on Vitrine.
-            </>
-          }
-          sub="A slice of what collectors are cataloging right now. Tap any piece to see all five lenses."
-        />
-
-        <div
-          data-marketing-grid="explore-filters"
-          style={{
-            display: "flex",
-            gap: 8,
-            marginTop: 60,
-            flexWrap: "wrap",
-            borderBottom: `1px solid ${T.frostDiv}`,
-            paddingBottom: 16,
-          }}
-        >
-          {EXPLORE_FILTERS.map((c, i) => (
-            <span
-              key={c}
+            </h2>
+            <p
               style={{
-                padding: "6px 14px",
-                borderRadius: 9999,
-                background: i === 0 ? T.fg1 : "transparent",
-                color: i === 0 ? T.void : T.fg2,
-                border: `1px solid ${i === 0 ? T.fg1 : T.frostDiv}`,
-                fontFamily: T.fontGrotesk,
-                fontWeight: 700,
-                fontSize: 10.5,
-                letterSpacing: 1.2,
-                cursor: "pointer",
+                fontSize: 17,
+                lineHeight: 1.55,
+                color: T.fg2,
+                maxWidth: 720,
+                marginTop: 24,
+                marginLeft: "auto",
+                marginRight: "auto",
               }}
             >
-              {c}
-            </span>
-          ))}
-        </div>
+              A slice of what collectors are cataloging right now. Tap any piece to see all five lenses.
+            </p>
+          </div>
+
+          <div
+            data-marketing-grid="explore-filters"
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 60,
+              flexWrap: "wrap",
+              justifyContent: "center",
+              borderBottom: `1px solid ${T.frostDiv}`,
+              paddingBottom: 16,
+            }}
+          >
+            {EXPLORE_FILTERS.map((c, i) => (
+              <span
+                key={c}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 9999,
+                  background: i === 0 ? T.fg1 : "transparent",
+                  color: i === 0 ? T.void : T.fg2,
+                  border: `1px solid ${i === 0 ? T.fg1 : T.frostDiv}`,
+                  fontFamily: T.fontGrotesk,
+                  fontWeight: 700,
+                  fontSize: 10.5,
+                  letterSpacing: 1.2,
+                  cursor: "pointer",
+                }}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </Reveal>
 
         <div
           data-marketing-grid="explore-items"
@@ -104,11 +125,12 @@ export function ExploreSection() {
           }}
         >
           {EXPLORE_ITEMS.map((it, i) => (
-            <SpatialCard
-              key={i}
-              item={it}
-              statusLabel={STATUS_LABEL[it.status]}
-            />
+            <Reveal key={i} delay={120 + i * 60} y={16}>
+              <SpatialCard
+                item={it}
+                statusLabel={STATUS_LABEL[it.status]}
+              />
+            </Reveal>
           ))}
         </div>
       </div>

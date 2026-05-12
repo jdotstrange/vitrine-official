@@ -12,9 +12,8 @@ import {
   usePrefersReducedMotion,
   useTicker,
 } from "@/lib/marketing/hooks"
+import { Reveal } from "@/lib/marketing/Reveal"
 import { INTEL_CYCLE_MS, INTEL_STAGES } from "@/lib/marketing/constants"
-import { SectionHeader } from "./SectionHeader"
-
 function useIntelPhase(): number {
   const reduced = usePrefersReducedMotion()
   useTicker(80)
@@ -52,51 +51,79 @@ export function IntelligenceSection() {
       <div
         style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}
       >
-        <SectionHeader
-          num="03"
-          kicker="INTELLIGENCE"
-          title={
-            <>
-              Tell us nothing.{" "}
-              <em
-                style={{
-                  fontFamily: T.fontDisplay,
-                  fontStyle: "italic",
-                  color: T.volt,
-                }}
-              >
-                We read the piece.
-              </em>
-            </>
-          }
-          sub={
-            <>
-              Drop in the photo &mdash; not the brand, not the year, not the
-              cert number, not what corner of what taxonomy you think it
-              belongs in. Vitrine&rsquo;s Looking Glass classifies the
-              category, detects every trait overlay, extracts cert numbers
-              verbatim off the label, and writes the listing in the time
-              it takes to slide the piece back into the case. Every free
-              user gets this on day one.
-            </>
-          }
-        />
+        <Reveal y={16}>
+          <Kicker style={{ marginBottom: 24, color: T.fg3 }}>
+            INTRODUCING:{" "}
+            <span
+              style={{
+                color: T.volt,
+                letterSpacing: 2.4,
+                fontStyle: "italic",
+              }}
+            >
+              LOOKING GLASS
+            </span>
+          </Kicker>
+          <h2
+            data-marketing-section-title
+            style={{
+              fontFamily: T.fontDisplay,
+              fontWeight: 400,
+              fontSize: 76,
+              lineHeight: 0.96,
+              letterSpacing: -1.6,
+              margin: 0,
+            }}
+          >
+            Tell us nothing.{" "}
+            <em
+              style={{
+                fontFamily: T.fontDisplay,
+                fontStyle: "italic",
+                color: T.volt,
+              }}
+            >
+              We read the piece.
+            </em>
+          </h2>
+          <p
+            style={{
+              fontSize: 17,
+              lineHeight: 1.55,
+              color: T.fg2,
+              maxWidth: 720,
+              marginTop: 24,
+              marginBottom: 80,
+            }}
+          >
+            Drop in the photo &mdash; not the brand, not the year, not the
+            cert number, not what corner of what taxonomy you think it
+            belongs in. Vitrine&rsquo;s Looking Glass classifies the
+            category, detects every trait overlay, extracts cert numbers
+            verbatim off the label, and writes the listing in the time
+            it takes to slide the piece back into the case. Every free
+            user gets this on day one.
+          </p>
+        </Reveal>
+
+        <Reveal delay={120} y={16}>
+          <div
+            data-marketing-grid="intel-theater"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "0.95fr 1.05fr",
+              gap: 28,
+              marginTop: 0,
+              alignItems: "stretch",
+            }}
+          >
+            <TheaterInputPanel />
+            <ExtractionArtifact />
+          </div>
+        </Reveal>
 
         <div
-          data-marketing-grid="intel-theater"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "0.95fr 1.05fr",
-            gap: 28,
-            marginTop: 80,
-            alignItems: "stretch",
-          }}
-        >
-          <TheaterInputPanel />
-          <ExtractionArtifact />
-        </div>
-
-        <div
+          data-marketing-intel-stat
           style={{
             marginTop: 28,
             padding: "16px 22px",
@@ -117,7 +144,7 @@ export function IntelligenceSection() {
               color: T.fg2,
             }}
           >
-            The hardest thing about collecting just became the easiest.
+            The hardest thing about cataloging your collection just became the easiest.
           </div>
           <div
             style={{
@@ -127,7 +154,7 @@ export function IntelligenceSection() {
               letterSpacing: 0.5,
             }}
           >
-            AVG EXTRACTION · 3.8s · AVG CONFIDENCE · 94% · 38 CATEGORIES
+            AVG EXTRACTION · 30.0s · AVG CONFIDENCE · 94%
           </div>
         </div>
 
@@ -140,138 +167,86 @@ export function IntelligenceSection() {
             marginTop: 80,
           }}
         >
-          <CapabilityTile
-            num="01"
-            kicker="CLASSIFY"
-            title="Thirty-eight domains. Deep."
-            body={
-              <>
-                Not just &ldquo;trading card.&rdquo; Trading Card → Sports →
-                Single Card → Graded. Comic → Silver Age → Key Issue. Watch →
-                Sports Chronograph → Vintage. The AI locates your piece in the
-                right corner of the whole taxonomy.
-              </>
-            }
-          >
-            <TaxonomyChip
-              items={["COLLECTIBLE", "SIGNED MEMORABILIA", "BASEBALL", "OBL · AUTO"]}
-            />
-          </CapabilityTile>
-
-          <CapabilityTile
-            num="02"
-            kicker="DETECT TRAITS"
-            title="Five overlays, category-aware."
-            body="Graded, autographed, game-used, framed, sealed. Each trait the AI detects unlocks a dedicated field schema — subgrades for graded pieces, signer + ink + placement for autographs, LOA presence for game-used — in a single pass."
-          >
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginTop: 6,
-              }}
+          <Reveal delay={120} y={16}>
+            <CapabilityTile
+              num="01"
+              kicker="CLASSIFY"
+              title="Thirty-eight domains. Deep."
+              body={
+                <>
+                  Not just &ldquo;trading card.&rdquo; Trading Card → Sports →
+                  Single Card → Graded. Comic → Silver Age → Key Issue. Watch →
+                  Sports Chronograph → Vintage. The AI locates your piece in the
+                  right corner of the whole taxonomy.
+                </>
+              }
             >
-              <Pill variant="graded">GRADED</Pill>
-              <Pill variant="signed">AUTOGRAPHED</Pill>
-              <Pill variant="game_used">GAME-USED</Pill>
-              <Pill variant="volt">FRAMED</Pill>
-              <Pill>SEALED</Pill>
-            </div>
-          </CapabilityTile>
+              <TaxonomyChip
+                items={["COLLECTIBLE", "SIGNED MEMORABILIA", "BASEBALL", "OBL · AUTO"]}
+              />
+            </CapabilityTile>
+          </Reveal>
 
-          <CapabilityTile
-            num="03"
-            kicker="EXTRACT"
-            title="Verbatim off the label."
-            body="Cert numbers, grades, grade qualifiers, subgrades, inscriptions, ink color, signature placement, auth companies — pulled as written. When the AI isn't sure, it flags the field for your review instead of guessing."
-          >
-            <div
-              style={{
-                marginTop: 6,
-                padding: "12px 14px",
-                borderRadius: 10,
-                background: "rgba(0,0,0,0.45)",
-                border: `1px solid ${T.frostDiv}`,
-                fontFamily: T.fontMono,
-                fontSize: 11.5,
-                color: T.fg1,
-                lineHeight: 1.9,
-              }}
+          <Reveal delay={220} y={16}>
+            <CapabilityTile
+              num="02"
+              kicker="DETECT TRAITS"
+              title="Five overlays, category-aware."
+              body="Graded, autographed, game-used, framed, sealed. Each trait the AI detects unlocks a dedicated field schema — subgrades for graded pieces, signer + ink + placement for autographs, LOA presence for game-used — in a single pass."
             >
-              <div>
-                <span style={{ color: T.fg3 }}>cert_number</span>{" "}
-                <span style={{ color: T.volt }}>&quot;AZ58051&quot;</span>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginTop: 6,
+                }}
+              >
+                <Pill variant="graded">GRADED</Pill>
+                <Pill variant="signed">AUTOGRAPHED</Pill>
+                <Pill variant="game_used">GAME-USED</Pill>
+                <Pill variant="rookie">ROOKIE</Pill>
               </div>
-              <div>
-                <span style={{ color: T.fg3 }}>grade</span>{" "}
-                <span style={{ color: T.volt }}>&quot;PSA 10&quot;</span>
+            </CapabilityTile>
+          </Reveal>
+
+          <Reveal delay={320} y={16}>
+            <CapabilityTile
+              num="03"
+              kicker="EXTRACT"
+              title="Verbatim off the label."
+              body="Cert numbers, grades, grade qualifiers, subgrades, inscriptions, ink color, signature placement, auth companies — pulled as written. When the AI isn't sure, it flags the field for your review instead of guessing."
+            >
+              <div
+                style={{
+                  marginTop: 6,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: "rgba(0,0,0,0.45)",
+                  border: `1px solid ${T.frostDiv}`,
+                  fontFamily: T.fontMono,
+                  fontSize: 11.5,
+                  color: T.fg1,
+                  lineHeight: 1.9,
+                }}
+              >
+                <div>
+                  <span style={{ color: T.fg3 }}>cert_number</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;AZ58051&quot;</span>
+                </div>
+                <div>
+                  <span style={{ color: T.fg3 }}>grade</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;PSA 10&quot;</span>
+                </div>
+                <div>
+                  <span style={{ color: T.fg3 }}>inscription</span>{" "}
+                  <span style={{ color: T.volt }}>&quot;24&quot;</span>
+                </div>
               </div>
-              <div>
-                <span style={{ color: T.fg3 }}>inscription</span>{" "}
-                <span style={{ color: T.volt }}>&quot;24&quot;</span>
-              </div>
-            </div>
-          </CapabilityTile>
+            </CapabilityTile>
+          </Reveal>
         </div>
 
-        <div
-          style={{
-            marginTop: 80,
-            padding: "28px 32px",
-            borderRadius: 16,
-            border: `1px solid ${T.frostDiv}`,
-            background: "rgba(214,235,253,0.015)",
-            display: "grid",
-            gridTemplateColumns: "auto 1fr auto",
-            gap: 24,
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 23,
-              border: `1px solid ${T.voltBorder}`,
-              background: T.voltFill,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: T.volt,
-            }}
-          >
-            <MIcon name="shield-check" size={20} />
-          </div>
-          <div>
-            <Kicker style={{ color: T.volt }}>WHAT THIS IS NOT</Kicker>
-            <div
-              style={{
-                fontFamily: T.fontCaslon,
-                fontStyle: "italic",
-                fontSize: 17,
-                color: T.fg1,
-                marginTop: 8,
-                lineHeight: 1.5,
-              }}
-            >
-              Not an authentication. Not an appraisal. Not a black box. A
-              domain-grounded extraction with a confidence score — so you can
-              trust the fields it fills, and review the ones it flags.
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Pill variant="for_sale">CONFIDENCE SCORED</Pill>
-            <Pill variant="for_trade">FIELD-LEVEL REVIEW</Pill>
-          </div>
-        </div>
       </div>
     </section>
   )
@@ -295,6 +270,7 @@ function TheaterInputPanel() {
 
   return (
     <div
+      data-marketing-intel-panel
       style={{
         borderRadius: 22,
         overflow: "hidden",
@@ -305,41 +281,79 @@ function TheaterInputPanel() {
           "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)",
         display: "flex",
         flexDirection: "column",
-        minHeight: 640,
       }}
     >
       <div
         style={{
-          padding: "16px 20px",
+          padding: "16px 20px 18px",
           borderBottom: `1px solid ${T.frostDiv}`,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "rgba(0,0,0,0.6)",
+          background: "rgba(0,0,0,0.5)",
         }}
       >
-        <Kicker style={{ fontSize: 9, color: T.fg3 }}>STEP 01 · CAPTURE</Kicker>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              background: T.volt,
-              boxShadow: `0 0 8px ${T.volt}`,
-              animation: "pulseGlow 1.4s ease-in-out infinite",
-            }}
-          />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Kicker style={{ fontSize: 9, color: T.fg3 }}>EXTRACTION · AI-LIVE</Kicker>
           <span
             style={{
               fontFamily: T.fontMono,
-              fontSize: 9.5,
+              fontSize: 10.5,
               color: T.volt,
               letterSpacing: 0.5,
             }}
           >
-            LIVE
+            {stages[currentStageIdx].label}
           </span>
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            height: 4,
+            borderRadius: 2,
+            background: "rgba(214,235,253,0.08)",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: `${p * 100}%`,
+              background: `linear-gradient(90deg, rgba(232,224,212,0.40), ${T.volt})`,
+              boxShadow: `0 0 12px rgba(232,224,212,0.55)`,
+              transition: "width 200ms linear",
+            }}
+          />
+        </div>
+        <div
+          data-marketing-intel-stages
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 10,
+          }}
+        >
+          {["PHOTOS", "SCAN", "CLASSIFY", "TRAITS", "EXTRACT", "TITLE"].map(
+            (s, i) => (
+              <span
+                key={s}
+                style={{
+                  fontFamily: T.fontGrotesk,
+                  fontWeight: 700,
+                  fontSize: 8.5,
+                  letterSpacing: 1,
+                  color: i <= currentStageIdx ? T.volt : T.fg3,
+                }}
+              >
+                {s}
+              </span>
+            )
+          )}
         </div>
       </div>
 
@@ -486,106 +500,6 @@ function TheaterInputPanel() {
             )
           })}
         </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            marginTop: 10,
-          }}
-        >
-          {[4, 5].map((i) => (
-            <div
-              key={i}
-              style={{
-                aspectRatio: "4/5",
-                borderRadius: 10,
-                border: `1px dashed ${T.frostDiv}`,
-                background: "rgba(214,235,253,0.015)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <MIcon name="plus" size={16} color={T.fg3} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: "auto",
-          padding: "16px 20px 18px",
-          borderTop: `1px solid ${T.frostDiv}`,
-          background: "rgba(0,0,0,0.5)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Kicker style={{ fontSize: 9, color: T.fg3 }}>STATUS</Kicker>
-          <span
-            style={{
-              fontFamily: T.fontMono,
-              fontSize: 10.5,
-              color: T.volt,
-              letterSpacing: 0.5,
-            }}
-          >
-            {stages[currentStageIdx].label}
-          </span>
-        </div>
-        <div
-          style={{
-            marginTop: 12,
-            height: 4,
-            borderRadius: 2,
-            background: "rgba(214,235,253,0.08)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: `${p * 100}%`,
-              background: `linear-gradient(90deg, rgba(232,224,212,0.40), ${T.volt})`,
-              boxShadow: `0 0 12px rgba(232,224,212,0.55)`,
-              transition: "width 200ms linear",
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 10,
-          }}
-        >
-          {["PHOTOS", "SCAN", "CLASSIFY", "TRAITS", "EXTRACT", "TITLE"].map(
-            (s, i) => (
-              <span
-                key={s}
-                style={{
-                  fontFamily: T.fontGrotesk,
-                  fontWeight: 700,
-                  fontSize: 8.5,
-                  letterSpacing: 1,
-                  color: i <= currentStageIdx ? T.volt : T.fg3,
-                }}
-              >
-                {s}
-              </span>
-            )
-          )}
-        </div>
       </div>
     </div>
   )
@@ -608,6 +522,7 @@ function ExtractionArtifact() {
 
   return (
     <div
+      data-marketing-intel-panel
       style={{
         borderRadius: 22,
         padding: 32,
@@ -615,7 +530,6 @@ function ExtractionArtifact() {
         background: "rgba(214,235,253,0.025)",
         display: "flex",
         flexDirection: "column",
-        minHeight: 640,
       }}
     >
       <div
@@ -731,6 +645,7 @@ function ExtractionArtifact() {
             return (
               <div
                 key={k}
+                data-marketing-intel-field-row
                 style={{
                   padding: "8px 0",
                   borderTop: i ? `1px solid ${T.frostDiv}` : "none",
@@ -856,6 +771,7 @@ function CapabilityTile({ num, kicker, title, body, children }: CapabilityTilePr
   const [hover, setHover] = useState(false)
   return (
     <div
+      data-marketing-intel-cap-tile
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
