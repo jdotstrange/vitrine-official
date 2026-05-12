@@ -1,23 +1,33 @@
 # Current State
 
-Last updated: 2026-05-10
-Last verified: 2026-05-10
+Last updated: 2026-05-11
+Last verified: 2026-05-11
 
 ## Current Build Phase
-Active V3 redesign and feature build-out. All primary surfaces are now V3. The app is approaching deployment readiness with a five-lens profile hub (the app's landing surface), a four-lens Tracking Hub, an Instagram-style Market Surface, a dedicated Messages tab, a fully redesigned Settings screen (V3), a Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
+Active V3 redesign and feature build-out, now hosted in a pnpm + Turborepo monorepo with two apps (`@vitrine/native`, `@vitrine/web`) and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). All primary native surfaces are V3. The app is approaching deployment readiness with a five-lens profile hub (the app's landing surface), a four-lens Tracking Hub, an Instagram-style Market Surface, a dedicated Messages tab, a fully redesigned Settings screen (V3), a Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
 
 ## Current Priority
-The most recent major change — **Profile-as-Home Architecture Restructure** — eliminated the legacy home screen entirely. The collector's profile hub is now the app's landing surface (`app/(tabs)/index.tsx`). Messages graduated from a profile hub lens to a dedicated tab. The HUD overlay (logo/messages/notifications top bar) has been removed. The BottomDock now leads with the profile avatar (with activity badge dot) and includes a messages icon with unread count. All V3 surfaces are operational.
+Day 2 of the monorepo migration is complete. Four shared packages extracted; native and web both consume them via `workspace:*`. The native app boots end-to-end on iPhone via Expo Go (verified four-flow smoke test). Web ships marketing pages plus public share resolvers, with the showcase resolver migrated to the typed `@vitrine/api`. Next focus is Day 3 work — pick from web product buildout, EAS / TestFlight pipeline, or product features (Crown Jewel UI, AI upload QA).
 
 ## What Works
 
+### Monorepo + Shared Packages (Day 2 complete)
+- pnpm + Turborepo monorepo. `apps/native` (`@vitrine/native`) + `apps/web` (`@vitrine/web`) + four shared packages.
+- `@vitrine/design-tokens` — colors, typography, spacing, radii, trait/match-tier helpers. Pure TS.
+- `@vitrine/constants` — share URLs, store URLs, upload limits.
+- `@vitrine/types` — domain types + generated Supabase `Database` type.
+- `@vitrine/api` — 12 portable Supabase modules as `createXApi()` factories. `createApi()` mega-factory composes them with cross-module deps wired (showcases ↔ notifications, follows ↔ notifications). `bindToSingleton()` + ~60 flat re-exports preserve native back-compat. Web uses `getServerApi()` per request.
+- Native shim files at `apps/native/lib/api/<name>.ts` keep all legacy `@/lib/api/...` imports working unchanged.
+- 5 native-only modules (`auth`, `collectibles`, `tracking`, `views`, `market`, `trading-cards`, `client`, `config`, `messaging`) stay native because of Expo / RN dependencies.
+- Metro config supports the monorepo (`watchFolders` + `nodeModulesPaths` + `disableHierarchicalLookup`). Includes `EMPTY_MODULES` shim for `@supabase/functions-js` and Node `fs`.
+
 ### Core App Infrastructure
-- Expo app configuration in `app.json`.
-- Supabase client, auth helpers, API modules, migrations, Edge Functions.
-- Stream Chat/Feeds dependencies and contexts.
-- V3 design tokens in `lib/design` with dual-theme support (`DARK_COLORS`, `LIGHT_COLORS`).
-- `ThemeProvider` context + `useTheme()` hook (`lib/design/theme-context.tsx`). Persists preference to AsyncStorage, defaults to Dark.
-- Vault components in `components/vault` exported via barrel.
+- Expo app configuration in `apps/native/app.json`.
+- Native Supabase client (`apps/native/lib/supabase.ts`) and auth helpers. Web Supabase client (`apps/web/lib/supabase.ts`).
+- Stream Chat/Feeds dependencies and contexts (native).
+- V3 design tokens in `@vitrine/design-tokens` with dual-theme support (`DARK_COLORS`, `LIGHT_COLORS`).
+- `ThemeProvider` context + `useTheme()` hook (`apps/native/lib/design/theme-context.tsx`). Persists preference to AsyncStorage, defaults to Dark.
+- Vault components in `apps/native/components/vault` exported via barrel.
 
 ### Settings (V3 — Complete)
 Full V3 redesign of the settings experience:
@@ -223,9 +233,9 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 - `lib/api/blocked.ts`
 
 ### Theme System
-- `lib/design/tokens.ts` — `DARK_COLORS`, `LIGHT_COLORS`, `ThemeColors` type
-- `lib/design/theme-context.tsx` — `ThemeProvider`, `useTheme()` hook
-- `lib/design/index.ts` — barrel exports theme utilities
+- `packages/design-tokens/src/tokens.ts` — `DARK_COLORS`, `LIGHT_COLORS`, `ThemeColors` interface (values typed as `string` to allow inter-palette assignment)
+- `apps/native/lib/design/theme-context.tsx` — `ThemeProvider`, `useTheme()` hook (native-only)
+- `apps/native/lib/design/index.ts` — re-exports `@vitrine/design-tokens` plus `theme-context`
 
 ### Activity Surface
 - `lib/api/activity.ts`, `lib/api/views.ts`

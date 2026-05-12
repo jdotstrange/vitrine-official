@@ -1,7 +1,7 @@
 # Open Threads
 
-Last updated: 2026-05-10
-Last verified: 2026-05-10
+Last updated: 2026-05-11
+Last verified: 2026-05-11
 
 ## Product / Design Threads
 
@@ -61,6 +61,25 @@ The Tracking Hub V3 is fully functional. Potential v2 items:
 - COMPS lens could add per-source grouping or a source filter chip.
 - TRACKED lens untrack action could add a confirmation dialog.
 - Top Collectors section could deep-link to collector profiles.
+
+## Monorepo / Infra Threads
+
+### Day 3 deferred items (from Day 2 Shared Packages plan)
+The Day 2 plan explicitly deferred these to a focused infra session:
+- **Web Tailwind tokens consuming `@vitrine/design-tokens` natively.** Today web ports tokens to CSS vars by hand in an adapter file. Day 3 would wire Tailwind v4 to consume the package directly.
+- **Edge Functions consuming `@vitrine/api`.** Would require Deno-side bundling. Today they keep their own mirrored copies (e.g., `_shared/managed-eval.ts` mirrors `packages/api/src/modules/managed-rules.ts`). Risk: two-evaluator drift.
+- **TypeScript project references with `tsc --build`.** Overkill for current scale; reconsider when shared packages have their own tests.
+- **GitHub Actions CI gates** that enforce package boundaries (e.g., no `apps/native/*` import from `apps/web/*`).
+- **`.cursor/rules/expo-release-guardrails.mdc` updates** for the new package layout.
+
+### 5 native-only API modules
+`auth`, `collectibles`, `tracking`, `views`, `market`, `trading-cards`, `client`, `config`, `messaging` still live in `apps/native/lib/api/` because they depend on Expo / RN APIs (image-manipulator, AsyncStorage, native HTTP client, expo-crypto, native `CollectionItem` types). Migrating any of them to `@vitrine/api` requires first abstracting those deps. Worth doing only when web actually needs them — at which point the migration unblocks the web collectible (`/s/c/[id]`) and profile (`/s/p/[id]`) share resolvers, which still use direct Supabase queries.
+
+### Web SSR Supabase client split
+Day 2 plan called for installing `@supabase/ssr` and creating browser/server client variants. Today web uses a single shared client wrapped by `getServerApi()`. Not needed for public share resolvers; becomes important the moment web adds an authenticated route.
+
+### Native tsc baseline at 107 errors
+Down from 137 (pre-Day-2) → 125 (post-Day-2 baseline) → 107 after token retyping + jest types pass. None block runtime. Largest single offender is `components/key-details/field-renderers.tsx` (31 errors — discriminated union not narrowed before property access). Remainder is component-prop drift (`OptimizedImageProps`, `ButtonProps`), domain type mismatches, and tuple vs array. Opportunistic to fix.
 
 ## Release / Ops Threads
 
