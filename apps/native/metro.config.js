@@ -29,10 +29,17 @@ config.resolver.alias = {
   '@': projectRoot,
 };
 
-// 5. Skip @supabase/functions-js for React Native (Hermes-incompatible).
-//    Workaround retained from v1.
+// 5. Stub out modules that reference Node stdlib APIs unavailable in Hermes.
+//    - @supabase/functions-js: uses Node APIs incompatible with RN (v1 workaround).
+//    - fs, path (when required by third-party): e.g. `mime` (pulled in by
+//      stream-chat-expo's getPhotos.ts) calls require('fs') at init time.
+//      The runtime codepath never executes on mobile, but Metro still resolves it.
+const EMPTY_MODULES = new Set([
+  '@supabase/functions-js',
+  'fs',
+]);
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === '@supabase/functions-js') {
+  if (EMPTY_MODULES.has(moduleName)) {
     return { type: 'empty' };
   }
   return context.resolveRequest(context, moduleName, platform);
