@@ -184,7 +184,8 @@ export async function createCollectible(
         collectibles_count: (await supabase
           .from('collectibles')
           .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)).count || 0 
+          .eq('user_id', userId)
+          .not('published_at', 'is', null)).count || 0 
       })
       .eq('id', userId);
     
@@ -765,7 +766,7 @@ export async function getUserCollectibles(
     .select('*')
     .eq('user_id', userId)
     .not('listing_title', 'is', null)
-    .or('extraction_status.is.null,extraction_status.eq.complete')
+    .not('published_at', 'is', null)
     .order('created_at', { ascending: false });
 
   if (options?.limit) {
@@ -1090,6 +1091,8 @@ export async function getFeedCollectibles(
       users!collectibles_user_id_fkey ( id, display_name, username, avatar )
     `)
     .not('photos', 'is', null)
+    .not('published_at', 'is', null)
+    .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -1165,6 +1168,7 @@ export async function getNetworkFeed(userId: string, limit = 6): Promise<FeedCol
     `)
     .in('user_id', followingIds)
     .not('photos', 'is', null)
+    .not('published_at', 'is', null)
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -1227,6 +1231,7 @@ export async function getRecentlyAdded(
     .select('id, title, photos, category, value, available_for_sale, available_for_trade, created_at')
     .eq('user_id', userId)
     .not('photos', 'is', null)
+    .not('published_at', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -1258,7 +1263,8 @@ export async function getCategoryBreakdown(
   const { data, error } = await supabase
     .from('collectibles')
     .select('category')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .not('published_at', 'is', null);
 
   if (error) {
     log.error('Error fetching category breakdown:', error.message);
@@ -1415,7 +1421,7 @@ export async function commitDraftCollectible(
       .from('collectibles')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .or('extraction_status.is.null,extraction_status.eq.complete');
+      .not('published_at', 'is', null);
 
     await supabase
       .from('users')
@@ -1459,40 +1465,10 @@ export async function commitDraftCollectible(
   log.info('Draft committed to collection:', collectibleId);
 }
 
-/**
- * Delete a staging row. Used on user abandon, failure restart, and
- * the app-startup orphan sweep.
- */
-export async function deleteDraftCollectible(collectibleId: string): Promise<void> {
-  const { error } = await supabase
-    .from('collectibles')
-    .delete()
-    .eq('id', collectibleId)
-    .in('extraction_status', ['queued', 'processing', 'extracted', 'failed']);
-
-  if (error) {
-    log.warn('Error deleting draft collectible:', error);
-  }
-}
-
-/**
- * Clean up orphaned staging rows from prior sessions (force-quits, crashes).
- * Called once on app startup. Deletes rows older than 1 hour that never
- * reached 'complete'.
- */
-export async function sweepStaleStagingRows(userId: string): Promise<void> {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
-  const { error, count } = await supabase
-    .from('collectibles')
-    .delete({ count: 'exact' })
-    .eq('user_id', userId)
-    .in('extraction_status', ['queued', 'processing', 'extracted', 'failed'])
-    .lt('updated_at', oneHourAgo);
-
-  if (error) {
-    log.warn('Stale staging sweep failed:', error);
-  } else if (count && count > 0) {
-    log.info(`Swept ${count} stale staging row(s) for user ${userId}`);
-  }
-}
+// NOTE: Draft cleanup helpers (deleteDraftCollectible, sweepStaleStagingRows)
+// were removed in the upload-lane-unification refactor. With server-side
+// auto-completion + the published_at gate, every row in `collectibles` is a
+// real committed item. Discarding an upload mid-flow is now a regular
+// `deleteCollectible` call. Orphaned 'queued'/'processing' rows are caught
+// by the `extraction-watchdog` cron (marks them as failed), and abandoned
+// failures are hard-deleted by `failed-extractions-purge` after 45 days.

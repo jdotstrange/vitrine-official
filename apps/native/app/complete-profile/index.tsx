@@ -5,15 +5,14 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Animated as RNAnimated,
   ActivityIndicator,
   Image,
   Alert,
   ActionSheetIOS,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { Check, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -493,21 +492,16 @@ export default function CompleteProfilePage() {
 
   if (step === 'finish-profile') {
     return (
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.headerSpacer} />
-          <View style={styles.content}>
-            {renderFinishProfile()}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <View style={styles.headerSpacer} />
+        <View style={styles.content}>
+          {renderFinishProfile()}
+        </View>
+      </KeyboardAwareScrollView>
     );
   }
 
@@ -516,19 +510,15 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAwareScrollView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerSpacer} />
+      <View style={styles.headerSpacer} />
 
-        <View style={styles.content}>
-          <Animated.View entering={FadeIn} style={styles.viewContainer}>
+      <View style={styles.content}>
+        <Animated.View entering={FadeIn} style={styles.viewContainer}>
             <View style={styles.topSection}>
               <View style={styles.logoContainer}>
                 <VitrineLogo width={200} height={60} />
@@ -582,8 +572,7 @@ export default function CompleteProfilePage() {
             </View>
           </Animated.View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 

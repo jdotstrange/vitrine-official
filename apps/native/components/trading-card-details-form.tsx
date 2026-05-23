@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, X, Camera, Check, Layers, ChevronRight, Plus, Sparkles, Search } from 'lucide-react-native';
@@ -199,8 +200,8 @@ export function TradingCardDetailsForm({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      behavior="padding"
+      automaticOffset
     >
       <View style={styles.container}>
         {/* Header */}

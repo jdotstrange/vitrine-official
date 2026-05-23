@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Text, TouchableOpacity } from 'react-native';
 import { AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -261,7 +262,7 @@ export function ConversationThread({
 
   // DM mode
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding" automaticOffset>
       <MessageList
         messages={messages} currentUserId={currentUserId} variant={variant}
         isLoading={isLoading} hasMore={hasMore} typingUserNames={typingUserNames}

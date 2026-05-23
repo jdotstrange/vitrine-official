@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useState, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
@@ -119,8 +120,8 @@ export function KeyDetailsForm() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      behavior="padding"
+      automaticOffset
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}

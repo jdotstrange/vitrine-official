@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +9,7 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { useTheme, RADII, SPACING, TYPE } from '@/lib/design';
 import { Button } from './button';
@@ -101,7 +100,8 @@ export function InputDialog({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
+        automaticOffset
         style={styles.root}
       >
         <Pressable style={[styles.scrim, { backgroundColor: colors.scrim }]} onPress={handleCancel} />

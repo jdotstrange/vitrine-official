@@ -302,7 +302,7 @@ export const VERB_CONFIG: Record<ActivityVerb, VerbConfig> = {
     category: 'INBOX',
     glyph: MessageSquare,
     tint: COLORS.semanticBlue,
-    pushDefault: true,
+    pushDefault: false,
     hasRightThumb: true,
     copy: (ctx) => {
       const tail =
@@ -326,7 +326,7 @@ export const VERB_CONFIG: Record<ActivityVerb, VerbConfig> = {
     category: 'INBOX',
     glyph: Sparkles,
     tint: COLORS.semanticOrange,
-    pushDefault: true,
+    pushDefault: false,
     hasRightThumb: true,
     trackingCategory: 'STATUS',
     copy: (ctx) => ({
@@ -346,7 +346,7 @@ export const VERB_CONFIG: Record<ActivityVerb, VerbConfig> = {
     category: 'SIGNALS',
     glyph: Radar,
     tint: COLORS.brandVolt,
-    pushDefault: false,
+    pushDefault: true,
     hasRightThumb: true,
     trackingCategory: 'COMPS',
     copy: (ctx) => ({
@@ -392,7 +392,7 @@ export const VERB_CONFIG: Record<ActivityVerb, VerbConfig> = {
     category: 'SIGNALS',
     glyph: TrendingUp,
     tint: COLORS.semanticBlue,
-    pushDefault: false,
+    pushDefault: true,
     copy: (ctx) => ({
       lead: `${ctx.viewCount ?? 0} views`,
       mid: ' this week across your stuff',

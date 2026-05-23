@@ -1,9 +1,10 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   SpaceGrotesk_400Regular,
   SpaceGrotesk_500Medium,
@@ -31,33 +32,122 @@ import {
 } from '@expo-google-fonts/bodoni-moda';
 import { Electrolize_400Regular } from '@expo-google-fonts/electrolize';
 import { CategoryProvider } from '@/lib/contexts/category-context';
-import { AuthProvider, useAuth } from '@/lib/contexts/auth-context';
+import { AuthProvider } from '@/lib/contexts/auth-context';
 import { StreamProvider } from '@/lib/contexts/stream-context';
 import { FeedsProvider } from '@/lib/contexts/feeds-context';
+import { PushProvider } from '@/lib/contexts/push-context';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SkeletonProvider } from '@/components/skeleton';
 import { ThemeProvider } from '@/lib/design';
 import { colors } from '@/lib/colors';
-import { initSentry } from '@/lib/sentry';
-import { sweepStaleStagingRows } from '@/lib/api/collectibles';
+import { initSentry, Sentry } from '@/lib/sentry';
+import {
+  setupNotificationHandler,
+  setupAndroidChannels,
+  addNotificationResponseListener,
+} from '@/lib/push';
+import { logger } from '@/lib/logger';
+
+const pushLog = logger.create('PushHandler');
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
 
-function StagingRowSweep() {
-  const { user, isAuthenticated } = useAuth();
-  const swept = useRef(false);
+/**
+ * Handles notification setup and tap routing.
+ * Mounted inside the navigation tree so router is available.
+ * expo-notifications is loaded lazily via lib/push.ts helpers
+ * to avoid the @ide/backoff → assert Metro crash.
+ */
+function NotificationTapHandler() {
+  const lastNotificationRef = useRef<string | null>(null);
+
+  // Set up foreground handler + Android channels on first mount
+  useEffect(() => {
+    setupNotificationHandler();
+    setupAndroidChannels();
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id || swept.current) return;
-    swept.current = true;
-    sweepStaleStagingRows(user.id).catch(() => {});
-  }, [isAuthenticated, user?.id]);
+    const sub = addNotificationResponseListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      const notifId = response.notification.request.identifier;
+
+      if (notifId === lastNotificationRef.current) return;
+      lastNotificationRef.current = notifId;
+
+      pushLog.info('Notification tapped:', data.type || data.verb || 'unknown');
+
+      try {
+        // Stream Chat push — navigate to messages then the channel
+        if (data.stream_channel_cid || data.type === 'message.new') {
+          const cid = data.stream_channel_cid || data.channel_id || '';
+          if (cid) {
+            router.navigate('/(tabs)/messages');
+            setTimeout(() => {
+              router.push(`/messages/${encodeURIComponent(cid)}`);
+            }, 300);
+          } else {
+            router.navigate('/(tabs)/messages');
+          }
+          return;
+        }
+
+        // Stream Feeds activity push — route based on verb
+        const verb = data.verb as string | undefined;
+        const collectibleId = data.collectibleId as string | undefined;
+        const showcaseId = data.showcaseId as string | undefined;
+        const actorId = data.actorId as string | undefined;
+
+        if (verb === 'new_follower' && actorId) {
+          router.push(`/profile/${actorId}`);
+          return;
+        }
+
+        if (collectibleId && (
+          verb === 'someone_tracked_your_item' ||
+          verb === 'status_change' ||
+          verb === 'value_change' ||
+          verb === 'comp_alert' ||
+          verb === 'new_item_from_followed'
+        )) {
+          router.push(`/collectible/${collectibleId}`);
+          return;
+        }
+
+        if (showcaseId && (
+          verb === 'new_showcase_from_followed' ||
+          verb === 'share_initiated'
+        )) {
+          router.push(`/showcase/${showcaseId}`);
+          return;
+        }
+
+        if (verb === 'share_initiated' && collectibleId) {
+          router.push(`/collectible/${collectibleId}`);
+          return;
+        }
+
+        if (verb === 'weekly_view_digest') {
+          router.navigate('/(tabs)');
+          return;
+        }
+
+        // Fallback: navigate to the activity lens on the profile hub
+        router.navigate('/(tabs)');
+      } catch (err) {
+        pushLog.error('Deep-link routing failed:', err);
+        router.navigate('/(tabs)');
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
 
   return null;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceGrotesk: SpaceGrotesk_400Regular,
     'SpaceGrotesk-Medium': SpaceGrotesk_500Medium,
@@ -92,28 +182,34 @@ export default function RootLayout() {
       <ErrorBoundary>
         <ThemeProvider>
           <SafeAreaProvider>
-            <AuthProvider>
-              <StagingRowSweep />
-              <StreamProvider>
-                <FeedsProvider>
-                  <SkeletonProvider>
-                    <CategoryProvider>
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: colors.background },
-                        gestureEnabled: true,
-                        animation: 'slide_from_right',
-                      }}
-                    />
-                    </CategoryProvider>
-                  </SkeletonProvider>
-                </FeedsProvider>
-              </StreamProvider>
-            </AuthProvider>
+            <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+              <AuthProvider>
+                <StreamProvider>
+                  <FeedsProvider>
+                    <PushProvider>
+                      <NotificationTapHandler />
+                      <SkeletonProvider>
+                        <CategoryProvider>
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            contentStyle: { backgroundColor: colors.background },
+                            gestureEnabled: true,
+                            animation: 'slide_from_right',
+                          }}
+                        />
+                        </CategoryProvider>
+                      </SkeletonProvider>
+                    </PushProvider>
+                  </FeedsProvider>
+                </StreamProvider>
+              </AuthProvider>
+            </KeyboardProvider>
           </SafeAreaProvider>
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

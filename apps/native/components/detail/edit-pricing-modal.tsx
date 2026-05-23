@@ -7,11 +7,10 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { X } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -151,7 +150,8 @@ export function EditPricingModal({ isOpen, onClose, data, onSaved }: EditPricing
   return (
     <Modal visible={isOpen} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        automaticOffset
         style={styles.container}
       >
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>

@@ -7,11 +7,10 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { X, Camera, Plus, Globe, Lock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/lib/colors';
@@ -140,7 +139,8 @@ export function EditInfoModal({ isOpen, onClose, data, onSaved }: EditInfoModalP
 
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
+          automaticOffset
         >
           <View style={[styles.flex, { paddingTop: insets.top }]}>
             {/* Header */}

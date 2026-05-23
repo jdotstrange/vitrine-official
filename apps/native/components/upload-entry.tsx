@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Dimensions,
-  KeyboardAvoidingView,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +11,7 @@ import {
   View,
   type TextStyle,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, {
   Easing,
   FadeIn,
@@ -34,6 +33,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
+import { PhotoLibraryPicker } from '@/components/photo-library-picker';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -67,10 +67,11 @@ import {
   type ShowcaseSelectorOption,
 } from '@/components/vault';
 import { FramedHero } from '@/components/detail/framed-hero';
+import { PushPrePrompt } from '@/components/push-pre-prompt';
 import { useTheme, RADII, SPACING, STATUS_CONFIG, TYPE, type ListingStatus } from '@/lib/design';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { getUserShowcases } from '@/lib/api/showcases';
-import { createDraftCollectible, updateExtractionJobId, commitDraftCollectible, deleteDraftCollectible } from '@/lib/api/collectibles';
+import { createDraftCollectible, updateExtractionJobId, commitDraftCollectible, deleteCollectible } from '@/lib/api/collectibles';
 import { enqueueExtraction, pollJobStatus, type ExtractionStatus } from '@/lib/api/extraction';
 import { uploadOriginalOnly, generateVariantsBackground } from '@/lib/image-utils';
 import { logger } from '@/lib/logger';
@@ -198,6 +199,7 @@ export function UploadEntry() {
   // Photo source picker (camera vs library) — opens an ActionSheet on
   // empty-tile tap so users can shoot fresh or pull from library.
   const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
 
   // Edit flow state — queue is the set of fields the user flagged on review;
   // `fieldEdits` overlays the base extraction with committed changes;
@@ -331,21 +333,15 @@ export function UploadEntry() {
     }
   }, [emptySlotCount, appendPhotos]);
 
-  const pickFromLibrary = useCallback(async () => {
+  const pickFromLibrary = useCallback(() => {
     if (emptySlotCount <= 0) return;
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: emptySlotCount > 1,
-        selectionLimit: emptySlotCount,
-        quality: 0.85,
-      });
-      if (result.canceled || !result.assets || result.assets.length === 0) return;
-      appendPhotos(result.assets.map((a) => a.uri));
-    } catch (err) {
-      uploadLog.error('Library pick failed:', err);
-    }
-  }, [emptySlotCount, appendPhotos]);
+    setLibraryPickerOpen(true);
+  }, [emptySlotCount]);
+
+  const handleLibrarySelect = useCallback((uris: string[]) => {
+    uploadLog.info('Library picker returned', { count: uris.length });
+    appendPhotos(uris);
+  }, [appendPhotos]);
 
   const removePhoto = useCallback((id: string) => {
     Haptics.selectionAsync();
@@ -356,6 +352,7 @@ export function UploadEntry() {
   const handleAnalyze = useCallback(async () => {
     if (!user?.id || photos.length === 0) return;
     setIsUploading(true);
+    setStep('theater');
 
     try {
       const uploadResults = await Promise.all(
@@ -391,7 +388,6 @@ export function UploadEntry() {
 
       setIsUploading(false);
       setExtractionStatus('queued');
-      setStep('theater');
     } catch (err) {
       setIsUploading(false);
       uploadLog.error('Upload pipeline failed:', err);
@@ -401,18 +397,22 @@ export function UploadEntry() {
     }
   }, [user?.id, photos, context]);
 
-  // --- Theater: 2s polling + cosmetic checklist + progress ring ---
+  // --- Theater: start progress ring immediately on step transition ---
   useEffect(() => {
-    if (step !== 'theater' || !draftCollectibleId || !extractionJobId) return;
-    let cancelled = false;
-    let lastStatus: ExtractionStatus | null = null;
-
+    if (step !== 'theater') return;
     setCompletedSteps(0);
     progress.value = 0;
     progress.value = withTiming(0.97, {
       duration: 30000,
       easing: Easing.inOut(Easing.quad),
     });
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- Theater: 2s polling + cosmetic checklist (starts once upload completes) ---
+  useEffect(() => {
+    if (step !== 'theater' || !draftCollectibleId || !extractionJobId) return;
+    let cancelled = false;
+    let lastStatus: ExtractionStatus | null = null;
 
     const cosmeticTimers: ReturnType<typeof setTimeout>[] = [];
 
@@ -434,7 +434,12 @@ export function UploadEntry() {
 
       if (status === 'processing') {
         // Cosmetic timers already running — nothing else to do here
-      } else if (status === 'extracted') {
+      } else if (status === 'extracted' || status === 'complete') {
+        // After upload-lane-unification, the BEFORE UPDATE trigger flips
+        // 'extracted' -> 'complete' atomically and sets published_at, so
+        // single-lane polling will most often see 'complete' here. Both
+        // statuses route to the review screen identically — the row is
+        // already a real, published collectible by the time we arrive.
         cosmeticTimers.forEach(clearTimeout);
         progress.value = withTiming(1, { duration: 250 });
 
@@ -525,8 +530,10 @@ export function UploadEntry() {
   }, [step, draftCollectibleId, extractionJobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetFlow = useCallback(() => {
-    if (draftCollectibleId) {
-      deleteDraftCollectible(draftCollectibleId).catch(() => {});
+    if (draftCollectibleId && user?.id) {
+      deleteCollectible(draftCollectibleId, user.id).catch(() => {});
+      setDraftCollectibleId(null);
+    } else if (draftCollectibleId) {
       setDraftCollectibleId(null);
     }
 
@@ -549,7 +556,7 @@ export function UploadEntry() {
     setPulseKeys([]);
     setPulseNonce(0);
     setRapidFireOpen(false);
-  }, [draftCollectibleId]);
+  }, [draftCollectibleId, user?.id]);
 
   // Auto-reset on tab blur. Whenever the user leaves the upload tab — whether
   // they tapped X mid-flow, hit "View in Collection" from the success screen,
@@ -665,8 +672,8 @@ export function UploadEntry() {
           text: 'Discard',
           style: 'destructive',
           onPress: () => {
-            if (draftCollectibleId) {
-              deleteDraftCollectible(draftCollectibleId).catch(() => {});
+            if (draftCollectibleId && user?.id) {
+              deleteCollectible(draftCollectibleId, user.id).catch(() => {});
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             router.back();
@@ -674,7 +681,7 @@ export function UploadEntry() {
         },
       ],
     );
-  }, [hasInProgressWork, router, draftCollectibleId]);
+  }, [hasInProgressWork, router, draftCollectibleId, user?.id]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.void }]}>
@@ -709,16 +716,25 @@ export function UploadEntry() {
       </View>
 
       {step === 'scan' ? (
-        <ScanStep
-          photos={photos}
-          context={context}
-          onContextChange={setContext}
-          onPickPhotos={openPhotoSourceSheet}
-          onRemovePhoto={removePhoto}
-          emptySlotCount={emptySlotCount}
-          onAnalyze={handleAnalyze}
-          isUploading={isUploading}
-        />
+        <>
+          <ScanStep
+            photos={photos}
+            context={context}
+            onContextChange={setContext}
+            onPickPhotos={openPhotoSourceSheet}
+            onRemovePhoto={removePhoto}
+            emptySlotCount={emptySlotCount}
+            onAnalyze={handleAnalyze}
+            isUploading={isUploading}
+            bottomInset={insets.bottom}
+          />
+          <ActionDock
+            label="Identify"
+            bottomInset={insets.bottom}
+            onPress={handleAnalyze}
+            disabled={isUploading || photos.length === 0}
+          />
+        </>
       ) : step === 'theater' ? (
         <TheaterStep
           photos={photos}
@@ -890,6 +906,13 @@ export function UploadEntry() {
         ]}
         onClose={() => setPhotoSourceSheetOpen(false)}
       />
+
+      <PhotoLibraryPicker
+        visible={libraryPickerOpen}
+        maxSelection={emptySlotCount}
+        onSelect={handleLibrarySelect}
+        onClose={() => setLibraryPickerOpen(false)}
+      />
     </View>
   );
 }
@@ -918,6 +941,7 @@ function ScanStep({
   emptySlotCount,
   onAnalyze,
   isUploading,
+  bottomInset,
 }: {
   photos: PhotoAsset[];
   context: string;
@@ -927,6 +951,7 @@ function ScanStep({
   emptySlotCount: number;
   onAnalyze: () => void;
   isUploading: boolean;
+  bottomInset: number;
 }) {
   const { colors } = useTheme();
   // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
@@ -940,13 +965,13 @@ function ScanStep({
   return (
     <KeyboardAvoidingView
       style={styles.scanBody}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      behavior="padding"
+      automaticOffset
       pointerEvents={isUploading ? 'none' : 'auto'}
     >
       <ScrollView
         style={styles.scanScroll}
-        contentContainerStyle={styles.scanScrollContent}
+        contentContainerStyle={[styles.scanScrollContent, { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
@@ -1015,15 +1040,6 @@ function ScanStep({
         </View>
       </View>
       </ScrollView>
-
-      <Button
-        label="Identify"
-        fullWidth
-        onPress={onAnalyze}
-        disabled={isUploading || photos.length === 0}
-        loading={isUploading}
-        style={styles.identifyButton}
-      />
     </KeyboardAvoidingView>
   );
 }
@@ -1040,23 +1056,6 @@ const PROGRESS_RING_GRADIENT_ID = 'lookingGlassRingGradient';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-// Per-row complete-state colors. One distinct hue per checklist item;
-// brandVolt is intentionally avoided (warm ivory == default text) so the
-// completed rows actually pop against everything else on the surface.
-type ChecklistColorKey =
-  | 'traitCyan'
-  | 'traitViolet'
-  | 'traitPink'
-  | 'traitOlive'
-  | 'semanticGreen';
-
-const CHECKLIST_COLORS: ChecklistColorKey[] = [
-  'traitCyan',
-  'traitViolet',
-  'traitPink',
-  'traitOlive',
-  'semanticGreen',
-];
 
 function TheaterStep({
   photos,
@@ -1097,7 +1096,7 @@ function TheaterStep({
     });
   }, [revealOpacity]);
   useEffect(() => {
-    if (extractionStatus === 'extracted') {
+    if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
       revealOpacity.value = withTiming(0.5, { duration: 250 });
     }
   }, [extractionStatus, revealOpacity]);
@@ -1114,7 +1113,7 @@ function TheaterStep({
     });
   }, [sharpOpacity]);
   useEffect(() => {
-    if (extractionStatus === 'extracted') {
+    if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
       sharpOpacity.value = withTiming(1, { duration: 250 });
     }
   }, [extractionStatus, sharpOpacity]);
@@ -1250,7 +1249,6 @@ function TheaterStep({
         </Text>
       </View>
 
-      {/* 5-item checklist — each row blooms into its own hue on complete */}
       <View style={styles.checklist}>
         {CHECKLIST_ITEMS.map((item, i) => {
           const status: ChecklistRowStatus =
@@ -1261,7 +1259,6 @@ function TheaterStep({
               label={item.label}
               status={status}
               cascadeIndex={i}
-              colorKey={CHECKLIST_COLORS[i]}
             />
           );
         })}
@@ -1280,15 +1277,12 @@ function ChecklistRow({
   label,
   status,
   cascadeIndex,
-  colorKey,
 }: {
   label: string;
   status: ChecklistRowStatus;
   cascadeIndex: number;
-  colorKey: ChecklistColorKey;
 }) {
   const { colors } = useTheme();
-  const completeColor = colors[colorKey];
 
   const spin = useSharedValue(0);
   useEffect(() => {
@@ -1310,22 +1304,22 @@ function ChecklistRow({
   let indicator: React.ReactNode;
   let statusLabel = '';
   let statusColor = colors.textTertiary;
-  let labelColor = colors.textPrimary;
+  let labelColor = colors.textTertiary;
 
   if (status === 'complete') {
     indicator = (
       <View
         style={[
           styles.checklistIndicator,
-          { backgroundColor: completeColor, borderColor: completeColor },
+          { backgroundColor: colors.brandVolt, borderColor: colors.brandVolt },
         ]}
       >
         <Check size={8} color={colors.textInverse} strokeWidth={3} />
       </View>
     );
     statusLabel = 'Complete';
-    statusColor = completeColor;
-    labelColor = completeColor;
+    statusColor = colors.brandVolt;
+    labelColor = colors.brandVolt;
   } else if (status === 'processing') {
     indicator = (
       <Animated.View
@@ -1339,6 +1333,7 @@ function ChecklistRow({
     );
     statusLabel = 'Processing';
     statusColor = colors.brandVolt;
+    labelColor = colors.textPrimary;
   } else {
     indicator = (
       <View
@@ -1691,8 +1686,8 @@ function ReviewStep({
   return (
     <KeyboardAvoidingView
       style={styles.reviewShell}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      behavior="padding"
+      automaticOffset
     >
       <ScrollView
         style={styles.body}
@@ -2240,6 +2235,7 @@ function SuccessStep({
       <Text style={[styles.successCopy, { color: colors.textSecondary }]}>
         AI record created, preferences applied, and the collectible is live in your collection.
       </Text>
+      <PushPrePrompt context="post_upload" />
       <View style={styles.successActions}>
         <Button label="Add Another" icon={RotateCcw} variant="frost" fullWidth onPress={onAddAnother} />
         <Button label="View in Collection" icon={ArrowRight} iconPosition="trailing" fullWidth onPress={onViewCollection} />
@@ -2405,8 +2401,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 6,
   },
-  identifyButton: { marginTop: 16, marginBottom: 4 },
-
   // --- Theater (Looking Glass HUD) ---
   theaterWrap: {
     flex: 1,

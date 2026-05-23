@@ -170,17 +170,17 @@ export function BottomDock({
                 key={tab.id}
                 onPress={() => router.push(tab.href)}
                 style={[styles.scanButton, {
-                  backgroundColor: isDark ? colors.brandVolt : '#FFFFFF',
-                  shadowColor: isDark ? colors.brandVolt : 'rgba(0,0,0,0.25)',
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                  shadowColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.25)',
                 }]}
                 activeOpacity={0.9}
                 accessibilityRole="button"
                 accessibilityLabel="Upload a collectible"
               >
-                <View style={[styles.scanButtonGlow, { backgroundColor: isDark ? colors.brandVoltFill : 'rgba(0,0,0,0.04)' }]} />
-                <View style={[styles.scanHalo, { backgroundColor: isDark ? colors.brandVoltFill : 'rgba(0,0,0,0.02)' }]} />
-                <View style={[styles.scanButtonInnerRing, { borderColor: isDark ? colors.brandVoltBorder : 'rgba(0,0,0,0.08)' }]} />
-                <Icon size={36} color={isDark ? colors.textInverse : '#1A1A1A'} />
+                <View style={[styles.scanButtonGlow, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]} />
+                <View style={[styles.scanHalo, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }]} />
+                <View style={[styles.scanButtonInnerRing, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+                <Icon size={36} color={isDark ? colors.brandVolt : '#1A1A1A'} />
               </TouchableOpacity>
             );
           }

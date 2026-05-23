@@ -16,6 +16,11 @@
     "turbo": "^2.3.3",
     "typescript": "~5.9.3"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@sentry/cli"
+    ]
+  },
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=10.0.0"

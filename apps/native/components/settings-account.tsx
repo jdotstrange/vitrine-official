@@ -7,12 +7,11 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   Modal,
   Animated as RNAnimated,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Mail, Check, AlertCircle, LogOut, Trash2 } from 'lucide-react-native';
 import { useTheme, TYPE, SPACING, RADII } from '@/lib/design';
@@ -443,7 +442,8 @@ export function SettingsAccount() {
   return (
     <KeyboardAvoidingView
       style={[s.container, { backgroundColor: colors.void }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
+      automaticOffset
     >
       <View style={[s.header, { paddingTop: insets.top + 16, borderBottomColor: colors.frostDivider }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>

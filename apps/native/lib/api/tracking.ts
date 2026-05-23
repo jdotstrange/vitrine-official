@@ -188,20 +188,23 @@ export async function getTrackedItems(
   const limit = options?.limit ?? 50;
   const offset = options?.offset ?? 0;
 
-  const joinHint = options?.category || options?.search ? '!inner' : '';
+  // Always !inner-join so we can filter on the joined collectible's
+  // published_at (PostgREST only allows referencing joined columns in
+  // filters when the join is inner).
   let query = supabase
     .from('tracked_items')
     .select(`
       id,
       collectible_id,
       created_at,
-      collectibles${joinHint} (
+      collectibles!inner (
         id, title, photos, category, subcategory, value,
-        available_for_sale, available_for_trade, user_id,
+        available_for_sale, available_for_trade, user_id, published_at,
         users!collectibles_user_id_fkey ( id, display_name, username, avatar )
       )
     `)
     .eq('user_id', userId)
+    .not('collectibles.published_at', 'is', null)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -319,14 +322,15 @@ export async function getTrackedCollectionItems(userId: string): Promise<{
       id,
       collectible_id,
       created_at,
-      collectibles (
+      collectibles!inner (
         id, title, listing_title, photos, category, subcategory, value,
-        available_for_sale, available_for_trade, user_id,
+        available_for_sale, available_for_trade, user_id, published_at,
         classification, traits, collectible_type, ai_metadata, trait_metadata, filter_traits, created_at,
         users!collectibles_user_id_fkey ( id, display_name, username, avatar )
       )
     `)
     .eq('user_id', userId)
+    .not('collectibles.published_at', 'is', null)
     .order('created_at', { ascending: false });
 
   if (error) {

@@ -5,9 +5,8 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageBubble } from '@/components/messaging/message-bubble';
@@ -92,7 +91,8 @@ export function PostReplyThread({
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
+      automaticOffset
     >
       {/* Header */}
       <View style={styles.header}>

@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ArrowLeft, ChevronRight, ChevronLeft, Check, X, AlertCircle } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
@@ -280,8 +281,8 @@ export function KeyDetailsModal({ isOpen, onClose, type, category, collectibleId
 
         <KeyboardAvoidingView
           style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          behavior="padding"
+          automaticOffset
         >
           <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* Header */}

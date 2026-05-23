@@ -7,9 +7,8 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { X, MessageSquare, Package, Shield, Camera } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/lib/colors';
@@ -125,7 +124,8 @@ export function PostComposer({
     >
       <KeyboardAvoidingView
         style={[styles.container, { paddingTop: insets.top }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior="padding"
+        automaticOffset
       >
         {/* Header */}
         <View style={styles.header}>

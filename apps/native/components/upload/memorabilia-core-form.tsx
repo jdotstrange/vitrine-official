@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useRef } from 'react';
 import { ArrowLeft, Layers, ChevronRight, Globe, Lock } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
@@ -81,8 +82,8 @@ export function MemorabiliaCoreForm({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      behavior="padding"
+      automaticOffset
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>

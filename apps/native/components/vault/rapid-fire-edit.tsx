@@ -39,16 +39,15 @@ import {
   Alert,
   Animated,
   Dimensions,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Check, ChevronLeft, X } from 'lucide-react-native';
 
@@ -281,9 +280,9 @@ export function RapidFireEdit({
         </View>
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={styles.body}
-          keyboardVerticalOffset={0}
+          automaticOffset
         >
           <ScrollView
             style={{ flex: 1 }}

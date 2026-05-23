@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "vitrinev0",
-    "slug": "vitrinev0",
-    "version": "1.0.0",
+    "name": "MyVitrine",
+    "slug": "myvitrine",
+    "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -11,22 +11,28 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#05050d"
+      "backgroundColor": "#020202"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.vitrine.app",
-      "associatedDomains": ["applinks:myvitrine.app"],
+      "supportsTablet": false,
+      "bundleIdentifier": "com.vitrine",
+      "buildNumber": "1",
+      "associatedDomains": [
+        "applinks:myvitrine.app"
+      ],
       "infoPlist": {
-        "NSCameraUsageDescription": "Vitrine needs camera access to photograph your collectibles.",
-        "NSPhotoLibraryUsageDescription": "Vitrine needs photo library access to upload images of your collectibles.",
-        "NSPhotoLibraryAddUsageDescription": "Vitrine needs permission to save images to your photo library."
+        "NSCameraUsageDescription": "MyVitrine needs camera access to photograph your collectibles.",
+        "NSPhotoLibraryUsageDescription": "MyVitrine needs photo library access to upload images of your collectibles.",
+        "NSPhotoLibraryAddUsageDescription": "MyVitrine needs permission to save images to your photo library.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
       }
@@ -34,12 +40,16 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#05050d"
+        "backgroundColor": "#020202"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.vitrine.app",
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"],
+      "package": "com.vitrine.mobile",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -51,7 +61,10 @@
               "pathPrefix": "/s/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -60,7 +73,30 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
-    ]
+      "expo-asset",
+      "expo-image-picker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#020202"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "myvitrine-llc"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e6910937-7d1c-4d59-9785-7b1d311a5378"
+      }
+    },
+    "owner": "jlocastostack"
   }
 }
