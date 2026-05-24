@@ -13,9 +13,9 @@ alwaysApply: true
 # Vitrine Release & Platform Rule
 
 ## Strategy
-Vitrine is an Expo SDK 54 managed-workflow app. Development happens in Expo Go until feature-complete. The first native build will be the production EAS build submitted to TestFlight. There is no intermediate dev-client phase.
+MyVitrine is an Expo SDK 54 managed-workflow app. EAS dev client is the active development environment as of 2026-05-13. Native modules (Sentry, push notifications, RevenueCat, keyboard-controller, etc.) can be added freely; rebuild via `eas build --profile development` when adding native deps.
 
-Do not introduce `expo-dev-client`, custom native code, or config plugins that require `npx expo prebuild` unless a concrete feature absolutely demands it. If something would break Expo Go, say so before writing code.
+The target is v3.0.0 (build 1) on iOS App Store + Google Play, replacing the existing MyVitrine v1.0.12 open beta listings. iOS bundle ID is `com.vitrine`, Android package is `com.vitrine.mobile`.
 
 ## Stream Chat
 Use `stream-chat-expo`, not `stream-chat-react-native`. The component APIs are identical (`ChannelList`, `Channel`, `MessageList`, `MessageInput`, `OverlayProvider`, `Chat`, hooks, types). The difference is native handler resolution -- `stream-chat-expo` uses Expo modules that work in Expo Go and managed EAS builds. Never import from `stream-chat-react-native`.
@@ -25,9 +25,9 @@ Use `@stream-io/feeds-react-native-sdk` for client-side notification feed consum
 
 ## Dependencies
 Before adding any package:
-1. Confirm it works in Expo Go (no native compilation step)
-2. Confirm it does not require a config plugin that forces prebuild
-3. State briefly why it is needed and whether it is Expo-safe
+1. Confirm it is compatible with Expo SDK 54 managed workflow
+2. If it requires a config plugin or native module, note that a dev client rebuild is needed (`eas build --profile development`)
+3. State briefly why it is needed
 
 Prefer official Expo packages. Do not add packages for minor convenience. Do not leave unused dependencies in `package.json` -- they compile into the binary during EAS builds.
 
@@ -41,10 +41,11 @@ Known Expo Go-safe native deps already in use:
 
 ## Config Protection
 When editing `app.json`:
-- `name` must be "Vitrine" (not "vitrinev0") before any production build
-- `ios.bundleIdentifier` is `com.vitrine.app` -- do not change without explicit instruction
+- `name` is `MyVitrine` — matches the App Store listing
+- `ios.bundleIdentifier` is `com.vitrine` — confirmed from App Store Connect, do not change
+- `android.package` is `com.vitrine.mobile` — confirmed from Play Store listing, do not change
 - `ios.buildNumber` must exist and be incremented for each TestFlight upload
-- `plugins` array: verify any addition does not require prebuild or break Expo Go
+- `plugins` array: config plugins are allowed now that we use EAS dev client
 - Do not add permissions without a real product reason and a user-facing usage string
 
 Icons and splash assets (`icon.png`, `splash-icon.png`, `adaptive-icon.png`) must exist in `assets/` before any EAS build. If they are missing, flag it.
@@ -79,9 +80,8 @@ Flag anything that could trigger Apple review friction:
 
 ## Change Discipline
 For any meaningful change, consider:
-1. Does this break Expo Go compatibility?
+1. Does this require a dev client rebuild? (native module additions do; JS/TSX changes do not)
 2. Does this affect the iOS production build path?
-3. Does this add a native dependency?
-4. Does this create App Store review risk?
+3. Does this create App Store review risk?
 
 If a change increases release risk, state the risk before implementing and offer the safer path. Prefer incremental, boring, shippable changes over clever architecture.

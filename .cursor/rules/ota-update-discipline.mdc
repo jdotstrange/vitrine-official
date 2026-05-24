@@ -1,0 +1,52 @@
+---
+description: OTA (EAS Update) discipline — when to ship JS vs rebuild the binary
+alwaysApply: true
+---
+
+# OTA / EAS Update Discipline
+
+Native binaries (preview/production IPA) ship occasionally. JavaScript ships continuously via `eas update`. Most fixes go out as JS — only true native changes need a rebuild.
+
+## Decision tree for any change
+
+| Change | Path |
+|---|---|
+| React components, hooks, business logic, copy, styling, navigation | OTA |
+| Supabase queries, RPC calls, JS-only npm packages (`zod`, `lodash`, `date-fns`) | OTA |
+| Adding / removing / upgrading a native module | **Rebuild + bump `runtimeVersion`** |
+| `app.json` plugin entries, permissions, `infoPlist`, icons, splash, bundle ID | **Rebuild + bump `runtimeVersion`** |
+
+## Shipping an OTA update
+
+Run from `apps/native/`:
+
+```bash
+eas update --channel preview --message "fix: <short description>"
+# After preview validation, promote:
+eas update --channel production --message "fix: <short description>"
+```
+
+Users do nothing. `expo-updates` downloads in background on next launch, applies on next cold start. Rollback: `eas update:roll-back-to-embedded --channel preview`.
+
+## When you DO rebuild
+
+1. Bump `runtimeVersion` in `apps/native/app.json` (current: `"1"` → `"2"`, `"3"`, …).
+2. `eas build --profile preview --platform ios` (or `production`).
+3. Distribute via TestFlight / Play Internal / direct install.
+
+Profiles in `eas.json` are pre-mapped: `preview` → `preview` channel, `production` → `production` channel. `development` skips channels because the dev client pulls JS from Metro.
+
+## Footguns
+
+- Editing `app.json` plugins, `infoPlist`, permissions, or icons and shipping as OTA — those live in the binary; the OTA bundle has no effect on them. **Rebuild required.**
+- Forgetting to bump `runtimeVersion` after a native change — the new OTA gets delivered to old binaries and may crash at runtime when it touches the missing/wrong native API.
+- `npx expo install <pkg>` without checking whether `<pkg>` ships a `plugin.js`, `ios/`, or `android/` folder. If yes, it's a native dep — rebuild required.
+- Shipping an OTA without first verifying the change works locally. The dev client doesn't receive OTAs (it pulls from Metro), but if the JS works there, it'll work in the preview binary on the same `runtimeVersion`.
+
+## Pre-commit sanity check
+
+When `apps/native/` changes:
+- `apps/native/package.json` or `app.json` or `eas.json` touched → lean **rebuild + bump runtimeVersion**.
+- Only `apps/native/components/`, `apps/native/lib/`, or `apps/native/app/` (routes/screens) touched → **OTA is the right path**.
+
+If unsure, ask. A bad OTA can be rolled back in one command; a bad runtimeVersion-mismatched bundle can crash testers' apps.
