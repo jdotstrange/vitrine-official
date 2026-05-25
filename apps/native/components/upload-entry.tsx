@@ -33,7 +33,10 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { PhotoLibraryPicker } from '@/components/photo-library-picker';
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -197,9 +200,11 @@ export function UploadEntry() {
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
 
   // Photo source picker (camera vs library) — opens an ActionSheet on
-  // empty-tile tap so users can shoot fresh or pull from library.
+  // empty-tile tap so users can shoot fresh or pull from library. The
+  // library path goes directly through Apple's native PHPickerViewController
+  // via expo-image-picker, so there's no in-app picker state to track —
+  // the OS owns the modal lifecycle.
   const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
-  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
 
   // Edit flow state — queue is the set of fields the user flagged on review;
   // `fieldEdits` overlays the base extraction with committed changes;
@@ -359,19 +364,53 @@ export function UploadEntry() {
     }
   }, [emptySlotCount, appendPhotos]);
 
-  const pickFromLibrary = useCallback(() => {
+  // Library picker — goes through Apple's native PHPickerViewController via
+  // expo-image-picker. Multi-select with `orderedSelection` shows the iOS
+  // numbered selection badges so users know the order their photos will be
+  // imported in. Picker runs out-of-process, so scrolling is buttery (the
+  // janky in-app FlatList grid this used to render no longer exists).
+  const pickFromLibrary = useCallback(async () => {
     if (emptySlotCount <= 0) return;
-    setLibraryPickerOpen(true);
-  }, [emptySlotCount]);
-
-  const handleLibrarySelect = useCallback((uris: string[]) => {
-    uploadLog.info('Library picker returned', { count: uris.length });
-    appendPhotos(uris);
-  }, [appendPhotos]);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Photo access needed',
+        'Vitrine needs photo library access to attach images of your collectibles. You can grant it in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: emptySlotCount,
+        orderedSelection: true,
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      uploadLog.info('Library picker returned', { count: result.assets.length });
+      appendPhotos(result.assets.map((a) => a.uri));
+    } catch (err) {
+      uploadLog.error('Library picker failed:', err);
+    }
+  }, [emptySlotCount, appendPhotos]);
 
   const removePhoto = useCallback((id: string) => {
     Haptics.selectionAsync();
     setPhotos((current) => current.filter((p) => p.id !== id));
+  }, []);
+
+  // Drag-to-reorder commit. DraggableFlatList drives the data array; we
+  // just trust whatever it hands back. The first photo in the array is
+  // automatically the cover, so reordering changes the cover as a side
+  // effect — which is exactly what we want.
+  const handleReorderPhotos = useCallback((next: PhotoAsset[]) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPhotos(next);
   }, []);
 
   // --- Scan screen: upload + draft + enqueue handler ---
@@ -761,7 +800,7 @@ export function UploadEntry() {
             onContextChange={setContext}
             onPickPhotos={openPhotoSourceSheet}
             onRemovePhoto={removePhoto}
-            emptySlotCount={emptySlotCount}
+            onReorderPhotos={handleReorderPhotos}
             onAnalyze={handleAnalyze}
             isUploading={isUploading}
             bottomInset={insets.bottom}
@@ -944,13 +983,6 @@ export function UploadEntry() {
         ]}
         onClose={() => setPhotoSourceSheetOpen(false)}
       />
-
-      <PhotoLibraryPicker
-        visible={libraryPickerOpen}
-        maxSelection={emptySlotCount}
-        onSelect={handleLibrarySelect}
-        onClose={() => setLibraryPickerOpen(false)}
-      />
     </View>
   );
 }
@@ -970,14 +1002,18 @@ function getStepTitle(step: UploadStep): string {
 // Step 1 — Scan (single viewport, real picker)
 // ---------------------------------------------------------------------------
 
+type GridItem =
+  | { kind: 'photo'; photo: PhotoAsset }
+  | { kind: 'add' };
+
 function ScanStep({
   photos,
   context,
   onContextChange,
   onPickPhotos,
   onRemovePhoto,
-  emptySlotCount,
-  onAnalyze,
+  onReorderPhotos,
+  onAnalyze: _onAnalyze,
   isUploading,
   bottomInset,
 }: {
@@ -986,12 +1022,108 @@ function ScanStep({
   onContextChange: (value: string) => void;
   onPickPhotos: () => void;
   onRemovePhoto: (id: string) => void;
-  emptySlotCount: number;
+  onReorderPhotos: (next: PhotoAsset[]) => void;
   onAnalyze: () => void;
   isUploading: boolean;
   bottomInset: number;
 }) {
   const { colors } = useTheme();
+
+  // Dynamic-grid data model: filled photos followed by a single trailing
+  // "+ Add" sentinel when count < 6. Matches the iOS Mail / iMessage /
+  // Notes photo-attach pattern (no pre-rendered empty placeholders;
+  // the grid grows as photos are added). DraggableFlatList drives the
+  // visual reorder and we filter out the sentinel before committing.
+  const gridData = useMemo<GridItem[]>(() => {
+    const items: GridItem[] = photos.map((photo) => ({ kind: 'photo' as const, photo }));
+    if (photos.length < 6) items.push({ kind: 'add' as const });
+    return items;
+  }, [photos]);
+
+  const gridKey = useCallback(
+    (item: GridItem) => (item.kind === 'photo' ? item.photo.id : '__add__'),
+    [],
+  );
+
+  const handleDragEnd = useCallback(
+    ({ data }: { data: GridItem[] }) => {
+      const next: PhotoAsset[] = data
+        .filter((d): d is { kind: 'photo'; photo: PhotoAsset } => d.kind === 'photo')
+        .map((d) => d.photo);
+      const unchanged =
+        next.length === photos.length && next.every((p, i) => p.id === photos[i]?.id);
+      if (unchanged) return;
+      onReorderPhotos(next);
+    },
+    [photos, onReorderPhotos],
+  );
+
+  const renderGridItem = useCallback(
+    ({ item, drag, isActive, getIndex }: RenderItemParams<GridItem>) => {
+      if (item.kind === 'add') {
+        return (
+          <Pressable
+            onPress={onPickPhotos}
+            style={[
+              styles.emptyTile,
+              { borderColor: colors.frostBorderStrong, backgroundColor: colors.sheetBg },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Add photo. ${6 - photos.length} of 6 slots remaining.`}
+          >
+            <ImagePlus size={20} color={colors.textTertiary} strokeWidth={1.6} />
+          </Pressable>
+        );
+      }
+      const index = getIndex() ?? 0;
+      const isCover = index === 0;
+      return (
+        <ScaleDecorator activeScale={1.06}>
+          <Pressable
+            onLongPress={drag}
+            disabled={isActive}
+            delayLongPress={220}
+            style={[
+              styles.photoTile,
+              { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg },
+              isCover && { borderColor: colors.brandVoltBorder, borderWidth: 1.5 },
+              isActive && styles.photoTileActive,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Photo ${index + 1}${isCover ? ', cover photo' : ''}. Long-press to reorder. Tap remove button to delete.`}
+          >
+            <Image source={{ uri: item.photo.uri }} style={styles.photoImage} contentFit="cover" />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.58)']}
+              locations={[0.45, 1]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Pressable
+              onPress={() => onRemovePhoto(item.photo.id)}
+              style={[styles.removeBadge, { borderColor: colors.frostBorder }]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Remove photo"
+            >
+              <X size={12} color={colors.textPrimary} strokeWidth={2.5} />
+            </Pressable>
+            {isCover ? (
+              <View
+                style={[
+                  styles.coverBadge,
+                  { backgroundColor: colors.brandVoltFill, borderColor: colors.brandVoltBorder },
+                ]}
+              >
+                <Text style={[styles.coverBadgeText, { color: colors.brandVolt }]}>COVER</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </ScaleDecorator>
+      );
+    },
+    [colors, onPickPhotos, onRemovePhoto, photos.length],
+  );
+
   // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
   // padding) + an inner ScrollView for content + a docked footer (button)
   // *outside* the scroll. The KAV's padding behaviour shrinks the inner
@@ -1013,41 +1145,23 @@ function ScanStep({
         </Text>
       </View>
 
-      <View style={[styles.photoGrid, isUploading && { opacity: 0.5 }]}>
-        {Array.from({ length: 6 }).map((_, index) => {
-          const photo = photos[index];
-          return photo ? (
-            <View key={photo.id} style={[styles.photoTile, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }, index === 0 && { borderColor: colors.brandVoltBorder }]}>
-              <Image source={{ uri: photo.uri }} style={styles.photoImage} contentFit="cover" />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.58)']}
-                locations={[0.45, 1]}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <Pressable
-                onPress={() => onRemovePhoto(photo.id)}
-                style={[styles.removeBadge, { borderColor: colors.frostBorder }]}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove image ${index + 1}`}
-              >
-                <X size={12} color={colors.textPrimary} strokeWidth={2.5} />
-              </Pressable>
-              <Text style={[styles.tileIndex, { color: colors.textSecondary }]}>{index + 1}</Text>
-            </View>
-          ) : (
-            <Pressable
-              key={`empty-${index}`}
-              onPress={onPickPhotos}
-              style={[styles.emptyTile, { borderColor: colors.frostBorderStrong, backgroundColor: colors.sheetBg }]}
-              accessibilityRole="button"
-              accessibilityLabel={`Add photo to slot ${index + 1}. ${emptySlotCount} slots available.`}
-            >
-              <ImagePlus size={18} color={colors.textTertiary} strokeWidth={1.6} />
-              <Text style={[styles.tileIndex, { color: colors.textSecondary }]}>{index + 1}</Text>
-            </Pressable>
-          );
-        })}
+      <View
+        style={[styles.photoGrid, isUploading && { opacity: 0.5 }]}
+        pointerEvents={isUploading ? 'none' : 'auto'}
+      >
+        <DraggableFlatList<GridItem>
+          data={gridData}
+          keyExtractor={gridKey}
+          renderItem={renderGridItem}
+          onDragEnd={handleDragEnd}
+          onDragBegin={() => Haptics.selectionAsync()}
+          onPlaceholderIndexChange={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+          numColumns={3}
+          scrollEnabled={false}
+          activationDistance={6}
+          containerStyle={styles.photoGridList}
+          columnWrapperStyle={styles.photoGridRow}
+        />
       </View>
 
       <View style={[styles.contextBlock, isUploading && { opacity: 0.5 }]}>
@@ -2370,11 +2484,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   scanSubtitleMuted: {},
+  // Wrapper for the DraggableFlatList grid. Layout (row gap, column gap,
+  // numColumns) is driven by DFL itself via photoGridList +
+  // photoGridRow below — we just give it top margin and a flexible
+  // height so the list can grow as photos accumulate.
   photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
     marginTop: 16,
+  },
+  photoGridList: {
+    // DraggableFlatList renders a FlatList internally; no extra config
+    // needed here, but the key exists so we can target it cleanly later
+    // (e.g., if we ever need an outline / inner padding).
+  },
+  photoGridRow: {
+    gap: 10,
+    marginBottom: 10,
   },
   photoTile: {
     width: TILE_WIDTH,
@@ -2383,8 +2507,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
-  photoTileFeatured: {},
+  // Drag-active state: tighter shadow + thicker volt border. The
+  // ScaleDecorator wrapping the Pressable handles the lift-up scale
+  // animation; we just paint the border so the tile reads as "picked up".
+  photoTileActive: {
+    borderColor: '#C8FA38',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   photoImage: { ...StyleSheet.absoluteFillObject },
+  // "COVER" badge — sits at the bottom-left of photo[0] so the cover
+  // photo is unambiguous after a drag-reorder. Uses brandVoltFill so it
+  // reads at a glance against the dark photo gradient.
+  coverBadge: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+  },
+  coverBadgeText: {
+    fontFamily: TYPE.monoMedium,
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
   removeBadge: {
     position: 'absolute',
     top: 6,
@@ -2396,14 +2548,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  tileIndex: {
-    position: 'absolute',
-    bottom: 6,
-    alignSelf: 'center',
-    fontFamily: TYPE.monoMedium,
-    fontSize: 10,
-    letterSpacing: 0.4,
   },
   emptyTile: {
     width: TILE_WIDTH,
