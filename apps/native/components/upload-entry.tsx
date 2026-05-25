@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { KeyboardSafeScroll } from '@/components/vault';
 import Animated, {
+  CurvedTransition,
   Easing,
   FadeIn,
   useAnimatedProps,
@@ -1078,50 +1079,85 @@ function ScanStep({
       const index = getIndex() ?? 0;
       const isCover = index === 0;
       return (
-        <ScaleDecorator activeScale={1.06}>
-          <Pressable
-            onLongPress={drag}
-            disabled={isActive}
-            delayLongPress={220}
-            style={[
-              styles.photoTile,
-              { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg },
-              isCover && { borderColor: colors.brandVoltBorder, borderWidth: 1.5 },
-              isActive && styles.photoTileActive,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Photo ${index + 1}${isCover ? ', cover photo' : ''}. Long-press to reorder. Tap remove button to delete.`}
+        <ScaleDecorator activeScale={1.08}>
+          <Animated.View
+            // Reanimated layout transition: when DFL's
+            // enableLayoutAnimationExperimental is on, sibling tiles animate
+            // smoothly to their new positions as the dragged tile moves
+            // past them. CurvedTransition uses an iOS-style ease so the
+            // shuffle feels native (matches Springboard icon reorder).
+            layout={CurvedTransition.duration(220)}
           >
-            <Image source={{ uri: item.photo.uri }} style={styles.photoImage} contentFit="cover" />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.58)']}
-              locations={[0.45, 1]}
-              style={StyleSheet.absoluteFillObject}
-            />
             <Pressable
-              onPress={() => onRemovePhoto(item.photo.id)}
-              style={[styles.removeBadge, { borderColor: colors.frostBorder }]}
-              hitSlop={8}
+              onLongPress={drag}
+              disabled={isActive}
+              delayLongPress={220}
+              style={[
+                styles.photoTile,
+                { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg },
+                isCover && { borderColor: colors.brandVoltBorder, borderWidth: 1.5 },
+                isActive && {
+                  borderColor: colors.brandVolt,
+                  borderWidth: 2,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 12 },
+                  shadowOpacity: 0.55,
+                  shadowRadius: 22,
+                  elevation: 16,
+                },
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Remove photo"
+              accessibilityLabel={`Photo ${index + 1}${isCover ? ', cover photo' : ''}. Long-press to reorder. Tap remove button to delete.`}
             >
-              <X size={12} color={colors.textPrimary} strokeWidth={2.5} />
-            </Pressable>
-            {isCover ? (
-              <View
-                style={[
-                  styles.coverBadge,
-                  { backgroundColor: colors.brandVoltFill, borderColor: colors.brandVoltBorder },
-                ]}
+              <Image source={{ uri: item.photo.uri }} style={styles.photoImage} contentFit="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.58)']}
+                locations={[0.45, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <Pressable
+                onPress={() => onRemovePhoto(item.photo.id)}
+                style={[styles.removeBadge, { borderColor: colors.frostBorder }]}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Remove photo"
               >
-                <Text style={[styles.coverBadgeText, { color: colors.brandVolt }]}>COVER</Text>
-              </View>
-            ) : null}
-          </Pressable>
+                <X size={12} color={colors.textPrimary} strokeWidth={2.5} />
+              </Pressable>
+              {isCover ? (
+                <View
+                  style={[
+                    styles.coverBadge,
+                    { backgroundColor: colors.brandVoltFill, borderColor: colors.brandVoltBorder },
+                  ]}
+                >
+                  <Text style={[styles.coverBadgeText, { color: colors.brandVolt }]}>COVER</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </Animated.View>
         </ScaleDecorator>
       );
     },
     [colors, onPickPhotos, onRemovePhoto, photos.length],
+  );
+
+  // Drop-target placeholder. DFL paints this at the cell where the dragged
+  // tile will land if released. Mirrors the empty/add-tile chrome (dashed
+  // border, sheet bg) tinted with brandVolt so it reads as "this is where
+  // it goes" rather than just an empty spacer. Without this, the user
+  // sees the lifted tile floating but has no positional anchor — exactly
+  // the "totally just guessing" feedback the founder flagged.
+  const renderPlaceholder = useCallback(
+    () => (
+      <View
+        style={[
+          styles.dropPlaceholder,
+          { borderColor: colors.brandVolt, backgroundColor: colors.brandVoltFill },
+        ]}
+      />
+    ),
+    [colors],
   );
 
   // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
@@ -1153,12 +1189,15 @@ function ScanStep({
           data={gridData}
           keyExtractor={gridKey}
           renderItem={renderGridItem}
+          renderPlaceholder={renderPlaceholder}
           onDragEnd={handleDragEnd}
           onDragBegin={() => Haptics.selectionAsync()}
           onPlaceholderIndexChange={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
           numColumns={3}
           scrollEnabled={false}
           activationDistance={6}
+          dragItemOverflow
+          enableLayoutAnimationExperimental
           containerStyle={styles.photoGridList}
           columnWrapperStyle={styles.photoGridRow}
         />
@@ -2507,17 +2546,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
-  // Drag-active state: tighter shadow + thicker volt border. The
-  // ScaleDecorator wrapping the Pressable handles the lift-up scale
-  // animation; we just paint the border so the tile reads as "picked up".
-  photoTileActive: {
-    borderColor: '#C8FA38',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 12,
+  // Drop-target placeholder painted at the cell the dragged tile will
+  // land in. Matches tile dimensions exactly so the layout doesn't jump
+  // — uses a dashed brandVolt outline so it reads as "drop here" without
+  // competing with the lifted tile for attention. Color is themed
+  // inline via colors.brandVolt + colors.brandVoltFill.
+  dropPlaceholder: {
+    width: TILE_WIDTH,
+    height: TILE_WIDTH * (5 / 4),
+    borderRadius: RADII.medium,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
   },
   photoImage: { ...StyleSheet.absoluteFillObject },
   // "COVER" badge — sits at the bottom-left of photo[0] so the cover
