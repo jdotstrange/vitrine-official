@@ -87,6 +87,7 @@ export function createActivityApi(supabase: SupabaseClient, logger: Logger) {
       .from('collectibles')
       .select('id, title, photos, created_at')
       .eq('user_id', userId)
+      .not('published_at', 'is', null)
       .order('created_at', { ascending: false })
       .limit(limit);
     if (sinceIso) collectiblesQuery.gte('created_at', sinceIso);

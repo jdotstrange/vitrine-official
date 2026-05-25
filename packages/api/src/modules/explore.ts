@@ -135,6 +135,8 @@ export function createExploreApi(supabase: SupabaseClient, logger: Logger): Expl
         'id, title, photos, value, available_for_sale, available_for_trade, saves_count, user_id, users!collectibles_user_id_fkey(display_name, username)',
       )
       .not('photos', 'is', null)
+      .not('published_at', 'is', null)
+      .eq('visibility', 'public')
       .or('available_for_sale.eq.true,available_for_trade.eq.true')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -237,6 +239,7 @@ export function createExploreApi(supabase: SupabaseClient, logger: Logger): Expl
         'id, title, photos, value, available_for_sale, available_for_trade, user_id, created_at',
       )
       .not('photos', 'is', null)
+      .not('published_at', 'is', null)
       .eq('visibility', 'public')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -266,6 +269,7 @@ export function createExploreApi(supabase: SupabaseClient, logger: Logger): Expl
         'id, title, photos, value, available_for_sale, available_for_trade, user_id, users!collectibles_user_id_fkey(display_name, username)',
       )
       .not('photos', 'is', null)
+      .not('published_at', 'is', null)
       .eq('visibility', 'public')
       .eq('available_for_sale', true)
       .gt('value', 0)
@@ -322,6 +326,7 @@ export function createExploreApi(supabase: SupabaseClient, logger: Logger): Expl
       .select('user_id, photos')
       .in('user_id', userIds)
       .not('photos', 'is', null)
+      .not('published_at', 'is', null)
       .eq('visibility', 'public')
       .order('created_at', { ascending: false })
       .limit(userIds.length * 3);

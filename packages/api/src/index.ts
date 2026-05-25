@@ -371,3 +371,12 @@ export { requireUserId, maybeUserId } from './utils';
 
 // also expose pure module namespace
 export { managedRules };
+
+// collection-queries — pure visibility helpers (no factory needed)
+export {
+  publishedCollectibles,
+  publicCollectibles,
+  queueReviewItems,
+  queueErrorItems,
+  applyPublishedFilter,
+} from './modules/collection-queries';
