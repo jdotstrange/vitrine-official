@@ -2,21 +2,23 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { POST_LOGIN_LANDING } from "@/lib/feature-flags"
-import { LoginForm } from "./login-form"
+import { LoginForm } from "../login/login-form"
 
 export const metadata: Metadata = {
-  title: "Sign in",
-  description: "Sign in to your Vitrine account.",
+  title: "Create your account",
+  description: "Start your Vitrine collection — sign up for free.",
   robots: { index: false, follow: false },
 }
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string }>
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (user) {
     const params = await searchParams
@@ -24,5 +26,7 @@ export default async function LoginPage({
   }
 
   const params = await searchParams
-  return <LoginForm redirectTo={params.next ?? POST_LOGIN_LANDING} />
+  return (
+    <LoginForm redirectTo={params.next ?? "/complete-profile"} mode="signup" />
+  )
 }
