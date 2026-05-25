@@ -1,7 +1,48 @@
 # Decision Log
 
-Last updated: 2026-05-10
-Last verified: 2026-05-10
+Last updated: 2026-05-24
+Last verified: 2026-05-24
+
+## Decision: `published_at IS NOT NULL` as the system-wide visibility gate
+- Reason: The previous draft/staging pattern (`extraction_status = 'complete'` + client-side commit) had multiple failure modes — app closure before commit, stale drafts accumulating, sweep jobs as bandaids. A single nullable `published_at` timestamp cleanly separates "exists in DB" from "visible to the world." Backfill sets it for all existing complete collectibles. All public-facing queries (~30 client-side + 9 RPCs) now filter on `published_at IS NOT NULL`.
+- Alternatives Considered: (A) Add a `state` enum column (public/private/draft) — rejected, adds a third axis of visibility alongside `status`; (B) Keep extraction_status as gate — rejected, conflates processing state with publication intent; (C) `published_at` timestamp — selected, enables future scheduling, is a single boolean-equivalent check, and cleanly supports "hold for review" (just don't set it).
+- Status: Active. Shipped 2026-05-19.
+- Files Or Areas Affected: `supabase/migrations/20260519170000_upload_lane_unification.sql` (column + backfill + trigger), all public-facing queries in native + web + RPCs, `packages/api/src/modules/collection-queries.ts` (helpers).
+- Notes: Legacy collectibles are safe — backfill sets `published_at = extraction_completed_at` for all rows where `extraction_status = 'complete'`. The `complete_and_publish` trigger auto-sets it on future completions unless `batch_uploads.auto_publish = false`.
+
+## Decision: Server-side auto-commit via DB trigger (no client-side commit step)
+- Reason: The old pattern required the client to call `commitDraftCollectible` after extraction succeeded. If the app closed, the user navigated away, or the network dropped, the collectible would remain in a ghost "extracted but uncommitted" state requiring sweep jobs to clean up. Moving the commit to a Postgres AFTER UPDATE trigger that fires when `extraction_status` transitions to `'extracted'` eliminates client dependency entirely. The trigger atomically flips `extraction_status` to `'complete'` and sets `published_at = now()`.
+- Alternatives Considered: (A) Keep client-side commit with more robust retry — rejected, still fails on app close; (B) Edge Function webhook does the commit — rejected, adds network hop and failure mode; (C) DB trigger — selected, zero latency, atomic, cannot be skipped.
+- Status: Active. Shipped 2026-05-19.
+- Files Or Areas Affected: `supabase/migrations/20260519170000_upload_lane_unification.sql` (`complete_and_publish` trigger function), `apps/web/app/v/upload/batch-processor.ts` (removed Phase 5 client commit), `apps/native/components/upload-entry.tsx` (handles 'complete' same as 'extracted'), `apps/native/app/_layout.tsx` (removed sweep component).
+- Notes: The trigger does NOT touch `extraction_completed_at` (no such column exists in the schema) and does NOT insert showcase rows. It only flips `extraction_status` and sets `published_at`. `published_at` is set unconditionally for single-lane uploads (`batch_id IS NULL`); for batch-lane uploads it respects `batch_uploads.auto_publish` — if false, `published_at` is left NULL and the item goes to the user's review queue.
+
+## Decision: Monochrome Theater checklist — brandVolt only, no trait colors
+- Reason: The Theater (Looking Glass HUD) checklist previously used per-row trait colors (`traitCyan`, `traitViolet`, `traitPink`, `traitOlive`, `semanticGreen`) for completed items. This was removed in favor of a single brandVolt (warm ivory) completion color. Trait colors are reserved for their semantic uses across the app (trait pills, match tiers, status indicators) and using them decoratively in the checklist dilutes their meaning. The monochrome approach lets the gradient progress ring own the color on the Theater surface.
+- Alternatives Considered: (A) Keep per-row trait colors — rejected, trains users to associate those colors with the wrong context; (B) Monochrome brandVolt for all completed items — selected, cleaner and on-brand; (C) Dim white for completed items — rejected, brandVolt provides stronger hierarchy.
+- Status: Active.
+- Files Or Areas Affected: `apps/native/components/upload-entry.tsx` — removed `ChecklistColorKey` type, `CHECKLIST_COLORS` array; `ChecklistRow` now uses `colors.brandVolt` for all complete states. Checklist items dimmed when queued, brandVolt when processing/complete.
+
+## Decision: Stream-first push notification architecture (Option A)
+- Reason: Stream Chat handles chat message push natively. Stream Activity Feeds handles activity notification push natively. Both use APNs/FCM directly. Using Stream for all push delivery avoids building a parallel push infrastructure (Expo Push API, server-side delivery, token relay). `expo-notifications` handles client-side only: permission, token acquisition via `getDevicePushTokenAsync()`, foreground display, badge, deep-link routing.
+- Alternatives Considered: (A) Stream handles all push — selected; (B) Expo Push API handles everything — rejected, duplicates what Stream already does for chat, requires server-side push infrastructure; (C) Hybrid Stream for chat + Expo for activity — rejected, two pipelines to debug, deduplication risk.
+- Status: Active. **Implemented and verified on device 2026-05-14.**
+- Files Or Areas Affected: `.cursor/plans/push_notifications_build2.plan.md` (comprehensive plan), Stream Dashboard (APNs key uploaded, `message.new` enabled), `apps/native/lib/push.ts` (implemented), `apps/native/lib/contexts/push-context.tsx` (implemented), `apps/native/app/_layout.tsx` (NotificationTapHandler + PushProvider), `supabase/migrations/20260513000000_create_user_push_tokens.sql`, `supabase/functions/test-push/index.ts`.
+- Notes: 8 notification types push-enabled, 5 feed-only, 4 journal (never pushed). APNs Key ID `L7S5Z47YPL`. Stream does NOT support Expo push tokens (issue #3316) — use native APNs tokens via `getDevicePushTokenAsync()`. Firebase not needed for iOS. Named push provider `MyVitrineiOS` required in `addDevice` call. RLS on `user_push_tokens` checks `auth.uid()` (NOT `public.users.id`). Test push verified via `supabase/functions/test-push` Edge Function.
+
+## Decision: Custom in-app photo picker replaces native UIImagePickerController/PHPickerViewController
+- Reason: `expo-notifications` native module registers delegates that break iOS photo picker delegate callbacks. The `ImagePicker.launchImageLibraryAsync` Promise hangs indefinitely for iCloud-optimized and HEIC photos when expo-notifications is in the native layer. This was diagnosed as a native-level delegate chain conflict — JS-only workarounds (removing quality option, forcing single-select) only partially mitigated the issue. Building a custom picker using `expo-media-library` provides full control, bypasses the native picker entirely, handles iCloud downloads explicitly via `getAssetInfoAsync`, and supports multi-select with a polished grid UI.
+- Alternatives Considered: (A) JS-only workarounds (partial fix, still hangs for some photos); (B) Remove expo-notifications (unacceptable — push is a core feature); (C) Patch expo-image-picker native code (fragile, version-locked); (D) Custom picker with expo-media-library — selected.
+- Status: Active. Permanent fix.
+- Files Or Areas Affected: `apps/native/components/photo-library-picker.tsx` (new), `apps/native/components/upload-entry.tsx` (integration), `apps/native/app.json` (expo-image-picker plugin retained for camera), `apps/native/package.json` (expo-media-library added).
+- Notes: Camera (`launchCameraAsync`) still works fine with expo-image-picker — only the library picker is affected. The custom picker provides album switching, efficient FlatList grid, badge-based selection UI, and explicit iCloud asset download. Do NOT revert to `ImagePicker.launchImageLibraryAsync` for library selection.
+
+## Decision: Migrate from Expo Go to EAS dev client, target v3.0.0
+- Reason: Expo Go blocks native modules needed before launch: Sentry crash reporting, push notifications, react-native-keyboard-controller, and eventually RevenueCat. The existing MyVitrine v1.0.12 open beta has a 2.0.0 build already uploaded, so the V3 redesign targets v3.0.0 (build 1) to avoid ambiguity. iOS-first, Android parallel later.
+- Alternatives Considered: Stay on Expo Go until feature-complete then build production directly (original plan per guardrails); intermediate dev-client phase was originally rejected but is now required because native deps are no longer deferrable.
+- Status: Active.
+- Files Or Areas Affected: `apps/native/app.json` (name → MyVitrine, slug → myvitrine, version → 3.0.0, bundleIdentifier → com.vitrine, package → com.vitrine.mobile, supportsTablet → false, splash bg → #020202), `apps/native/eas.json` (new — dev/preview/production profiles + submit config), `apps/native/package.json` (added expo-dev-client), `.cursor/rules/expo-release-guardrails.mdc` (removed Expo Go restrictions), `docs/ai-context/DO_NOT_BREAK.md`, `docs/ai-context/CURRENT_STATE.md`.
+- Notes: Confirmed credentials: iOS bundle ID `com.vitrine`, Android package `com.vitrine.mobile`, Apple Team ID `3RFDYDWUUV`, Apple ID `john@myvitrine.app`, App Store ID `6451114604`. RevenueCat deferred to v3.1.0 per subscription architecture. The `expo-release-guardrails.mdc` rule has been updated to reflect EAS as the active dev environment.
 
 ## Decision: Remove onboarding quiz; set onboarding_completed_at during profile completion
 - Reason: The onboarding quiz (usage intents, collectible type interests, marketplace personality) was designed to feed a personalized social feed home screen. That home screen was replaced by the profile-as-home architecture. The quiz data had zero consumers — `getUserPreferences` and `getOnboardingStatus` were never called outside of `user-preferences.ts`. The only downstream use of onboarding was `onboarding_completed_at IS NOT NULL` as a "real user" filter in RPCs (`suggest_collectors_for`, `search_collectors_tiered`, `getCollectorsToFollow`). Setting that timestamp at the end of profile completion preserves the filter while eliminating 3-4 screens of friction for new users.
@@ -286,7 +327,7 @@ Last verified: 2026-05-10
 ## Decision: Expo Go remains the development target until production EAS/TestFlight
 - Reason: Existing release guardrails explicitly avoid dev-client/prebuild unless a concrete feature requires it.
 - Alternatives Considered: Dev client or custom native build during development.
-- Status: Active.
+- Status: **SUPERSEDED 2026-05-13** by "Decision: Migrate from Expo Go to EAS dev client, target v3.0.0" — the native deps that drove the move (Sentry, push notifications, react-native-keyboard-controller, expo-updates for OTA) are no longer deferrable. Keep this entry for historical context only.
 - Files Or Areas Affected: `app.json`, `package.json`, `.cursor/rules/expo-release-guardrails.mdc`.
 
 ## Decision: V3 UI uses `lib/design` and `components/vault`

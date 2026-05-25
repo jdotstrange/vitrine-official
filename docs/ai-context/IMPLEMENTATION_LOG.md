@@ -1,7 +1,218 @@
 # Implementation Log
 
-Last updated: 2026-05-12
-Last verified: 2026-05-12
+Last updated: 2026-05-24
+Last verified: 2026-05-24
+
+## 2026-05-24 - Priming wave: source-control catch-up + batch_uploads bug fix + OTA pipeline + docs reset
+
+- Summary: Eleven-commit priming wave that brought the project into a known-clean state for fast iteration. (1) Diagnosed and fixed the `batch_uploads` INSERT bug — root cause was missing `GRANT SELECT, INSERT, UPDATE ON batch_uploads TO authenticated`, not the PostgREST schema cache suspected during the previous session. Reconciliation migration applied via Supabase MCP. (2) Built and verified an EAS preview iOS build with `expo-updates` baked in, giving the project a live OTA pipeline on the `preview` channel — JS-only hotfixes now ship in ~90 seconds instead of a full native rebuild + manual reinstall. (3) Committed the entire untracked Upload Lane Unification backend (4 migrations + edge functions stream-token + test-push) to source control. (4) Committed the full authenticated web app scaffolding — `@supabase/ssr` clients, `/login`, `/signup`, `/complete-profile`, `/v/*` shell with sidebar + 4 context providers, 20 vault component primitives, 6 React Query data hooks, design tokens + status/trait/verb configs, and 55+ feature route pages across collection / collectible / explore / messages / network / profile / showcase / tracking / activity / settings / catalog / batch / upload. (5) Committed the locked subscription architecture (9 docs) + AAR/Pulse handoffs. (6) Refreshed all 7 memory docs: corrected the `complete_and_publish` trigger description in DO_NOT_BREAK + DECISION_LOG (it does NOT touch `extraction_completed_at` and does NOT insert showcase rows — only flips `extraction_status` and sets `published_at`), marked obsolete "Expo Go remains dev target" decision as SUPERSEDED, and moved 3 resolved threads (batch_uploads bug, edge function deployment, keyboard-controller rebuild) from OPEN_THREADS to the Resolved section with their actual resolutions.
+
+- Files Changed (by commit):
+  - `6087e15` supabase: add user_push_tokens schema migration
+    - `supabase/migrations/20260513000000_create_user_push_tokens.sql`
+  - `4c172d3` supabase: upload lane unification (batch_uploads + trigger + crons + RPC pass)
+    - `supabase/migrations/20260518000000_create_batch_uploads.sql` (amended to include GRANT clause)
+    - `supabase/migrations/20260519170000_upload_lane_unification.sql`
+    - `supabase/migrations/20260519170100_upload_lane_cron_jobs.sql`
+    - `supabase/migrations/20260519170200_upload_lane_publish_filter_rpcs.sql`
+    - `docs/UPLOAD_LANE_UNIFICATION_PLAN.md`
+  - `b20a0f2` supabase: reconcile batch_uploads grants and restore restrictive RLS
+    - `supabase/migrations/20260525003750_reconcile_batch_uploads_access.sql` (new)
+  - `d751ce7` supabase: commit deployed stream-token + test-push edge functions
+    - `supabase/functions/stream-token/index.ts`
+    - `supabase/functions/test-push/index.ts`
+  - `4fca1b7` @vitrine/api: published_at filter pass + add collection-queries module
+    - `packages/api/src/index.ts`, `packages/api/src/modules/activity.ts`, `packages/api/src/modules/explore.ts`, `packages/api/src/modules/collection-queries.ts`
+  - `2261588` web: supabase SSR auth scaffold + login/signup/complete-profile (12 files)
+  - `fae1e9c` web: vault shell + design system + vault primitives + hooks + contexts (44 files)
+  - `2f2629e` web: vault feature surfaces (all /v routes + /batch + upload lib) (59 files)
+  - `88acac4` web: marketing tweaks + share resolver published_at filter + holo-frame utility (4 files)
+  - `6d69b77` docs: subscription architecture (locked) + AAR/Pulse handoffs + EAS migration plan refresh (12 files)
+  - `<this commit>` docs(memory): refresh after upload-lane-unification + EAS modernization + priming wave
+
+- Validation:
+  - Reconciliation migration applied via Supabase MCP. Post-state verified: `authenticated` role now has SELECT, INSERT, UPDATE on `batch_uploads`; all 3 policies restored to restrictive `user_id = (SELECT id FROM users WHERE supabase_auth_id = auth.uid())`; migration tracked in `supabase_migrations.schema_migrations` as `20260525003750_reconcile_batch_uploads_access`.
+  - EAS preview build `e5113d4a-13c4-4e39-b276-3cf86e229435` completed in 7m 43s, runtime version `1`, channel `preview`, fingerprint `6617dd77...`. IPA installed on device. Smoke test passed: app boots clean, upload completes end-to-end (validates the polling fix), push permission prompt appears.
+  - OTA channel created server-side (`Created update channel "preview" and branch "preview" on @jlocastostack/myvitrine`) — first `eas update --channel preview` push will be picked up by the installed binary on next cold start.
+  - Build's source commit `c357fae` matches local HEAD pre-priming wave — confirmed via `git show --stat`.
+  - All 11 commits in the priming wave passed `git commit` cleanly. No pre-commit hook interventions required.
+
+- Notes:
+  - Skipped `supabase/.temp/*` from all commits — those are ephemeral CLI working files (project-ref, version files). Adding `supabase/.temp/` to `.gitignore` deferred to a future hygiene pass; existing tracked `cli-latest` left unchanged.
+  - Two non-blocking warnings observed at build time: `ios.buildNumber` ignored when EAS manages versions remotely (recommendation only); `watcher.unstable_workerThreads` Metro option warning (comes from Sentry's metro wrapper, not our config — safe to ignore).
+  - Native session conflict (web sign-in logs out native app) remains unresolved — root cause identified (refresh-token rotation + global `signOut` scope) but no fix applied. Tracked in OPEN_THREADS.
+  - 97% hang on single-lane uploads remains unresolved — intermittent, most uploads complete fine, signed items with no context most affected. Next step is Sentry-instrument `upload-entry.tsx` to capture timing + extraction status at hang points. Deferred to a focused follow-up session per user direction.
+  - Build install/smoke-test was the only manual step the user performed; all DB writes, commits, and file edits were executed via tools.
+
+## 2026-05-19 - Upload Lane Unification: Chunk A (Full Web Foundation)
+
+- Summary: Shipped the complete web-side Upload Lane Unification — server-side auto-commit via DB trigger, `published_at` publish gate across all public queries (~30 client-side + 9 RPCs), batch processor rewrite removing client-side commit, auto-publish/hold-for-review toggle in batch defaults drawer, and a rewritten History detail page with live status queries and inline Publish/Retry/Remove actions. Removed legacy sweep code (`deleteDraftCollectible`, `sweepStaleStagingRows`) from native. Created centralized visibility query helpers in `@vitrine/api`. Schema includes failure tracking columns, watchdog cron (every minute), and auto-purge cron (daily 04:00 UTC, 45-day window).
+
+- Files Changed:
+  - `supabase/migrations/20260519170000_upload_lane_unification.sql` (new) — published_at, failure columns, batch_id FK, auto_publish, backfill, trigger, partial indexes
+  - `supabase/migrations/20260519170100_upload_lane_cron_jobs.sql` (new) — watchdog + auto-purge crons
+  - `supabase/migrations/20260519170200_upload_lane_publish_filter_rpcs.sql` (new) — collectibles_unified view update + 9 RPC rewrites with published_at filter
+  - `packages/api/src/modules/collection-queries.ts` (new) — publishedCollectibles, publicCollectibles, queueReviewItems, queueErrorItems, applyPublishedFilter
+  - `packages/api/src/index.ts` — exports new module
+  - `apps/web/app/v/upload/batch-processor.ts` — full rewrite: batch_id on insert, value at insert time, showcase rows at insert time, removed Phase 5 (client commit), poll for 'complete'/'failed' terminal states
+  - `apps/web/app/v/upload/page.tsx` — renamed "Batch Catalog", auto-publish state moved to drawer, footer shows publish mode + change link, "Looking Glass" branding, "collectibles" terminology
+  - `apps/web/app/v/upload/batch-defaults-drawer.tsx` — added "After Cataloging" section (Publish/Review first) with green/orange status-style buttons, removed Apply All
+  - `apps/web/app/v/upload/history/[id]/page.tsx` — full rewrite: live-queries collectibles for real status, inline Publish/Retry/Remove/Discard actions, Publish All bulk action, auto-poll while in-flight, retry re-enqueues existing row
+  - `apps/web/app/v/upload/history/page.tsx` — terminology update
+  - `apps/web/app/batch/top-bar.tsx` — tier badge moved to dropdown, dropdown bg → bg-void
+  - `apps/native/app/_layout.tsx` — removed sweepStaleStagingRows import + StagingRowSweep component
+  - `apps/native/components/upload-entry.tsx` — replaced deleteDraftCollectible with deleteCollectible, handle 'complete' status same as 'extracted'
+  - `apps/native/lib/api/collectibles.ts` — deleted deleteDraftCollectible + sweepStaleStagingRows, added published_at filters to 5 query functions
+  - `apps/native/lib/api/tracking.ts` — added published_at filters to tracked item queries
+  - `apps/web/lib/hooks/use-collectibles.ts` — published_at filter
+  - `apps/web/lib/hooks/use-collectible.ts` — viewerUserId param, unpublished items hidden from non-owners
+  - `apps/web/app/page.tsx`, `app/s/c/[id]/page.tsx`, `app/s/p/[id]/page.tsx`, `app/v/page.tsx`, `app/v/tracking/tracked/page.tsx`, `app/v/collectible/[id]/page.tsx`, `app/v/collectible/[id]/edit/page.tsx` — published_at filters
+  - `packages/api/src/modules/explore.ts` — published_at + visibility filters on 4 functions
+  - `packages/api/src/modules/activity.ts` — published_at filter on journal queries
+
+- Validation:
+  - All RPCs verified returning rows post-filter via SQL queries
+  - Backfill confirmed: 0 unpublished complete rows in production
+  - Trigger verified active (`tgenabled = 'O'`)
+  - Cron jobs verified scheduled
+  - User test: 3 collectibles uploaded via batch, all reached 'complete' with published_at set
+  - batch_uploads INSERT failing due to PostgREST schema cache (NOTIFY pgrst issued, RLS simplified — still debugging at session end)
+  - Zero linter errors across all changed files
+
+- Notes: batch_uploads table creation via MCP `apply_migration` did not trigger automatic PostgREST schema reload. Issued `NOTIFY pgrst, 'reload schema'` manually. RLS policies simplified to `WITH CHECK (true)` for INSERT + `USING (true)` for SELECT during debugging. The batch record creation issue was not fully resolved by session end — the error persists as `{}` (empty object). Next session should instrument the Supabase client call to capture the full response.
+
+## 2026-05-14 - Subscription Tier Architecture (Full Design Session)
+
+- Summary: Designed and documented the complete subscription tier architecture through iterative discussion. Produced 9 architecture documents covering pricing model, cap enforcement, bulk uploader, reports, billing rails, paywall UX, tier gating, and RevenueCat integration. Went through three successive simplifications of the cap model (two-cap → unified single-cap; daily+monthly → monthly-only; per-type report caps → single combined pool). Locked all cap numbers, grace behavior, gate set, and marketing framing. No code shipped — pure architecture and documentation session.
+
+- Files Changed:
+  - `docs/subscription/subscription-implementation.md` (new) — master orchestration doc
+  - `docs/subscription/pricing-model.md` (new) — tier tables, cap numbers, unit economics, strategic rationale
+  - `docs/subscription/cap-counter-architecture.md` (new) — cap predicate, extraction_events schema, cap_config schema, grace logic, can_use_bulk function
+  - `docs/subscription/bulk-uploader-architecture.md` (new) — draft state machine, app↔engine contract surface
+  - `docs/subscription/reports-architecture.md` (new) — single table, append-only, staleness handling, Pulse regen
+  - `docs/subscription/subscription-architecture.md` (new) — RevenueCat + Stripe billing rails rationale
+  - `docs/subscription/revenuecat-integration.md` (new) — RC wiring stub
+  - `docs/subscription/paywall-ux.md` (new) — UX patterns stub
+  - `docs/subscription/tier-gating-implementation.md` (new) — v1 gate set, grace exception matrix, telemetry contract
+
+- Validation: None (documentation only, no code shipped).
+
+- Notes: Originally placed in vitrinedb/docs/ by accident; moved to docs/subscription/ same session. Key decisions: unified single-cap (one scan = one scan), monthly-only (no daily), grace = tier substitution (free→pro for caps + bulk), report viewing during grace (yes), report generation during grace (no), data export Pro+ only, hard cliff at grace expiry with in-flight batch grace-through, rate limit details deferred to post-launch telemetry, hybrid RC paywall approach (custom contextual + RC builder for plan picker).
+
+## 2026-05-14 - Upload Flow & BottomDock Design Polish
+
+- Summary: Redesigned the BottomDock upload FAB for dark mode — replaced bright ivory background with a subtle dark lifted circle (`rgba(255,255,255,0.08)`) and brandVolt logo mark, matching how the light mode handles contrast. Unified all three upload flow steps (Scan, Review, Finalize) to use the `ActionDock` commit-action pattern — Scan previously used an inline `Button`. Made Theater transition instant on "Identify" tap — upload now runs in background while the Looking Glass HUD shows progress immediately, eliminating the ambiguous wait on the Scan screen. Removed per-row trait colors from the Theater checklist in favor of monochrome brandVolt (warm ivory) completion color — keeps trait colors reserved for semantic uses elsewhere and lets the gradient progress ring own the surface color. Removed the "Uploading photos" visible checklist item; upload happens silently under "Visual calibration."
+
+- Files Changed:
+  - `apps/native/components/bottom-dock.tsx` — dark mode upload FAB: background, shadow, glow, halo, inner ring, icon color all changed
+  - `apps/native/components/upload-entry.tsx` — Scan step: replaced `Button` with `ActionDock` as sibling (matches Review/Finalize pattern); `handleAnalyze`: transitions to Theater immediately, upload runs async; Theater: split progress-ring init into separate effect; checklist: removed `ChecklistColorKey` type, `CHECKLIST_COLORS` array, `colorKey` prop; `ChecklistRow`: monochrome brandVolt for complete state, dimmed for queued; removed "Uploading photos" checklist item
+
+- Validation:
+  - Visual inspection on device confirmed dark mode FAB reads as subtle dark lift with brandVolt mark
+  - Upload flow transitions to Theater instantly on tap
+  - Theater checklist renders monochrome completion states correctly
+  - ActionDock pins flush to bottom edge on Scan step (matches Review/Finalize)
+
+- Notes: No EAS rebuild required — all changes are JS/TSX only.
+
+## 2026-05-14 - Build 2: Push Notifications + Custom Photo Picker (Phase 2 Native Module #2)
+
+- Summary: Implemented full push notification pipeline using Stream-first architecture. Installed `expo-notifications`, created `lib/push.ts` with lazy-loaded module, token management, Stream device registration (named provider `MyVitrineiOS`), badge sync, and Supabase persistence. Built `PushProvider` context with permission lifecycle and auto-register on login. Added `NotificationTapHandler` for deep-link routing from notification taps. Created contextual `PushPrePrompt` component. Applied Supabase migration for `user_push_tokens` table with RLS and GRANT. Fixed multiple issues: Metro assert shim for `@ide/backoff`, Stream rate-limiting backoff, named push provider in `addDevice`, and RLS policy mismatch (auth.uid() vs public.users.id). Also diagnosed and permanently fixed photo library picker hang caused by expo-notifications native module conflicting with iOS picker delegates. Built custom `PhotoLibraryPicker` component using `expo-media-library` with grid UI, album switching, multi-select, and iCloud download handling. Created `test-push` Edge Function for dev push verification. Verified end-to-end push delivery on device.
+
+- Files Changed:
+  - `apps/native/lib/push.ts` (new) — token management, Stream registration, notification helpers
+  - `apps/native/lib/contexts/push-context.tsx` (new) — PushProvider with permission lifecycle
+  - `apps/native/components/push-pre-prompt.tsx` (new) — contextual pre-prompt card
+  - `apps/native/components/photo-library-picker.tsx` (new) — custom in-app photo grid
+  - `apps/native/components/upload-entry.tsx` — integrated custom picker
+  - `apps/native/app/_layout.tsx` — added PushProvider, NotificationTapHandler
+  - `apps/native/app.json` — added expo-notifications + expo-image-picker plugins
+  - `apps/native/package.json` — added expo-notifications, expo-media-library
+  - `apps/native/metro.config.js` — added assert shim
+  - `apps/native/shims/assert.js` (new) — minimal assert polyfill
+  - `apps/native/lib/design/activity-verbs.ts` — updated pushDefault flags
+  - `supabase/migrations/20260513000000_create_user_push_tokens.sql` (new) — push token table
+  - `supabase/functions/test-push/index.ts` (new) — dev push verification tool
+
+- Validation:
+  - Push token registered with Stream Chat (provider name resolved)
+  - Push token persisted in Supabase user_push_tokens (RLS + GRANT verified)
+  - Test push notification received on device via test-push Edge Function
+  - Custom photo picker loads photos, multi-select works, iCloud photos resolve
+  - Two EAS builds succeeded (expo-notifications only, then + expo-media-library)
+
+- Notes:
+  - expo-notifications native module conflicts with iOS photo picker delegates (PHPicker/UIImagePickerController) for iCloud/HEIC photos. This is a known issue. The custom picker using expo-media-library is the permanent fix. Camera via expo-image-picker still works fine.
+  - Stream `addDevice` requires explicit `pushProviderName` argument matching the Stream Dashboard provider name ('MyVitrineiOS' for iOS).
+  - RLS on `user_push_tokens` checks `auth.uid()`. The app must use Supabase auth user ID (not the public.users profile ID) for the `user_id` column.
+  - `test-push` Edge Function is dev-only (no auth guard). Add service-role key check before production.
+  - Push notification settings UI (per-verb toggles) not yet wired to `notification_preferences` table.
+
+## 2026-05-13 - Build 1: Sentry Crash Reporting (Phase 2 Native Module #1)
+
+- Summary: Installed `@sentry/react-native` ~7.2.0 and wired full crash reporting pipeline. Fixed duplicate `associatedDomains` and `privacyManifests` entries in `app.json` left by `eas init`. Added `@sentry/react-native/expo` plugin with org/project slugs. Swapped Metro config from `getDefaultConfig` to `getSentryExpoConfig` for source map Debug ID injection. Rewrote `lib/sentry.ts` from lazy `require()` scaffold to static imports with `Sentry.init()`, `sendDefaultPii`, and re-exported `Sentry` namespace. Wrapped root layout with `Sentry.wrap(RootLayout)` for automatic navigation breadcrumbs and unhandled error capture. Added `EXPO_PUBLIC_SENTRY_DSN` to `.env`, all three `eas.json` build profiles, and EAS secrets. Added `SENTRY_AUTH_TOKEN` to EAS secrets for build-time source map uploads. Approved `@sentry/cli` postinstall in root `package.json` `pnpm.onlyBuiltDependencies`. Rebuilt dev client, installed on device, and verified test error appeared on Sentry dashboard with correct source location (symbolicated). Updated memory files.
+
+- Files Changed:
+  - `apps/native/app.json` — removed duplicate `associatedDomains` entry and duplicate `NSPrivacyAccessedAPICategoryUserDefaults` block; added `@sentry/react-native/expo` plugin with `organization: myvitrine-llc`, `project: react-native`.
+  - `apps/native/metro.config.js` — replaced `getDefaultConfig` import from `expo/metro-config` with `getSentryExpoConfig` from `@sentry/react-native/metro`.
+  - `apps/native/lib/sentry.ts` — full rewrite: static `import * as Sentry`, `sendDefaultPii: true`, `enableAutoSessionTracking: true`, trace sample rate, re-export of `Sentry` namespace.
+  - `apps/native/app/_layout.tsx` — imported `Sentry` from `@/lib/sentry`, changed `export default function RootLayout()` to `function RootLayout()` + `export default Sentry.wrap(RootLayout)`.
+  - `apps/native/.env` — added `EXPO_PUBLIC_SENTRY_DSN`.
+  - `apps/native/eas.json` — added `EXPO_PUBLIC_SENTRY_DSN` to `development`, `preview`, and `production` env blocks.
+  - `apps/native/package.json` — `@sentry/react-native` ~7.2.0 added as dependency (via `npx expo install`).
+  - `package.json` (root) — added `pnpm.onlyBuiltDependencies: ["@sentry/cli"]`.
+  - `docs/EAS_MIGRATION_PLAN.md` — marked Sentry as installed in Phase 2 checklist.
+  - `docs/ai-context/CURRENT_STATE.md` — noted Sentry is live.
+  - `docs/ai-context/OPEN_THREADS.md` — updated EAS/TestFlight readiness with Sentry status and EAS secrets reference; updated keyboard-controller thread.
+
+- Validation:
+  - Lint-clean on `_layout.tsx` and `sentry.ts`.
+  - EAS build succeeded (build ID `dd187977-de6b-4471-9821-0acec9a86ced`, 13m 42s).
+  - Test error `"Test crash from MyVitrine v3.0.0"` appeared on Sentry dashboard at `https://myvitrine-llc.sentry.io/projects/react-native/` with correct source location (`initSentry` in `sentry.ts`), confirming source maps are working.
+  - Test error removed after verification.
+
+- Notes: EAS secrets created: `EXPO_PUBLIC_SENTRY_DSN` (runtime DSN) and `SENTRY_AUTH_TOKEN` (build-time source map upload). Sentry dashboard: `https://myvitrine-llc.sentry.io/projects/react-native/`. The `@sentry/cli` postinstall downloads the Sentry CLI binary needed for source map uploads at build time — `pnpm.onlyBuiltDependencies` allowlist is required in the root `package.json`.
+
+## 2026-05-13 - Build 2: Push Notifications Plan + Stream Dashboard Configuration
+
+- Summary: Researched and designed comprehensive push notification architecture for Build 2. Decided on Stream-first push delivery (Stream Chat for chat messages, Stream Feeds for activity notifications). Documented per-notification-type push verdicts (8 push-enabled, 5 feed-only, 4 journal/never), iOS notification grouping strategy (5 thread ID patterns), Android notification channels (4 channels), contextual permission prompt strategy (5 trigger surfaces), and badge count sync approach. User generated new APNs key (Key ID `L7S5Z47YPL`), uploaded to Stream Dashboard Chat push config, enabled `message.new` template, and verified Activity Feeds `notification` feed group settings. Wrote full Build 2 implementation plan.
+
+- Files Changed:
+  - `.cursor/plans/push_notifications_build2.plan.md` — created comprehensive 16-step implementation plan.
+  - `docs/ai-context/DECISION_LOG.md` — added "Stream-first push notification architecture" decision entry.
+
+- Validation: None (planning only, no code shipped).
+
+- Notes: APNs Key ID `L7S5Z47YPL` (generated 2026-05-13, replacing old key `HFBF4P5V9D` which can't be re-downloaded). `.p8` file saved at `docs/AuthKey_L7S5Z47YPL.p8` (gitignored). Stream Dashboard: APNs provider "MyVitrine iOS" created under Chat → Push Notifications. `message.new` push template enabled. Activity Feeds `notification` feed group has Realtime Notifications ON; push delivery uses app-level APNs provider.
+
+## 2026-05-12 - Marketing Home Narrative Refresh + Live Explore Wiring
+
+- Summary: Reworked the marketing home (`/`) around a clearer problem/solution narrative and stronger proof points. Hero now uses real production app screenshots inside the phone mockup, has a centered "Now Live — Looking Glass AI (v1)" announcement bar, refreshed collector-first subhead copy, and no KPI cards. Home order now reads Hero → Before Vitrine problem → With Vitrine thesis → How It Works feature loop → Looking Glass AI → Real Pieces live Explore → FinalCTA → Footer. Looking Glass home section now frames Pro+ report layers (VAR, AAR, Market Pulse) instead of generic classify/detect/extract cards. Explore now pulls 8 random public collectibles from `@fmazza821` instead of static placeholder cards.
+
+- Files Changed:
+  - `apps/web/app/page.tsx` — made home dynamic, fetched Frank's public collectibles from Supabase by username, shuffled server-side, and passed a serializable Explore card model into the marketing site.
+  - `apps/web/components/marketing/MarketingSite.tsx` — accepted live Explore items and reordered Problem before Thesis.
+  - `apps/web/components/marketing/sections/Hero.tsx` — replaced hand-coded phone UI with real screenshots, added status-bar mask, announcement bar, new subhead, and removed KPI stat cards.
+  - `apps/web/components/marketing/sections/ProblemSection.tsx` — changed kicker to `BEFORE VITRINE`.
+  - `apps/web/components/marketing/sections/ThesisSection.tsx` — changed kicker to `WITH VITRINE`; rewrote thesis headline and four pillar card concepts.
+  - `apps/web/components/marketing/sections/RapidFireFeatures.tsx` — reframed as `HOW IT WORKS`; rewrote the 12 tiles around the collector loop and equalized card heights.
+  - `apps/web/components/marketing/sections/IntelligenceSection.tsx` — rewrote Looking Glass copy, added record-to-intelligence bridge, replaced three capability cards with VAR/AAR/Market Pulse Pro+ report cards, made cards clickable to `/intelligence`, and added card arrow affordance.
+  - `apps/web/components/marketing/sections/ExploreSection.tsx` — removed category filters, category badge, subtitle, and `FMV` label; renders status, listing title, and value from live rows with static fallback.
+  - `apps/web/app/globals.css` + `apps/web/lib/marketing/tokens.ts` + `apps/web/components/marketing/primitives/Pill.tsx` — added official PRO tier yellow token bridge and `Pill` variants for `pro` and `green`.
+  - `apps/web/public/marketing/screens/*` — added four production app screenshots used by the hero phone mockup.
+
+- Validation:
+  - `ReadLints` clean on touched files during the session.
+  - `GET /` smoke test returned 200 after live Explore wiring and confirmed Frank collectible title content in rendered HTML.
+  - Supabase MCP read-only checks confirmed user `@fmazza821` (`id=26885ab0-37a8-499e-a4c4-77cb3c6010f9`) and 515 public collectibles with photos.
+  - Pushed commits to `main`: `02e666f`, `5e30781`, `14c91f8`, `ab3efd2`.
+
+- Notes:
+  - Home Explore uses public/RLS-readable rows via the web anon Supabase client; no service-role key or privileged write path introduced.
+  - `export const dynamic = "force-dynamic"` was added to `apps/web/app/page.tsx` so the random sample is not frozen at build time.
+  - `@fmazza821` is intentionally the current source account for the live home Explore sample.
+  - The real `/explore` product page remains separate future work; only the home Explore sample grid is live DB-backed now.
 
 ## 2026-05-12 - Marketing Home Mobile Optimization Pass
 
@@ -611,3 +822,32 @@ Last verified: 2026-05-12
   - Showcase picker consumes real user showcases via `getUserShowcases(user.id)`. Locally-created (unpersisted) showcases prepend to the list with `local-${ts}` ids and survive through the commit step.
   - Value required gating: `valueRequired = status !== 'NFST'`; `valueMissing = valueRequired && !(parseFloat(value) > 0)`. `0`, `0.00`, blank, and non-numeric all fail. Default after extraction is `'0.00'` (not the seed value) — collectors should consciously set an asking price.
   - Confidence banner renders when `extraction.confidence !== 'high'`; dormant on the current seed (`'high'`). Flip `SEED.confidence` to `'medium'` to preview.
+
+## 2026-05-14 - react-native-keyboard-controller migration (Phase 2 Step 3)
+- Summary: Installed `react-native-keyboard-controller@1.18.5`, added Expo config plugin, wrapped root layout in `KeyboardProvider`, and migrated all 17 files (19 `KeyboardAvoidingView` instances) from RN's built-in KAV to the library's drop-in replacement. Eliminated every hardcoded `keyboardVerticalOffset` and `Platform.OS` behavior branching. Auth forms (login, signup, complete-profile) upgraded further to `KeyboardAwareScrollView` for auto-scroll-to-focused-input. Forms with docked footers kept as `KeyboardAvoidingView` + `automaticOffset`. Stream Chat keyboard handling left untouched (owned by SDK).
+- Files Changed:
+  - `app.json` — added `"react-native-keyboard-controller"` to plugins array
+  - `app/_layout.tsx` — added `KeyboardProvider` wrapper (statusBarTranslucent, navigationBarTranslucent)
+  - `components/upload-entry.tsx` (x2 KAVs) — drop-in replacement + automaticOffset
+  - `components/vault/rapid-fire-edit.tsx` — drop-in replacement + automaticOffset
+  - `components/showcase-review.tsx` — drop-in replacement + automaticOffset
+  - `components/login-page.tsx` — upgraded to KeyboardAwareScrollView
+  - `components/signup-page.tsx` — upgraded to KeyboardAwareScrollView
+  - `app/complete-profile/index.tsx` (x2 KAVs) — upgraded to KeyboardAwareScrollView
+  - `components/vault/input-dialog.tsx` — drop-in replacement + automaticOffset
+  - `components/settings-account.tsx` — drop-in replacement + automaticOffset
+  - `components/edit-info-modal.tsx` — drop-in replacement + automaticOffset
+  - `components/detail/edit-pricing-modal.tsx` — drop-in replacement + automaticOffset
+  - `components/key-details-form.tsx` — drop-in replacement + automaticOffset
+  - `components/key-details-modal.tsx` — drop-in replacement + automaticOffset
+  - `components/upload/memorabilia-core-form.tsx` — drop-in replacement + automaticOffset
+  - `components/trading-card-details-form.tsx` — drop-in replacement + automaticOffset
+  - `components/conversation-thread.tsx` — drop-in replacement + automaticOffset
+  - `components/community/post-composer.tsx` — drop-in replacement + automaticOffset
+  - `components/community/post-reply-thread.tsx` — drop-in replacement + automaticOffset
+- Validation: ReadLints passed on all 18 edited files. No linter errors introduced.
+- Notes:
+  - Requires EAS dev client rebuild (`eas build --platform ios --profile development`) before runtime testing.
+  - Stream Chat's `<Channel keyboardVerticalOffset>` is untouched — it owns its own keyboard avoidance.
+  - `quick-attach-bar.tsx` `Keyboard.addListener` pattern left as-is — visibility detection, not avoidance.
+  - `KeyboardToolbar` (prev/next/Done) deferred as optional polish pass.

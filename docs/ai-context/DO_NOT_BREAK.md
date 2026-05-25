@@ -1,7 +1,7 @@
 # Do Not Break
 
-Last updated: 2026-05-08
-Last verified: 2026-05-10
+Last updated: 2026-05-24
+Last verified: 2026-05-24
 
 ## Critical User Flows
 - Auth via Supabase email/phone OTP.
@@ -15,19 +15,24 @@ Last verified: 2026-05-10
 - Activity feed and notification delivery. Activity badge dot on profile avatar in BottomDock.
 - Network surface and suggested collectors.
 - Market Surface search & discovery (mosaic browse, recent searches, tiered search results).
-- Expo Go development flow.
+- EAS dev client development flow (Expo Go retired 2026-05-13).
+- Push notification registration and delivery — token acquired via expo-notifications, registered with Stream Chat (provider `MyVitrineiOS`), persisted to Supabase `user_push_tokens`. Notification tap handler routes to correct screens.
+- Photo library selection via custom picker (`components/photo-library-picker.tsx`) — native UIImagePickerController/PHPickerViewController MUST NOT be used (hangs with expo-notifications in native layer).
 - AI Upload flow V3 (Scan → Theater → Review → Finalize → Success) including the queue-to-edit review pattern and the rapid-fire edit modal.
 - Create Showcase V3 (CURATED multi-select + MANAGED rule builder → shared review → create).
 - Theme switching (Light/Dark/Auto) — preference persists across sessions via AsyncStorage.
 - Settings V3 — theme toggle, account management, sign out, delete account.
 
 ## Critical Technical Constraints
-- Keep Expo Go compatibility unless John explicitly approves otherwise.
+- Test changes in EAS dev client; native dep additions require `eas build --profile development` rebuild. Expo Go is no longer the development target.
 - Use `stream-chat-expo`, not `stream-chat-react-native`.
 - Use `EXPO_PUBLIC_*` env vars; do not hardcode backend keys or URLs.
 - Treat Supabase migrations, RLS, and Edge Functions as high-risk.
 - Do not add production MCP write access or credentials.
 - Managed showcase rule evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep. Never change one without the other.
+- **`published_at IS NOT NULL` is the visibility gate for all public collectible queries.** Never NULL this column on a complete collectible — it hides the item from all surfaces (collection, market, search, comps, showcases, tracking). All new public-facing queries MUST include this filter.
+- **After any DDL change (new table, column, or function) applied via MCP or migration, always run `NOTIFY pgrst, 'reload schema'`** or PostgREST will serve stale schema and REST API calls to the new entity will silently fail.
+- **The `complete_and_publish` trigger on `collectibles` is load-bearing.** AFTER UPDATE trigger that fires when `extraction_status` transitions to `'extracted'`. It atomically (a) flips `extraction_status` from `'extracted'` to `'complete'` and (b) sets `published_at = now()` — unconditionally for single-lane uploads (`batch_id IS NULL`), conditionally on `batch_uploads.auto_publish` for batch-lane uploads. It does NOT touch `extraction_completed_at` (no such column exists) and does NOT insert showcase rows. Do not disable or modify without understanding the full cascade.
 
 ## Files Requiring Extra Caution
 - `lib/supabase.ts`
@@ -57,7 +62,10 @@ Last verified: 2026-05-10
 - `components/collector-profile.tsx` — five-lens profile hub and app landing surface. Lens ordering and URL param deep linking are load-bearing.
 - `components/bottom-dock.tsx` — BottomDock with profile avatar badge (activity), messages icon badge (unread), and theme-aware styling. Tab order, badge logic, and theme adaptation are load-bearing.
 - `app/(tabs)/index.tsx` — this IS the profile tab / landing surface. Do not replace with a different screen without understanding the profile-as-home architecture.
-- `app/_layout.tsx` — wraps the app with `ThemeProvider`. Do not remove or reorder the provider wrapper.
+- `app/_layout.tsx` — wraps the app with `ThemeProvider`, `Sentry.wrap`, `PushProvider`, and `NotificationTapHandler`. Provider ordering is load-bearing. Do not remove or reorder.
+- `lib/push.ts` — push token management with backoff, Stream named provider registration, Supabase persistence. The lazy `require('expo-notifications')` pattern avoids Metro crashes.
+- `lib/contexts/push-context.tsx` — push lifecycle. Module-level `_hasAttemptedAutoRegister` flag survives hot reloads.
+- `components/photo-library-picker.tsx` — custom photo grid using expo-media-library. Permanent replacement for native picker. Do NOT revert to `ImagePicker.launchImageLibraryAsync`.
 - `components/create-showcase.tsx` — mutual exclusion logic between CURATED and MANAGED modes.
 - `components/managed-rule-builder.tsx` — rule builder UI with live preview. Depends on `previewRuleMatches` and `managed-rules.ts` types.
 - `components/showcase-detail-v3.tsx` — two-lens showcase detail with managed badge and owner actions.

@@ -1,76 +1,85 @@
 # Handoff
 
-Last updated: 2026-05-12
-Last verified: 2026-05-12
+Last updated: 2026-05-24
+Last verified: 2026-05-24
 
 ## Session Summary
-- Comprehensive mobile optimization pass on the marketing home (`/`) — treated as a first-class redesign at small viewports, not a stack-and-shrink. Added a third 420px breakpoint, restored the Hero phone mockup on mobile (was hidden), preserved density where it carries meaning (Problem 2×2, RapidFire 2-up), hid decorative elements that don't translate, bumped type to earn its space.
-- Pattern established for future mobile work: append `data-marketing-*` hooks to component elements + write rules in the new "ENHANCED MOBILE PASS" block at the bottom of `apps/web/app/globals.css`. Non-destructive — sits after the older 2-tier layer so its selectors win on overlap.
+- Shipped the **priming wave**: 11 commits that brought the project into a known-clean source-of-truth state. Backend (4 commits — push tokens migration, upload-lane-unification cluster, batch_uploads reconciliation, deployed edge functions), shared API (1 — published_at filter pass + collection-queries module), web (3 — SSR auth + vault shell + feature surfaces), marketing + share resolver tweaks (1), and docs (2 — subscription + handoffs, then memory refresh).
+- **Diagnosed and fixed the batch_uploads INSERT empty `{}` error bug.** Root cause was missing `GRANT SELECT, INSERT, UPDATE ON batch_uploads TO authenticated` in the original migration. PostgREST requires both grants AND RLS-pass; the prior debug pass had correctly simplified policies to `true` to rule out RLS, but grants were always the real culprit. Reconciliation migration `20260525003750_reconcile_batch_uploads_access.sql` applied via Supabase MCP; restrictive policies restored.
+- **Built and verified a new EAS preview iOS binary** (`e5113d4a-13c4-4e39-b276-3cf86e229435`, runtime version `1`, channel `preview`, fingerprint `6617dd77`) with `expo-updates` baked in. IPA installed on device. Smoke test passed: app boots clean, one upload completes end-to-end (validates the upload polling fix from commit `6d26a72`), push permission prompt appears. The OTA pipeline is now live — JS-only hotfixes ship via `eas update --channel preview` in ~90 seconds end-to-end.
+- **Corrected two factual errors in memory docs** that surfaced during the priming audit: the `complete_and_publish` trigger description in DO_NOT_BREAK + DECISION_LOG was claiming it sets `extraction_completed_at` and inserts showcase rows. Neither is true. The trigger only flips `extraction_status` `'extracted'` → `'complete'` and sets `published_at = now()` (conditionally for the batch lane based on `auto_publish`).
 
 ## Current State
-- **Marketing site** is multi-page (10-section `/` lander + `/pricing`, `/intelligence`, `/product` deep pages + `/login`, `/privacy`, `/terms`). Home `/` now has first-class mobile treatment across all 3 breakpoints (1024 / 768 / 420). Deep pages still on the base 2-tier mobile layer (open thread).
-- **Native app** unchanged this session — V3 surfaces, five-lens profile hub, four-lens Tracking Hub, Instagram-style Market Surface, dedicated Messages tab, V3 Settings, Light/Dark/Auto theme.
-- **Monorepo** unchanged — pnpm + Turborepo, two apps + four shared packages.
+- **Source of truth aligned with reality** — every piece of work that's running in production is now committed. Local working tree should be clean except for ephemeral `supabase/.temp/*` files (gitignore pass deferred).
+- **EAS dev client** active; OTA pipeline live on `preview` channel.
+- **Authenticated web app fully scaffolded** but not deployed anywhere yet.
+- **Subscription architecture locked** (9 docs in `docs/subscription/`); implementation not started.
+- **Native binary on device** has: Sentry, push notifications, react-native-keyboard-controller, expo-updates (OTA), custom photo-library-picker, upload polling fix (handles both `'extracted'` and `'complete'` terminal statuses).
 
 ## Files Changed Recently
-- `apps/web/app/globals.css` — appended new "ENHANCED MOBILE PASS" block (~150 lines). Two media queries: `(max-width: 768px)` design-led overrides + new `(max-width: 420px)` small-phone tier. Non-destructive — older layer untouched.
-- `apps/web/components/marketing/sections/Hero.tsx` — added `data-marketing-hero-actions` (App Store row), `data-marketing-phone-frame` (PhoneFrame outer div for transform-scale).
-- `apps/web/components/marketing/sections/ThesisSection.tsx` — added `data-marketing-section-title`, `data-marketing-thesis-pillar`, `data-marketing-thesis-num`.
-- `apps/web/components/marketing/sections/ProblemSection.tsx` — added `data-marketing-section-title`, `data-marketing-problem-card`.
-- `apps/web/components/marketing/sections/RapidFireFeatures.tsx` — added `data-marketing-rapid-tile` to RapidFireTileCard.
-- `apps/web/components/marketing/sections/IntelligenceSection.tsx` — added 5 hooks: `data-marketing-intel-panel`, `data-marketing-intel-stages`, `data-marketing-intel-stat`, `data-marketing-intel-field-row`, `data-marketing-intel-cap-tile`.
-- `apps/web/components/marketing/sections/FinalCTA.tsx` — added `data-marketing-cta-line` (decorative SVG connector), `data-marketing-cta-actions`, `data-marketing-cta-step`.
-- `apps/web/components/marketing/sections/Footer.tsx` — added `data-marketing-footer-bottom` to © row + inline `flexWrap: "wrap"` so the footer wraps cleanly.
-- `docs/ai-context/IMPLEMENTATION_LOG.md` — appended entry "Marketing Home Mobile Optimization Pass".
-- `docs/ai-context/CURRENT_STATE.md` — refreshed the "Mobile responsive" bullet (two-tier → three-tier; called out home-vs-deep-page distinction).
-- `docs/ai-context/OPEN_THREADS.md` — added "Mobile pass on deep pages" thread.
-- `docs/ai-context/HANDOFF.md` — this file, rewritten.
+See `IMPLEMENTATION_LOG.md` entry "2026-05-24 - Priming wave" for the full file-by-commit breakdown. Headline:
+- 4 backend commits (5 migrations + 2 edge functions + 1 design doc)
+- 1 shared API commit (4 files)
+- 3 web commits (~115 files total)
+- 1 marketing tweaks commit (4 files)
+- 2 docs commits (12 + 7 files)
 
 ## Incomplete Work
-- **Deep-page mobile pass** — `/pricing`, `/intelligence`, `/product` still on the base 2-tier layer (1024 / 768) plus per-section `flexWrap`. They need the same first-class treatment the home page just got. Captured in OPEN_THREADS with the specific surfaces to audit.
-- **IntelligenceSection animation single-shot** — proposed refactor (use `useOneShotPhase` driven by `useInView` so the cycle runs once when the section enters view, then stops). The user explicitly deferred this in favor of the mobile pass. The section currently loops indefinitely.
-- **No commit yet** for this session's work — all changes are in the working tree, unstaged. `git status` will show 8 modified component/CSS files + 4 modified `docs/ai-context/*.md` files. User did not ask for a commit.
-- **Carry-over from prior sessions** (unchanged): real testimonial copy + photos, real ThesisSection app screenshots, legal review on `/privacy`+`/terms`, EAS / TestFlight pipeline, Crown Jewel detail-screen assignment UI, Day 3 web buildout, 5 native-only API modules awaiting demand.
+- **97% hang on single-lane uploads** — intermittent. Most uploads complete fine; signed items with no context provided seem most affected. Plan: Sentry-instrument `apps/native/components/upload-entry.tsx` to capture timing + extraction status at hang points, then diagnose. Deferred this session per user direction (priming first, data-driven fix after).
+- **Native session conflict** — web sign-in logs out native app. Root cause identified in prior session (refresh token rotation + global `signOut` scope) but no fix applied.
+- **Upload Lane Chunks B-D** — native MyQ surface (Review + Errors tabs), single-lane refactor, push notifications for batch completion. Not started.
+- **Subscription Phase 1** schema work — locked architecture, no code.
+- **`supabase/.temp/` gitignore pass** — these are ephemeral Supabase CLI working files. Adding `supabase/.temp/` to `.gitignore` and `git rm --cached supabase/.temp/cli-latest` deferred to a future hygiene commit.
+- **Hand-off web app to hosting** — web app is fully scaffolded but no Vercel/etc deployment wired yet.
 
 ## Validation Performed
-- `ReadLints` clean across all 7 modified component/CSS files. No TypeScript or ESLint errors introduced.
-- Dev server (`pnpm --filter @vitrine/web dev`) compiled clean throughout the session. All `GET /` returned 200.
-- Served CSS bundle inspected — confirmed all 144 `data-marketing-*` selectors present, including the new mobile-pass additions. `[data-marketing-hero-actions]` and `[data-marketing-cta-actions]` rules verified at both 768px and 420px breakpoints.
-- Live smoke test in `cursor-ide-browser` at 390×844 (iPhone 14 Pro). Hero h1 measured 186px tall = 4 lines × ~46px line-height — matches the 48px @420px override (48 × 0.96 line-height ≈ 46px). Hero App Store badges measured 340px wide = full content width = correct 1-up layout below the 420px breakpoint.
-- No production build run this session (last build was Phase 7 of the multi-page restructure earlier today — green). Recommend `pnpm --filter @vitrine/web build` before merging if running CI gates.
+- Reconciliation migration applied via Supabase MCP `apply_migration`. Post-state verified by three queries: `authenticated` role now has SELECT/INSERT/UPDATE grants on `batch_uploads`; all 3 policies restored to restrictive; migration tracked in `supabase_migrations.schema_migrations` as `20260525003750_reconcile_batch_uploads_access`.
+- EAS build completed in 7m 43s. Build dashboard: https://expo.dev/accounts/jlocastostack/projects/myvitrine/builds/e5113d4a-13c4-4e39-b276-3cf86e229435
+- OTA channel created server-side (`Created update channel "preview" and branch "preview" on @jlocastostack/myvitrine`).
+- Smoke test passed on device per user confirmation: "All good on all of these. native app preview build is working perfectly on device."
+- All 11 commits landed cleanly. No pre-commit hook interventions.
 
 ## Risks And Warnings
-- **`cursor-ide-browser` MCP returned stale layout data after viewport resize** during this session. `browser_resize` calls were acknowledged but the page didn't reflow — bounding-box queries returned the same y-coordinates regardless of resize. Workaround used: trust the served CSS bundle as source of truth and verify visually in a real browser/DevTools when needed. If the next agent uses the same tool for layout verification, expect this and don't trust resize-then-measure flows.
-- **The "ENHANCED MOBILE PASS" block sits after the older 2-tier layer in `globals.css`** — that's deliberate (cascade order makes its selectors win on overlap). If anyone reorganizes the file, that ordering must be preserved.
-- **All overrides use `!important`** because section components carry inline `style={{ ... }}` — same caveat that's existed since the V3 rebuild. New rules in the mobile pass block must follow the same pattern.
-- **Hero phone mobile scaling uses `transform: scale()` + negative `margin-bottom`** to absorb the empty layout space. If the inner phone height ever changes, the negative margin needs re-tuning (currently `-160px` at 768px, `-210px` at 420px).
-- **Deep pages will silently rot mobile-wise** without the same treatment. Tablet+ looks fine, mobile is currently "passable" not "first-class." First user complaint about `/pricing` or `/product` on a phone is the trigger.
+- **`published_at IS NOT NULL` is load-bearing across the entire system.** Accidentally NULLing this column on a collectible hides it everywhere (collection, market, search, comps, showcases, tracking). Re-confirmed during the priming audit.
+- **Native signOut uses global scope by default.** Any explicit `signOut()` call on either platform kills all sessions until the session-conflict bug is fixed.
+- **OTA runtime version is `"1"`.** Bumping it requires a new preview build. Any change to: native deps, Expo config plugins, `app.json` `ios.infoPlist` / `android` config, app icons / splash, or any prebuild artifact, → bump runtime version → rebuild. JS / TSX / asset edits in `assets/` that aren't system icons → OTA-safe, no bump.
+- **PostgREST schema cache.** After any DDL change applied via MCP `apply_migration` or `execute_sql`, run `NOTIFY pgrst, 'reload schema'` (the reconciliation migration already does this for its own scope; other migrations should too).
 
 ## Next Best Task
-**Deep-page mobile pass — `/pricing` first.** Same playbook the home page just used: identify elements that need conditional layout, add `data-marketing-*` hooks, write rules in the "ENHANCED MOBILE PASS" block. `/pricing` is the highest-leverage starting point because (1) it has the most numbers/tables that go pear-shaped on mobile (`PricingCards` 3-up, `ComparisonTable` matrix, `MarketplaceFeeMath` tier-recommender), (2) it's the conversion page so mobile UX is revenue-relevant, (3) it's shorter than `/product`.
+**Sentry-instrument the upload flow to diagnose the intermittent 97% hang.** Specifically, in `apps/native/components/upload-entry.tsx`:
+1. Add Sentry breadcrumbs at each step transition (Scan → Theater enter → polling start → each poll iteration → terminal status → Review enter)
+2. Capture `extraction_status` + elapsed-since-enqueue on each poll tick
+3. Add a Sentry capture if polling exceeds ~25 seconds (cosmetic 30s timer threshold)
+4. Push via `eas update --channel preview` — first real OTA validation
+5. Collect a few days of data; pattern (genuinely slow extraction vs webhook never firing vs client-side stuck poll) will tell us where to fix
+
+Alternative if user prefers another priority: native Session Conflict fix (smaller scope, no telemetry needed) or Upload Lane Chunk B (native MyQ surface).
 
 ## Suggested Starter Prompt For Next Agent
-```
-/rehydrate-project-memory — then we're picking up after the home-page mobile pass. The pattern is documented in the latest IMPLEMENTATION_LOG entry ("Marketing Home Mobile Optimization Pass") and the open thread "Mobile pass on deep pages" in OPEN_THREADS. Today I want to apply the same first-class mobile treatment to /pricing — start by reading apps/web/app/pricing/page.tsx + the pricing components in apps/web/components/marketing/pricing/, then propose a hook-and-CSS plan before touching code.
-```
+`/rehydrate-project-memory. Then instrument apps/native/components/upload-entry.tsx with Sentry breadcrumbs and a hang-detection capture for the 97% intermittent hang. Push via eas update --channel preview as the first real OTA validation. Goal is to collect data on whether the root cause is slow extraction, missing webhook, or stuck client poll.`
 
 ## Memory Updates Made This Session
-- `IMPLEMENTATION_LOG.md` — appended entry: "Marketing Home Mobile Optimization Pass".
-- `CURRENT_STATE.md` — refreshed the "Mobile responsive" bullet under "Web Marketing Site (V3 — Multi-Page, Live)".
-- `OPEN_THREADS.md` — added "Mobile pass on deep pages (`/pricing`, `/intelligence`, `/product`)" thread.
-- `HANDOFF.md` — this file, full rewrite.
+- `HANDOFF.md` — rewritten (this file)
+- `CURRENT_STATE.md` — replaced "Active bug: batch_uploads INSERT" section with priming-wave summary + bug resolution; added 97% hang to parallel tracks
+- `OPEN_THREADS.md` — moved 3 items to Resolved (batch_uploads bug, edge function deployment, keyboard-controller rebuild); bumped date stamps
+- `DO_NOT_BREAK.md` — corrected `complete_and_publish` trigger description (no `extraction_completed_at` write, no showcase row insert); bumped date stamps
+- `DECISION_LOG.md` — corrected the "Server-side auto-commit via DB trigger" decision body (same trigger description fix); marked "Expo Go remains the dev target" as SUPERSEDED; bumped date stamps
+- `IMPLEMENTATION_LOG.md` — prepended "2026-05-24 - Priming wave" entry covering all 11 commits + validation + notes
+- `QUICK_REFERENCE.md` — refreshed "Current Sprint Focus" to reflect priming wave shipped + bug resolved + OTA live; bumped date stamps
 
 ## What Not To Touch
-- The order of CSS blocks in `apps/web/app/globals.css`. The "ENHANCED MOBILE PASS" block must remain *after* the older 2-tier responsive layer for the cascade to resolve correctly.
-- The Hero phone `transform: scale()` + negative `margin-bottom` pairing. They co-vary — change one, you must re-tune the other.
-- The `data-marketing-*` attribute system. The CSS responsive layer is keyed entirely off these attributes. Don't rename existing hooks; add new ones.
-- The `T` token bridge (`apps/web/lib/marketing/tokens.ts`). Section JSX assumes `T.void`, `T.volt`, `T.fg1` etc. exist with exactly those names.
-- `apps/web/lib/marketing/brand-paths.ts`. Both `VitrineMark` and the three icon endpoints consume it.
-- The DRAFT banner on `/privacy` and `/terms`. Leave it until legal sign-off.
-- `PRESS_QUOTES[2].placeholder = true`. Don't remove unless you're swapping in a real testimonial.
-- The 5 native-only API modules (Day 2 carry-over). They depend on RN/Expo APIs and stay put until web actually needs them.
+- `supabase/migrations/20260513000000_create_user_push_tokens.sql` — applied remotely, now committed
+- `supabase/migrations/20260518000000_create_batch_uploads.sql` — applied remotely (and amended with the previously-missing GRANT clause), now committed
+- `supabase/migrations/20260519170000_upload_lane_unification.sql` — applied remotely, now committed
+- `supabase/migrations/20260519170100_upload_lane_cron_jobs.sql` — applied remotely, now committed
+- `supabase/migrations/20260519170200_upload_lane_publish_filter_rpcs.sql` — applied remotely, now committed
+- `supabase/migrations/20260525003750_reconcile_batch_uploads_access.sql` — applied remotely, now committed
+- `apps/native/components/photo-library-picker.tsx` — permanent native picker replacement
+- `docs/subscription/*` — architecture is locked
+- `apps/native/app/_layout.tsx` — Sentry + KeyboardProvider + PushProvider placement is load-bearing
 
 ## Proposed Updates To Watch For
-- If the next session ships the deep-page mobile pass, the OPEN_THREADS thread "Mobile pass on deep pages" should move to Resolved Threads, and CURRENT_STATE's "Mobile responsive" bullet should drop the "deep pages still on the base 2-tier mobile layer" caveat.
-- If the deferred IntelligenceSection single-shot animation fix happens, it'll want a DECISION_LOG entry (the choice between scroll-driven `useInView` + `useOneShotPhase` vs the current always-on loop is a design call worth recording).
-- If a real browser testing flow replaces the `cursor-ide-browser` MCP for layout verification, drop the "Risks And Warnings" callout about the tool returning stale measurements.
+- When the 97% hang is diagnosed and fixed, update DECISION_LOG with the root cause + chosen fix.
+- When `/v/*` web app gets a hosting wire-up, update CURRENT_STATE to flag deployment status.
+- When the native session conflict is fixed, document the chosen approach (likely `signOut({ scope: 'local' })` everywhere) in DECISION_LOG.
+- When `supabase/.temp/` is added to `.gitignore`, do it in a single hygiene commit with `git rm --cached supabase/.temp/cli-latest`.

@@ -1,16 +1,25 @@
 # Current State
 
-Last updated: 2026-05-12
-Last verified: 2026-05-12
+Last updated: 2026-05-24
+Last verified: 2026-05-24
+
 
 ## Current Build Phase
 Active V3 redesign and feature build-out, hosted in a pnpm + Turborepo monorepo with two apps (`@vitrine/native`, `@vitrine/web`) and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). All primary native surfaces are V3. The web marketing site is now a hybrid multi-page site (10-section `/` lander plus deep `/pricing`, `/intelligence`, `/product`, plus `/login` placeholder and draft `/privacy` + `/terms` legal pages). Approaching deployment readiness with a five-lens profile hub, four-lens Tracking Hub, Instagram-style Market Surface, dedicated Messages tab, V3 Settings, Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
 
 ## Current Priority
-Marketing site multi-page restructure is complete (all 7 phases shipped). Next focus splits into three tracks — pick whichever matters most for product:
-1. **Real testimonial copy + brand photos** for the marketing site. Structure + design system are stable; the third PressSection slot is wired as an explicit `[Your name here]` placeholder. Photos are still Unsplash placeholders. Real ThesisSection app screenshots also deferred (FramedHero / lens architecture / dossier card).
-2. **EAS / TestFlight pipeline** (`docs/EAS_MIGRATION_PLAN.md`, `docs/TESTFLIGHT_CHECKLIST.md`) — gating any real device distribution.
-3. **Product features** — Crown Jewel detail-screen assignment UI; AI upload flow QA pass; legal review of `/privacy` + `/terms` drafts.
+**Priming wave shipped 2026-05-24.** The project is now in a known-clean state for fast iteration. Eleven commits landed: backend (4) + shared API (1) + web auth + shell + features (3) + marketing tweaks (1) + docs (2). What changed materially:
+- **`batch_uploads` INSERT bug resolved** — root cause was missing `GRANT SELECT, INSERT, UPDATE ON batch_uploads TO authenticated`. PostgREST requires both grants AND RLS-pass; the prior debug pass had simplified policies to `true` to rule out RLS, but grants were always the real culprit. Reconciliation migration `20260525003750_reconcile_batch_uploads_access.sql` applied; restrictive policies restored.
+- **EAS OTA pipeline live** — `preview` channel is wired; new preview binary with `expo-updates` baked in verified on device. JS-only hotfixes ship via `eas update --channel preview` (~90s end-to-end) instead of full native rebuild.
+- **Authenticated web app fully scaffolded** — `@supabase/ssr` clients (browser/server/middleware), `/login`, `/signup`, `/complete-profile`, the `/v/*` vault shell with sidebar + four context providers, vault component library (20 primitives), 6 data hooks, design tokens + status/trait/verb configs, all feature surfaces (collection, collectible, explore, messages, network, profile, showcase, tracking, activity, settings, catalog/batch/upload). Not yet deployed.
+- **`@vitrine/api/collection-queries`** — 4 visibility helpers + decorator that centralize the `published_at` filter shape so every consumer goes through one of them.
+- **Native Phase 2 complete** — Sentry, push notifications, react-native-keyboard-controller, expo-updates all shipped and verified on device. Custom photo-library-picker permanent.
+
+Parallel tracks:
+1. **Upload Lane Chunks B-D** — native MyQ surface (Review + Errors tabs), single-lane upload refactor, push notifications for batch completion. Not started.
+2. **97% hang on single-lane uploads** — intermittent (most uploads complete fine; signed items with no context provided seem most affected). Plan: Sentry-instrument `upload-entry.tsx` to capture timing + extraction status at hang points, then diagnose. Not started.
+3. **Subscription Phase 1** — schema work (locked architecture in `docs/subscription/`). Not started.
+4. **Native session conflict** — web sign-in logs out native app. Root cause identified (refresh token rotation + global signOut scope) but no fix applied. See OPEN_THREADS.
 
 ## What Works
 
@@ -27,7 +36,7 @@ Marketing site multi-page restructure is complete (all 7 phases shipped). Next f
 ### Web Marketing Site (V3 — Multi-Page, Live)
 Hybrid multi-page V3 marketing site: a tight 10-section `/` lander plus three deep pages (`/pricing`, `/intelligence`, `/product`), `/login` placeholder for the eventual web app, and draft `/privacy` + `/terms` legal pages. Restructured in 7 phases from the original single-page build (commits `marketing: phase 1` through `marketing: phase 7` in `git log`).
 - **Routes (16 total)**: `/`, `/_not-found`, `/pricing`, `/intelligence`, `/product`, `/login`, `/privacy`, `/terms`, dynamic `/icon`, `/apple-icon`, `/opengraph-image`, `/robots.txt`, `/sitemap.xml`, plus three share resolvers `/s/c/[id]`, `/s/p/[id]`, `/s/s/[id]`. Five 308 redirects in `next.config.mjs` cover legacy URLs (`/about → /#thesis`, `/features → /product`, `/explore → /#explore`, `/contact → /#footer`, `/identity → /`). The `/pricing` legacy redirect was deleted in Phase 2 — it's a real page now.
-- **`/` (home, 10 sections)**: SiteNav → Hero → Problem (`§01`) → Thesis (`§02`) → Intelligence (`§03`, the "Tell us nothing. We read the piece." section) → HowItWorks (`§04`) → RapidFireFeatures (`§05`, 12-tile feature wall) → Explore (`§06`, 4×2 spatial grid) → Community (`§07`, 3 collector cards with varied hooks per card) → PressSection (`§08`, testimonials with explicit `[Your name here]` placeholder slot) → FinalCTA (`§09`) → Footer. Lean and conversion-focused; depth lives on the deep pages.
+- **`/` (home)**: SiteNav → Hero → Problem (`BEFORE VITRINE`) → Thesis (`WITH VITRINE`) → RapidFireFeatures (`HOW IT WORKS`, 12-tile collector-loop feature wall) → Intelligence (`Looking Glass AI`, VAR/AAR/Market Pulse Pro+ cards) → Explore (8 random public collectibles from `@fmazza821`, status/title/value) → FinalCTA → Footer. Lean and conversion-focused; depth lives on the deep pages.
 - **`/pricing`**: PricingHero → FoundersPricingBanner ("Locked for life — first 10K Pro users pay $9.99 forever") → PricingCards (Free $0 / Pro $9.99 / Collector $24.99, monthly/annual toggle) → ViewVsGenerateSection (the "everyone views, Pro+ generates" keystone) → MarketplaceFeeMath (10% Free/Pro vs 7% Collector, tier-recommender) → ComparisonTable (collapsible full feature matrix) → PricingFAQ. All data lives in `apps/web/lib/marketing/pricing-data.ts` — single source of truth keyed to `vitrinedb/docs/pricing-model.md`.
 - **`/intelligence`** (Looking Glass cornerstone deep page): IntelligenceHero ("Tell us nothing.") → MultiVerticalExamples (cards / watches / wine / coins / comics / vinyl extraction examples with field-level confidence) → BeforeAfterComparison (other apps make you fill 26 fields vs 1-photo extraction) → VARExplanation → AARExplanation → PulseLensExplanation (per-piece market intel — clarifies vs marketing-side Activity) → CompsArea (migrated from old CompsSection) → TechnicalCredibility (Gemini Flash / multi-pass / validation) → IntelligenceCTA. Data + report-card content in `apps/web/lib/marketing/intelligence-data.ts`. Shared `ReportExplanationCard` standardizes VAR/AAR/Pulse layouts.
 - **`/product`** (the longest, deepest page — "we have features for days"): ProductHero (8 surfaces lined up) → CatalogArea → ShowcaseArea → TrackArea → ActivityArea (the social-signal feed for the network — formerly "Pulse" on the marketing side, renamed to eliminate the in-app-Pulse-lens collision) → ShareArea (drop a link in iMessage / `/s/c/[id]` resolvers) → TradeArea (marketplace summary + fee structure → `/pricing`) → DiscoverArea (network signals + suggested collectors) → CategoriesArea (6×6 category grid) → ProductFAQ → ProductCTA. ~11 areas total.
@@ -36,7 +45,7 @@ Hybrid multi-page V3 marketing site: a tight 10-section `/` lander plus three de
 - **`robots.ts`**: `User-Agent: *  Allow: /` plus sitemap pointer to `https://vitrine.app/sitemap.xml`. No active disallow rules (the `/lab` rule was Phase 5 era and was removed in Phase 7 when `/lab` was deleted).
 - **`sitemap.ts`**: includes `/`, `/pricing` (priority 0.9), `/intelligence` (0.9), `/product` (0.9), `/privacy` (0.3), `/terms` (0.3). Excludes `/login` and (now-deleted) `/lab`.
 - **Footer**: `Footer.tsx` reads from `FOOTER_COLUMNS` constant. `FooterColumn.items` are now `FooterItem[] = { label, href? }`. Live links: Product → `/product`, Looking Glass → `/intelligence`, Pricing → `/pricing`, Get the app → `/#download`, Privacy → `/privacy`, Terms → `/terms`. Items without `href` (Company / Resources columns: About, Press, Careers, Contact, Help, Status, Changelog) render as muted "coming soon" text.
-- **Design system**: `apps/web/app/globals.css` `:root` consumes `@vitrine/design-tokens` `DARK_COLORS` directly. Marketing vars (`--fg1/2/3`, `--frost-divider/border(-strong)`, `--brand-volt(-fill/-border)`, semantic + trait color sets, `--sheet-bg`, `--press-overlay`, `--scrim`). `apps/web/lib/marketing/tokens.ts` exports a `T` object resolving these as `T.void` / `T.volt` etc.
+- **Design system**: `apps/web/app/globals.css` `:root` consumes `@vitrine/design-tokens` `DARK_COLORS` directly. Marketing vars (`--fg1/2/3`, `--frost-divider/border(-strong)`, `--brand-volt(-fill/-border)`, semantic + trait color sets, official PRO tier yellow vars, `--sheet-bg`, `--press-overlay`, `--scrim`). `apps/web/lib/marketing/tokens.ts` exports a `T` object resolving these as `T.void` / `T.volt` / `T.pro` etc.
 - **Fonts**: Electrolize (display, `T.fontDisplay`), Space Grotesk (`T.fontGrotesk` for kickers/labels), Inter (`T.fontInter` body), Libre Caslon Text + italic (`T.fontCaslon` for accent italics in headlines/subtitles), JetBrains Mono (`T.fontMono` for stats/values). All via `next/font/google` in `apps/web/app/layout.tsx`.
 - **Brand assets**: Canonical wordmark at `apps/web/public/logo.svg` with `fill="currentColor"`. React wrappers `apps/web/components/marketing/{VitrineLogo,VitrineMark}.tsx`. Both `VitrineMark` and the dynamic `/icon`, `/apple-icon`, `/opengraph-image` endpoints consume shared SVG path data from `apps/web/lib/marketing/brand-paths.ts`.
 - **Mobile responsive**: Three-tier breakpoint layer in `globals.css`. ≤1024px (tablet), ≤768px (phone), ≤420px (small phone — new tier added in the May 12 mobile pass). Driven entirely by `data-marketing-*` attributes on section components — keeps breakpoint logic in one file. All overrides use `!important` (inline-style specificity). The home page (`/`) received a first-class mobile treatment in the May 12 pass — Hero phone mockup restored on mobile (was hidden) and scaled via CSS transform, RapidFireFeatures forced to 2-up at 768px (overrides the base 1-up), Problem brand-tile cards stay 2×2, Intelligence theater field rows collapse to label-over-value, App Store badges go full-width 50/50 grid → stacked at 420px. Decorative elements that don't translate (FinalCTA SVG line connector, Intelligence 6-stage marker bar) are hidden on mobile. Deep pages (`/pricing`, `/intelligence`, `/product`) still have only the base 2-tier mobile layer — first-class deep-page mobile treatment is open work.
@@ -75,7 +84,7 @@ Full theme infrastructure supporting Light, Dark, and Auto (system-follow) modes
 - **Hook**: `useTheme()` → `{ colors, mode, resolvedMode, setMode }`. All V3 surfaces consume dynamic `colors.xxx`.
 - **Theme-immune elements**: `StatusPill` and `TraitPill` always use `DARK_COLORS.sheetBg` base (dark-backed). Exception: `StatusPill` accepts an `inverted` prop for light-mode NFST on detail screens.
 - **Image overlays**: `SpatialCard` text, badge, and burst explicitly import `DARK_COLORS` for consistent legibility over image gradients.
-- **BottomDock**: Dynamic background (`rgba(0,0,0,0.70)` dark / `rgba(255,255,255,0.82)` light), BlurView tint, and upload button inversion.
+- **BottomDock**: Dynamic background (`rgba(0,0,0,0.70)` dark / `rgba(255,255,255,0.82)` light), BlurView tint. Upload FAB: dark lifted circle (`rgba(255,255,255,0.08)`) with brandVolt logo mark in dark mode; white circle with dark mark in light mode.
 - **DossierCard / Crown Jewel**: `crownCard` and `crownRail` backgrounds use `colors.sheetBg` / `colors.pressOverlay` for theme-awareness.
 - **Scope**: All V3 surfaces migrated. Legacy screens using `@/lib/colors` are untouched.
 
@@ -133,9 +142,9 @@ Shopify smart-collection-inspired auto-updating showcases:
 
 ### AI Upload Flow (V3 — Live, Polished)
 End-to-end wired in `components/upload-entry.tsx`:
-- **Pipeline**: Scan → Theater (Looking Glass HUD) → Review → Finalize → Success. Real async extraction via `enqueue-extraction` Edge Function + Looking Glass engine; status tracked via 2s polling on the draft `collectibles` row; `extracted` triggers cascade-complete + 1s pause + transition to Review.
-- **Capture screen**: Empty-tile tap opens `ActionSheet` with Take Photo (single shot) / Choose from Library (batch). Camera permission requested with deep-link to Settings on denial. Context input (90 char cap) wraps in KAV+ScrollView so the keyboard doesn't cover it.
-- **Theater (Looking Glass HUD)**: Holographic-framed hero, gradient progress ring, 5-item checklist with per-row `traitCyan/traitViolet/traitPink/traitOlive/semanticGreen` colors on completion. Image fades in from 0 → 0.5 opacity over 30s while losing blur. All three animations unified on `Easing.inOut(Easing.quad)` for coordinated rhythm.
+- **Pipeline**: Scan → Theater (Looking Glass HUD) → Review → Finalize → Success. Tapping "Identify" transitions to Theater immediately (upload runs in background); real async extraction via `enqueue-extraction` Edge Function + Looking Glass engine; status tracked via 2s polling on the collectibles row; `complete` (or legacy `extracted`) triggers cascade-complete + 1s pause + transition to Review. All three upload steps (Scan, Review, Finalize) use the `ActionDock` commit-action pattern for consistency. **Server-side auto-commit**: the `complete_and_publish` trigger sets `published_at` when extraction succeeds (unless `batch_uploads.auto_publish = false`). No client-side commit step exists.
+- **Capture screen**: Empty-tile tap opens `ActionSheet` with Take Photo (single shot) / Choose from Library (batch). Camera permission requested with deep-link to Settings on denial. Context input (90 char cap) wraps in KAV+ScrollView so the keyboard doesn't cover it. ActionDock with "Identify" label pinned at bottom.
+- **Theater (Looking Glass HUD)**: Holographic-framed hero, gradient progress ring, 5-item checklist with monochrome brandVolt (warm ivory) completion color — dimmed when queued, ivory when complete. Color comes exclusively from the gradient progress ring; trait colors are reserved for their semantic uses elsewhere. Image fades in from 0 → 0.5 opacity over 30s while losing blur. All three animations unified on `Easing.inOut(Easing.quad)` for coordinated rhythm.
 - **Review screen**: Uses the **same `FramedHero` component** as the production CollectibleDetail DETAILS lens — paginated photo carousel + tap-to-zoom lightbox. Trait pills above title (matches DetailsLens). Listing title (90 char) and description (420 char) are **inline editable** via `InlineEditableField` (always-on TextInput + always-visible `Pencil` icon + focus chrome + counter). Copy edits flow through `listingEdits` state, separate from the rapid-fire `fieldEdits` queue. Schema atoms (AI metadata + trait metadata) still use the tap-to-queue → rapid-fire batch-edit pattern via `SchemaRow` + `RapidFireEdit`.
 - **Finalize → Success**: ActionDock-driven commit. On success, "View in My Collection" deep-links to `/collectible/{id}`. Navigating away from the upload tab (or after success) automatically resets the flow via `useFocusEffect` → `resetFlow`.
 - **Listing copy character caps**: `LISTING_TITLE_MAX = 90`, `LISTING_DESCRIPTION_MAX = 420`. Sized tight to the observed max in `john@myvitrine.app`'s 529 production collectibles (max title 86, max desc 418). Same constant powers the Capture screen's context input.
@@ -190,7 +199,7 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 - Profile screen is wired at the production tab route (no longer sandbox-only).
 
 ## What Is Broken Or Risky
-- `app.json` name is `vitrinev0`; release guardrails say production build name must be `Vitrine`.
+- `app.json` name is now `MyVitrine` with confirmed bundle IDs (`com.vitrine` iOS, `com.vitrine.mobile` Android). EAS dev client replaces Expo Go.
 - Supabase migrations/RLS/auth areas require caution.
 - Some older docs may drift from V3 direction; verify before treating historical docs as current.
 - Managed showcase Edge Functions need deployment to Supabase (`supabase functions deploy`).
@@ -202,7 +211,7 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 - `components/detail/framed-hero.tsx` — shared photo carousel + lightbox. Used by Review step and CollectibleDetail DETAILS lens.
 - `components/detail/lenses/details-lens.tsx` — imports shared FramedHero (no inline copy).
 - `lib/api/extraction.ts` — `enqueueExtraction` (direct fetch), `pollJobStatus` (2s polling).
-- `lib/api/collectibles.ts` — staging-row pattern (`createDraftCollectible`, `commitDraftCollectible`, `deleteDraftCollectible`, `sweepStaleStagingRows`).
+- `lib/api/collectibles.ts` — `createDraftCollectible`, `commitDraftCollectible` (legacy single-lane still uses commit client-side), `deleteCollectible`. Sweep functions deleted.
 - `supabase/functions/enqueue-extraction/index.ts` — proxy to Looking Glass engine.
 - `supabase/functions/looking-glass-webhook/index.ts` — HMAC-verified webhook → updates `collectibles.extraction_status`.
 
@@ -296,6 +305,7 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 - The **BottomDock** tab order is: Profile (avatar+badge) | Tracking | [Upload FAB] | Market | Messages. The profile avatar shows an activity badge dot (brandVolt) when unseen feed items exist. The messages icon shows an unread count badge. The upload FAB uses `VitrineMarkIcon` (brand mark).
 - **Brand color** is warm ivory (`#E8E0D4` dark / `#6B5B3E` light), not the original neon volt. Token names (`brandVolt`, `brandVoltFill`, `brandVoltBorder`) are deliberately kept for hot-swap capability. The monochrome palette lets collectibles own the color system.
 - **Theming**: Import `useTheme()` from `@/lib/design` for dynamic colors. Use `DARK_COLORS` directly only for elements that must stay dark regardless of theme (image overlays, status/trait pills). The `COLORS` export is a backward-compat alias for `DARK_COLORS`.
+- **EAS dev client** is the active development environment. `expo-dev-client` is installed. Native modules can be added freely; rebuild via `eas build --profile development`. JS/TSX changes still hot-reload as before. Target is v3.0.0 for App Store / Play Store.
 - The **HUD overlay** (`components/hud-overlay.tsx`) has been deleted. There is no top navigation bar. Settings is accessible via gear icon on the DossierCard (top-right, owner-only) and a footer "SETTINGS" button at the bottom of the PROFILE lens scroll. QR Code and Share are paired in the action row.
 - **`CollectionSurface`** is the canonical collectible grid/list. Use it (with appropriate props) rather than building new list views. Now also used by the Tracking Hub's TRACKED lens.
 - **`LensSelector` + `LensPager`** is the canonical lens navigation pattern. Used by profile hub, showcase detail, create showcase, and **tracking hub**.
@@ -311,6 +321,6 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 
 ## Do Not Assume
 - Do not assume mock data is acceptable where wiring has already started.
-- Do not assume production readiness just because Expo Go renders.
+- Do not assume production readiness just because the dev client renders.
 - Do not assume Thinktank overrides project files.
 - Do not assume Edge Functions are deployed — check `supabase functions list` first.

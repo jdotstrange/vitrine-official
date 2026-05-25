@@ -1,7 +1,7 @@
 # Open Threads
 
-Last updated: 2026-05-12
-Last verified: 2026-05-12
+Last updated: 2026-05-24
+Last verified: 2026-05-24
 
 ## Product / Design Threads
 
@@ -9,7 +9,7 @@ Last verified: 2026-05-12
 The `PressSection` on `/` ships with a refactored `Quote` shape (`{ quote, name, role, placeholder? }`) so real testimonials can drop in cleanly. The third card is wired as an explicit `placeholder: true` entry rendering "[Your name here]" / "OPEN SLOT · HELLO@VITRINE.APP" with a dashed-border treatment. The first two cards are also generic ("Collector / 22 YR · CARDS" + "Collector / 8 YR · WATCHES") and should become real names + roles before launch. Edit `PRESS_QUOTES` in `apps/web/lib/marketing/constants.ts` and remove the `placeholder` flag once the third card is real.
 
 ### Marketing site real photos
-The 8 image URLs in `apps/web/lib/marketing/photos.ts` remain Unsplash placeholders. Same applies to the 3 collector avatars in `CommunitySection` and the 8 spatial cards in `ExploreSection`. Swap is a one-file edit per location.
+The 8 image URLs in `apps/web/lib/marketing/photos.ts` remain Unsplash placeholders where still referenced, and real testimonial/collector photography is still pending. The Hero phone now uses real production screenshots from `apps/web/public/marketing/screens/*`, and the home Explore grid is DB-backed from `@fmazza821` instead of static Unsplash cards.
 
 ### ThesisSection real app screenshots
 The multi-page restructure plan (Phase 6) called for inline visuals in `ThesisSection` of FramedHero, lens architecture, and a dossier card. No real assets are available yet — the section currently leans on type + frost layout without screenshots. When real visuals land, drop them into `apps/web/components/marketing/sections/ThesisSection.tsx`.
@@ -25,7 +25,7 @@ The pattern is established: add `data-marketing-*` hooks to elements that need c
 Both pages ship with a sticky DRAFT banner via `LegalPage.tsx` and `metadata.robots = { index: false, follow: false }`. Plain-English placeholder copy covers the right surface area (data collection, sharing/visibility, retention/export, marketplace, fees, acceptable use) but needs real legal review before public launch. The "first 10K Pro subscribers locked at $9.99 forever" founders pricing is referenced in both `/pricing` (`FoundersPricingBanner`) and `/terms` placeholder — keep them in sync if the offer changes.
 
 ### `/explore` real DB-backed page
-The home page keeps the 4×2 spatial Explore grid as a category visualizer; a real `/explore` page wired to Supabase (real-time browsing + facets + collector discovery) is its own engineering project (~2-3 weeks), explicitly out of scope for the multi-page restructure. Defer until product appetite returns.
+The home page Explore grid is now DB-backed as a lightweight sample: 8 random public collectibles from `@fmazza821`, rendered as status + listing title + value with static fallback. A full `/explore` page wired to Supabase (real-time browsing + facets + collector discovery) is still its own engineering project (~2-3 weeks), explicitly out of scope for the marketing home refresh. Defer until product appetite returns.
 
 ### `/changelog` page
 The Live Now / Roadmap content from the deleted `LiveComingSection` could revive on a future `/changelog` page (live shipped features + roadmap teases). Currently the home page doesn't surface either. Defer until there's a meaningful update cadence to publish.
@@ -57,8 +57,14 @@ The current lightbox (V1) supports paginated swipe + counter + X-to-close on a f
 ### InlineEditableField reuse beyond upload Review
 The new `InlineEditableField` pattern (always-on TextInput + always-visible Pencil + focus chrome + char counter) is currently inlined inside `components/upload-entry.tsx`. Natural reuse candidates: collectible detail screen (edit listing title/description in place), profile bio editing, showcase title/description editing. Worth extracting to `components/vault/inline-editable-field.tsx` once a second consumer materializes — premature extraction risks an over-fit API.
 
-### react-native-keyboard-controller migration
-Captured in detail in `future-ideas.md`. The `KeyboardAvoidingView` + ScrollView pattern works well for current surfaces (Scan, Review, RapidFireEdit) but doesn't auto-scroll to focused inputs across nested scrolls and lacks gesture-driven keyboard dismissal. The keyboard-controller library is the modern industry standard with an Expo config plugin. **Deferred until we leave Expo Go** — requires a dev-client rebuild.
+### Push notification settings UI
+`settings-notifications.tsx` exists but per-verb toggle preferences are not wired to the backend `notification_preferences` table. The `activity-verbs.ts` `pushDefault` flags define which verbs send push by default, but users can't customize yet.
+
+### Feeds push (activity notifications)
+Stream Chat push is verified on device. Stream Feeds push (activity notifications → lock screen) requires additional Stream Dashboard configuration for the `notification` feed group. Not yet verified on device.
+
+### expo-notifications + native picker conflict
+`expo-notifications` native module breaks iOS PHPicker and UIImagePickerController for iCloud-optimized/HEIC photos (Promise hangs forever). Permanent fix: custom `components/photo-library-picker.tsx` using `expo-media-library`. Do NOT revert to `ImagePicker.launchImageLibraryAsync` for library selection. Camera (`launchCameraAsync`) still works fine.
 
 ### Managed showcase manual ↔ managed conversion
 V1 decision: conversion between manual and managed showcase types is immutable. Future versions may allow conversion paths.
@@ -68,11 +74,8 @@ V2 shipped `franchise`, `item_type`, `year`, `maker`. Remaining deferred candida
 
 ## Data / Backend Threads
 
-### Edge Function deployment
-New Edge Functions created during the Managed Showcase V1 build need deployment via `supabase functions deploy`:
-- `managed-evaluate`
-- `managed-sweep-worker`
-- Other recently created functions should be verified.
+### Native app logout on web sign-in (ACTIVE BUG)
+When a user signs into the web portal, the native app logs out. Supabase "Enforce single session per user" is confirmed disabled. Root cause analysis: native `onAuthStateChange` listener only clears session on `SIGNED_OUT` events. The native app's `autoRefreshToken` mechanism likely attempts to refresh a token that was invalidated by the web auth session (refresh token rotation). Additionally, explicit `signOut()` calls in native use `global` scope (default), which invalidates all sessions across devices. Fix approach: (1) ensure web signOut uses `scope: 'local'`, (2) verify native signOut also uses `scope: 'local'` unless user intent is to sign out everywhere, (3) investigate if Supabase refresh token rotation is causing false `SIGNED_OUT` events on the native client.
 
 ### Server-side collection filtering/sorting
 Current collection filters derive from loaded client-side data. Large collections (600+ items) should move to server-side facets/filter/sort via RPCs for performance.
@@ -115,10 +118,22 @@ Down from 137 (pre-Day-2) → 125 (post-Day-2 baseline) → 107 after token rety
 ## Release / Ops Threads
 
 ### app.json production name
-`app.json` name is `vitrinev0`; release guardrails require `Vitrine` for production builds.
+Resolved 2026-05-13. `app.json` name is now `MyVitrine`, matching the App Store listing.
 
 ### EAS / TestFlight readiness
-EAS build and TestFlight submission pipeline not fully audited. Expo Go remains the development target.
+EAS migration active as of 2026-05-13. Phase 1 complete (dev client on device). Phase 2: Sentry live (verified 2026-05-13), push notifications live (verified on device 2026-05-14), keyboard-controller installed (code migrated 2026-05-14, awaiting EAS rebuild). See `docs/EAS_MIGRATION_PLAN.md` for full plan.
+
+**EAS secrets configured:**
+- `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_STREAM_API_KEY` — app runtime
+- `EXPO_PUBLIC_SENTRY_DSN` — Sentry crash reporting DSN
+- `SENTRY_AUTH_TOKEN` — build-time only, for source map uploads to Sentry
+
+**APNs credentials:**
+- Key ID: `L7S5Z47YPL` (generated 2026-05-13)
+- Team ID: `3RFDYDWUUV`
+- Bundle ID: `com.vitrine`
+- `.p8` file: `docs/AuthKey_L7S5Z47YPL.p8` (gitignored)
+- Uploaded to Stream Dashboard Chat push config as provider "MyVitrine iOS"
 
 ### Edge Function secrets sync
 Verify `CRON_SECRET`, `project_url`, and `SUPABASE_SERVICE_ROLE_KEY` are set correctly across all environments before deploying cron-dependent Edge Functions.
@@ -137,6 +152,9 @@ Any external push notification deep-links targeting `/(tabs)/profile?lens=X` nee
 - `getTrackedCollectionItems` performs acceptably for users tracking 200+ items (currently capped at 50 sources in the comps RPC).
 
 ## Resolved Threads (since last update)
+- ~~batch_uploads INSERT returning empty error~~ → Resolved 2026-05-24. Root cause was the original `20260518000000_create_batch_uploads.sql` migration enabling RLS and creating restrictive policies but never granting table-level privileges to the `authenticated` role. PostgREST requires both grants AND RLS-pass for any operation, so the table was unreachable from the browser even when policies were simplified to `true` during debugging. Fixed via reconciliation migration `20260525003750_reconcile_batch_uploads_access.sql` which added the GRANT and restored restrictive policies. The original migration was amended to include the GRANT clause so fresh installs produce a correct table on the first try.
+- ~~Edge Function deployment (managed-evaluate, managed-sweep-worker)~~ → Resolved. Both are ACTIVE in live DB since April 4 (verified via MCP `list_edge_functions` during the priming audit 2026-05-24). Their source has been in `supabase/functions/` since the Managed Showcase V1 build; the entry was misleading. `stream-token` and `test-push` edge functions (which were genuinely untracked locally) were committed during the 2026-05-24 priming wave.
+- ~~react-native-keyboard-controller migration~~ → Resolved 2026-05-24. EAS preview build with keyboard-controller (and Sentry + push + expo-updates) verified on device. All KAV instances using `automaticOffset` work as expected.
 - ~~Marketing site copy iteration~~ → Resolved by Phase 6 of the multi-page restructure. Hero refreshed into tighter beats ("One photo. Every field, extracted..."). Intelligence section retitled "Tell us nothing. We read the piece." Activity narrative rewritten as the social-signal feed (followers, status changes, comp alerts) with concrete examples. Community section's three identical "Followed because of:" lines replaced with three distinct hooks (What she owns / How he curates / Why he matters). Misleading follower-count stat replaced with "Cataloging since YYYY" — depth signal, not engagement-bait. Testimonials data shape refactored from `{ q, a }` to `{ quote, name, role, placeholder? }` so real quotes drop in cleanly.
 - ~~Marketing site multi-page restructure~~ → Resolved by 7 atomic phases (`marketing: phase 1` through `marketing: phase 7` in `git log`). Single-page lander expanded into a tight 10-section `/` plus three deep pages (`/pricing`, `/intelligence`, `/product`), `/login` placeholder, draft `/privacy` + `/terms`. Routes grew from 8 → 16. Pulse → Activity rename eliminated the in-app-Pulse-lens naming collision on the marketing side. `/lab` snapshot route deleted in Phase 7 along with two orphaned section files. Build green at every step.
 - ~~Web marketing site visual misalignment with V3~~ → Resolved by full V3 rebuild. Single-page, dark-first, frost-on-void, brand-correct ivory accent. 20 sections ported from the `vitrine-2026` mockup, share resolvers re-skinned to match, 6 legacy routes 301'd, dynamic icon/OG endpoints rendering the canonical crown mark, mobile responsive across 3 breakpoints. Six atomic commits in `git log`. (Subsequently restructured into multi-page architecture — see above.)
