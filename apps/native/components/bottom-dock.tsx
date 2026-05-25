@@ -13,8 +13,7 @@ import { useTheme } from '@/lib/design';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { useStream } from '@/lib/contexts/stream-context';
 import { useFeeds } from '@/lib/contexts/feeds-context';
-import { VitrineMarkIcon } from '@/components/vault';
-import { UserAvatar } from './ui/user-avatar';
+import { Avatar, VitrineMarkIcon } from '@/components/vault';
 import { BadgeDot, CountBadge } from './ui/badge-indicator';
 
 const tabs = [
@@ -147,12 +146,11 @@ export function BottomDock({
           accessibilityLabel="Profile"
         >
           <View>
-            <UserAvatar
+            <Avatar
               uri={user?.avatarUrl}
               name={user?.displayName}
-              size={23}
-              borderWidth={1.5}
-              borderColor={colors.textTertiary}
+              size="xs"
+              ringed
             />
             <BadgeDot visible={unseenCount > 0} color={colors.brandVolt} />
           </View>

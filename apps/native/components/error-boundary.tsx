@@ -1,7 +1,13 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors } from '@/lib/colors';
+import { DARK_COLORS } from '@vitrine/design-tokens';
 import { logger } from '@/lib/logger';
+
+// ErrorBoundary uses DARK_COLORS statically (not useTheme) because:
+// 1. Class components can't call hooks
+// 2. The error itself may have come from inside ThemeProvider — safer to
+//    paint with a known palette than to depend on context that just crashed
+const colors = DARK_COLORS;
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -73,7 +79,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.void,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -85,44 +91,44 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.brandVolt,
     letterSpacing: 4,
     marginBottom: 8,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.foreground,
+    color: colors.textPrimary,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.mutedForeground,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
   errorBox: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.sheetBg,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.frostBorder,
     width: '100%',
     marginTop: 8,
   },
   errorText: {
     fontSize: 12,
-    color: colors.destructive,
+    color: colors.semanticRed,
   },
   button: {
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.textPrimary,
     marginTop: 8,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primaryForeground,
+    color: colors.textInverse,
   },
 });

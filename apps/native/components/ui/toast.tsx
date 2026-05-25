@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { colors } from '@/lib/colors';
+import { useTheme, TYPE } from '@/lib/design';
 import { Check, X, AlertCircle, Info } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,6 +21,7 @@ export function Toast({
   onDismiss,
   duration = 3000,
 }: ToastProps) {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const opacity = React.useRef(new Animated.Value(0)).current;
   const translateY = React.useRef(new Animated.Value(-20)).current;
@@ -71,29 +72,34 @@ export function Toast({
 
   if (!visible) return null;
 
+  // Toast foreground (icon + text) reads as dark text on a bright/warm fill in
+  // dark mode, and white text on a darker fill in light mode. `textInverse`
+  // gives us exactly that mapping for free.
+  const fg = colors.textInverse;
+
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <Check size={20} color={colors.foreground} />;
+        return <Check size={20} color={fg} />;
       case 'error':
-        return <X size={20} color={colors.foreground} />;
+        return <X size={20} color={fg} />;
       case 'warning':
-        return <AlertCircle size={20} color={colors.foreground} />;
+        return <AlertCircle size={20} color={fg} />;
       case 'info':
-        return <Info size={20} color={colors.foreground} />;
+        return <Info size={20} color={fg} />;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return colors.success;
+        return colors.semanticGreen;
       case 'error':
-        return colors.destructive;
+        return colors.semanticRed;
       case 'warning':
-        return '#f59e0b'; // amber-500
+        return colors.semanticOrange;
       case 'info':
-        return colors.primary;
+        return colors.brandVolt;
     }
   };
 
@@ -119,9 +125,9 @@ export function Toast({
       >
         <View style={styles.content}>
           {getIcon()}
-          <Text style={styles.message}>{message}</Text>
+          <Text style={[styles.message, { color: fg }]}>{message}</Text>
           <TouchableOpacity onPress={handleDismiss} style={styles.dismissButton} accessibilityRole="button" accessibilityLabel="Dismiss notification">
-            <X size={16} color={colors.foreground} />
+            <X size={16} color={fg} />
           </TouchableOpacity>
         </View>
       </View>
@@ -156,9 +162,8 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
+    fontFamily: TYPE.interMedium,
     fontSize: 14,
-    fontWeight: '500',
-    color: colors.foreground,
   },
   dismissButton: {
     padding: 4,

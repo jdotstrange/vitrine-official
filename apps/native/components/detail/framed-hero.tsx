@@ -140,19 +140,22 @@ export function FramedHero({ images, enableLightbox = true }: FramedHeroProps) {
 
       {isPaginated ? (
         <View style={styles.dots} pointerEvents="none">
-          {slides.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                { borderColor: colors.frostBorder },
-                i === activeIndex && [
-                  styles.dotActive,
-                  { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
-                ],
-              ]}
-            />
-          ))}
+          {slides.map((_, i) => {
+            const isActive = i === activeIndex;
+            return (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  { backgroundColor: colors.frostBorderStrong },
+                  isActive && [
+                    styles.dotActive,
+                    { backgroundColor: colors.textPrimary },
+                  ],
+                ]}
+              />
+            );
+          })}
         </View>
       ) : null}
 
@@ -309,18 +312,22 @@ const styles = StyleSheet.create({
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 6,
     marginTop: 12,
   },
+  // Inactive dot: solid filled circle on `frostBorderStrong` so the dot
+  // reads as "present, dim" against the void instead of a hairline outline.
+  // Active dot: filled ivory expanded pill — same width logic as before.
   dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: 'transparent',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   dotActive: {
-    width: 16,
+    width: 18,
+    height: 6,
+    borderRadius: 3,
   },
 
   // Lightbox -----------------------------------------------------------

@@ -1,10 +1,18 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { ZoomIn, ZoomOut } from 'react-native-reanimated';
-import { colors } from '@/lib/colors';
+import { DARK_COLORS } from '@vitrine/design-tokens';
+
+// Static defaults reference DARK_COLORS so StyleSheet can stay static.
+// Consumers in V3 contexts always override via the `color` prop, so these
+// defaults are purely defensive — they prevent the legacy palette from
+// leaking through if a future caller forgets to pass `color`.
+const DEFAULT_BG = DARK_COLORS.brandVolt;
+const DEFAULT_RING = DARK_COLORS.void;
+const DEFAULT_TEXT = DARK_COLORS.textInverse;
 
 interface BadgeDotProps {
   visible: boolean;
-  /** Override background color. Defaults to colors.attention */
+  /** Override background color. Defaults to brand accent. */
   color?: string;
 }
 
@@ -27,7 +35,7 @@ interface CountBadgeProps {
   count: number;
   /** Cap display value. Defaults to 9 (shows "9+"). */
   max?: number;
-  /** Override background color. Defaults to colors.attention */
+  /** Override background color. Defaults to brand accent. */
   color?: string;
 }
 
@@ -64,9 +72,9 @@ const s = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.attention,
+    backgroundColor: DEFAULT_BG,
     borderWidth: 2,
-    borderColor: colors.background,
+    borderColor: DEFAULT_RING,
   },
   pill: {
     position: 'absolute',
@@ -75,9 +83,9 @@ const s = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.attention,
+    backgroundColor: DEFAULT_BG,
     borderWidth: 2,
-    borderColor: colors.background,
+    borderColor: DEFAULT_RING,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 2,
@@ -88,7 +96,7 @@ const s = StyleSheet.create({
   pillText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.background,
+    color: DEFAULT_TEXT,
     lineHeight: 12,
   },
 });

@@ -1,88 +1,72 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { colors } from '@/lib/colors';
+import { Switch, Platform, StyleSheet, View, type AccessibilityRole } from 'react-native';
+import { useTheme } from '@/lib/design';
 
 export interface ToggleSwitchProps {
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
+  /** Visual scale — `sm` shrinks ~10% on iOS via transform. Defaults to `default`. */
   size?: 'default' | 'sm';
+  accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
 }
 
+/**
+ * ToggleSwitch — thin wrapper over React Native's `<Switch>`, which maps to
+ * UIKit `UISwitch` on iOS and Material Switch on Android.
+ *
+ * Previously a custom Animated.View toggle that hardcoded legacy palette
+ * colors and inverted iOS conventions (off = full light, on = near-black).
+ * Replaced with the platform-native control so we inherit:
+ *   - Selection haptic on flip (iOS)
+ *   - VoiceOver "on/off" value announcements
+ *   - Platform-correct animation curves
+ *   - Reduced-Motion + Dynamic Type compliance
+ *
+ * Theming follows iOS HIG: ON track is `semanticGreen` (the iOS convention
+ * for "enabled"), OFF track is `frostBorderStrong` (a muted, visible neutral
+ * that reads as "track present, inactive"). Thumb stays white per HIG.
+ */
 export function ToggleSwitch({
   value,
   onValueChange,
   disabled = false,
   size = 'default',
+  accessibilityLabel,
+  accessibilityRole = 'switch',
 }: ToggleSwitchProps) {
-  const translateX = React.useRef(new Animated.Value(value ? 1 : 0)).current;
+  const { colors } = useTheme();
 
-  React.useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: value ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [value, translateX]);
+  const trackOff = colors.frostBorderStrong;
+  const trackOn = colors.semanticGreen;
+  const thumb = '#FFFFFF';
 
-  const width = size === 'sm' ? 44 : 52;
-  const height = size === 'sm' ? 24 : 28;
-  const thumbSize = size === 'sm' ? 18 : 22;
-  const thumbTranslate = width - thumbSize - 4;
-
-  const thumbStyle = {
-    transform: [
-      {
-        translateX: translateX.interpolate({
-          inputRange: [0, 1],
-          outputRange: [2, thumbTranslate],
-        }),
-      },
-    ],
-  };
+  const scale = size === 'sm' ? 0.85 : 1;
+  const wrapperStyle =
+    Platform.OS === 'ios' && size === 'sm'
+      ? { transform: [{ scale }] }
+      : undefined;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => !disabled && onValueChange(!value)}
-      disabled={disabled}
-      style={[
-        styles.container,
-        {
-          width,
-          height,
-          backgroundColor: value ? colors.primary : colors.muted,
-          opacity: disabled ? 0.5 : 1,
-        },
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.thumb,
-          {
-            width: thumbSize,
-            height: thumbSize,
-            borderRadius: thumbSize / 2,
-          },
-          thumbStyle,
-        ]}
+    <View style={[styles.wrapper, wrapperStyle]}>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: trackOff, true: trackOn }}
+        thumbColor={thumb}
+        ios_backgroundColor={trackOff}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole={accessibilityRole}
       />
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 14,
+  wrapper: {
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  thumb: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
 });

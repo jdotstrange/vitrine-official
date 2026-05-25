@@ -39,7 +39,7 @@ import { PushProvider } from '@/lib/contexts/push-context';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SkeletonProvider } from '@/components/skeleton';
 import { ThemeProvider } from '@/lib/design';
-import { colors } from '@/lib/colors';
+import { DARK_COLORS } from '@vitrine/design-tokens';
 import { initSentry, Sentry } from '@/lib/sentry';
 import {
   setupNotificationHandler,
@@ -193,7 +193,7 @@ function RootLayout() {
                         <Stack
                           screenOptions={{
                             headerShown: false,
-                            contentStyle: { backgroundColor: colors.background },
+                            contentStyle: { backgroundColor: DARK_COLORS.void },
                             gestureEnabled: true,
                             animation: 'slide_from_right',
                           }}

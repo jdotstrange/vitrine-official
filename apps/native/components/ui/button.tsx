@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import { colors } from '@/lib/colors';
+import { useTheme } from '@/lib/design';
 
 export interface ButtonProps {
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -13,6 +13,16 @@ export interface ButtonProps {
   textStyle?: TextStyle;
 }
 
+/**
+ * Legacy `Button` primitive — kept for backwards compatibility with V3-adjacent
+ * surfaces (`settings-support`, `settings-bug-report`) that still use the rich
+ * variant API. For new V3 work, prefer `Button` from `@/components/vault` which
+ * has a tighter API (`label`-only) and ships with haptics, hit-slop, and a
+ * smaller variant set.
+ *
+ * Internally themed via `useTheme()` so the resolved colors track Light/Dark/
+ * Auto. No legacy palette imports remain.
+ */
 export function Button({
   variant = 'default',
   size = 'default',
@@ -23,19 +33,39 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { colors } = useTheme();
   const isDisabled = disabled || loading;
 
-  const buttonStyle: ViewStyle[] = [
+  const variantBg: Record<NonNullable<ButtonProps['variant']>, ViewStyle> = {
+    default: { backgroundColor: colors.textPrimary },
+    destructive: { backgroundColor: colors.semanticRed },
+    outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.frostBorder },
+    secondary: { backgroundColor: colors.sheetBg },
+    ghost: { backgroundColor: 'transparent' },
+    link: { backgroundColor: 'transparent' },
+  };
+
+  const variantTextColor: Record<NonNullable<ButtonProps['variant']>, string> = {
+    default: colors.textInverse,
+    destructive: colors.textInverse,
+    outline: colors.textPrimary,
+    secondary: colors.textPrimary,
+    ghost: colors.textPrimary,
+    link: colors.brandVolt,
+  };
+
+  const buttonStyle: Array<ViewStyle | false | undefined> = [
     styles.base,
-    styles[variant],
+    variantBg[variant],
     styles[`size_${size}`],
     isDisabled && styles.disabled,
     style,
   ];
 
-  const buttonTextStyle: TextStyle[] = [
+  const buttonTextStyle: Array<TextStyle | false | undefined> = [
     styles.text,
-    styles[`text_${variant}`],
+    { color: variantTextColor[variant] },
+    variant === 'link' && styles.text_link,
     styles[`textSize_${size}`],
     textStyle,
   ];
@@ -50,10 +80,12 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'default' ? colors.primaryForeground : colors.foreground}
+          color={variantTextColor[variant]}
         />
-      ) : (
+      ) : typeof children === 'string' ? (
         <Text style={buttonTextStyle}>{children}</Text>
+      ) : (
+        children
       )}
     </TouchableOpacity>
   );
@@ -65,26 +97,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-  },
-  default: {
-    backgroundColor: colors.primary,
-  },
-  destructive: {
-    backgroundColor: colors.destructive,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondary: {
-    backgroundColor: colors.secondary,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  link: {
-    backgroundColor: 'transparent',
   },
   size_default: {
     height: 36,
@@ -122,23 +134,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  text_default: {
-    color: colors.primaryForeground,
-  },
-  text_destructive: {
-    color: colors.destructiveForeground,
-  },
-  text_outline: {
-    color: colors.foreground,
-  },
-  text_secondary: {
-    color: colors.secondaryForeground,
-  },
-  text_ghost: {
-    color: colors.foreground,
-  },
   text_link: {
-    color: colors.primary,
     textDecorationLine: 'underline',
   },
   textSize_default: {
