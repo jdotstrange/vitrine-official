@@ -218,8 +218,11 @@ export function UploadEntry() {
   // queued + batched through rapid-fire.
   const [listingEdits, setListingEdits] = useState<{ title?: string; description?: string }>({});
 
-  useEffect(() => {
-    if (!user?.id) return;
+  // Pulls the user's persisted showcases into local state for the picker.
+  // Returns a cancellation token so callers can abort if the component
+  // unmounts (or the user re-navigates) mid-fetch.
+  const fetchShowcases = useCallback(() => {
+    if (!user?.id) return () => {};
     let cancelled = false;
     setShowcasesLoading(true);
     getUserShowcases(user.id)
@@ -241,23 +244,46 @@ export function UploadEntry() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    return fetchShowcases();
+  }, [fetchShowcases]);
+
+  // Refetch on tab focus so showcases created during a prior upload (which
+  // were committed server-side via the upload) appear in the picker without
+  // requiring an app relaunch. Without this, the next upload's picker still
+  // shows the stale list from the initial mount fetch.
+  useFocusEffect(
+    useCallback(() => {
+      return fetchShowcases();
+    }, [fetchShowcases]),
+  );
+
   const allShowcases = useMemo<ShowcaseSelectorOption[]>(
     () => [...localShowcases, ...remoteShowcases],
     [localShowcases, remoteShowcases],
   );
 
-  const selectedShowcaseLabel = useMemo(() => {
-    if (selectedShowcaseIds.length === 0) return 'None';
-    const titles = selectedShowcaseIds
-      .map((id) => allShowcases.find((s) => s.id === id)?.title)
-      .filter((t): t is string => !!t);
-    return titles.join(', ');
-  }, [selectedShowcaseIds, allShowcases]);
+  // Resolved showcase objects for the chips on the finalize screen. Filters
+  // out any selected id that no longer maps to a known showcase (e.g.,
+  // deleted out-of-band) so the chip row never renders a ghost.
+  const selectedShowcases = useMemo(
+    () =>
+      selectedShowcaseIds
+        .map((id) => allShowcases.find((s) => s.id === id))
+        .filter((s): s is ShowcaseSelectorOption => !!s)
+        .map((s) => ({ id: s.id, title: s.title })),
+    [selectedShowcaseIds, allShowcases],
+  );
 
   const handleCreateShowcase = useCallback((title: string) => {
     const id = `local-${Date.now()}`;
     setLocalShowcases((current) => [{ id, title, items: 0 }, ...current]);
     setSelectedShowcaseIds((current) => [...current, id]);
+  }, []);
+
+  const handleRemoveShowcase = useCallback((id: string) => {
+    Haptics.selectionAsync();
+    setSelectedShowcaseIds((current) => current.filter((x) => x !== id));
   }, []);
 
   const handleAddTag = useCallback(
@@ -556,6 +582,18 @@ export function UploadEntry() {
     setPulseKeys([]);
     setPulseNonce(0);
     setRapidFireOpen(false);
+
+    // Finalize-screen fields. Without these, a follow-up upload starts with
+    // the previous run's showcase selection, tags, status, value, etc. still
+    // pre-filled — and any locally-minted showcase stubs (`local-${ts}` ids)
+    // keep showing up in the picker even though they were already committed
+    // server-side. Reset them all back to the same defaults as initial mount.
+    setSelectedShowcaseIds([]);
+    setLocalShowcases([]);
+    setTags([]);
+    setStatus('NFST');
+    setVisibility('public');
+    setEstimatedValue('');
   }, [draftCollectibleId, user?.id]);
 
   // Auto-reset on tab blur. Whenever the user leaves the upload tab — whether
@@ -784,8 +822,8 @@ export function UploadEntry() {
             status={status}
             value={estimatedValue}
             visibility={visibility}
-            showcaseLabel={selectedShowcaseLabel}
-            showcaseCount={selectedShowcaseIds.length}
+            selectedShowcases={selectedShowcases}
+            onRemoveShowcase={handleRemoveShowcase}
             tags={tags}
             bottomInset={insets.bottom}
             valueRequired={valueRequired}
@@ -1982,8 +2020,7 @@ function FinalizeStep({
   status,
   value,
   visibility,
-  showcaseLabel,
-  showcaseCount,
+  selectedShowcases,
   tags,
   bottomInset,
   valueRequired,
@@ -1992,6 +2029,7 @@ function FinalizeStep({
   onValueChange,
   onVisibilityChange,
   onOpenShowcasePicker,
+  onRemoveShowcase,
   onOpenTagDialog,
   onRemoveTag,
 }: {
@@ -1999,8 +2037,7 @@ function FinalizeStep({
   status: ListingStatus;
   value: string;
   visibility: 'public' | 'private';
-  showcaseLabel: string;
-  showcaseCount: number;
+  selectedShowcases: { id: string; title: string }[];
   tags: string[];
   bottomInset: number;
   valueRequired: boolean;
@@ -2009,6 +2046,7 @@ function FinalizeStep({
   onValueChange: (v: string) => void;
   onVisibilityChange: (v: 'public' | 'private') => void;
   onOpenShowcasePicker: () => void;
+  onRemoveShowcase: (id: string) => void;
   onOpenTagDialog: () => void;
   onRemoveTag: (tag: string) => void;
 }) {
@@ -2145,29 +2183,45 @@ function FinalizeStep({
         </View>
       </View>
 
-      {/* Showcases — multi-select, text-only summary row.
-          Picker is the single source of truth for membership, so we
-          do not render remove-chips here. Tapping the row reopens it. */}
+      {/* Showcases — multi-select, removable chip row.
+          Each selected showcase renders as a chip the user can tap to
+          remove (matching the tag UX). A trailing "+ SHOWCASE" pill
+          reopens the picker for additions. Critical for collectors with
+          many showcases: surfaces the current selection at a glance and
+          gives a one-tap removal path without re-entering the picker. */}
       <View style={styles.finalizeSection}>
         <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>SHOWCASES</Text>
-        <Pressable
-          onPress={onOpenShowcasePicker}
-          style={[styles.pickerRow, { borderColor: colors.frostDivider }]}
-          accessibilityRole="button"
-          accessibilityLabel="Add to showcases"
-        >
-          <Text
-            style={[
-              styles.pickerRowValue,
-              { color: colors.textPrimary },
-              showcaseCount === 0 && { color: colors.textTertiary },
-            ]}
-            numberOfLines={1}
+        <View style={styles.tagRow}>
+          {selectedShowcases.map((s) => (
+            <Pressable
+              key={s.id}
+              onPress={() => onRemoveShowcase(s.id)}
+              style={[
+                styles.showcaseChip,
+                { backgroundColor: colors.semanticSilverFill, borderColor: colors.frostBorder },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove from ${s.title}`}
+              accessibilityHint="Double-tap to remove this showcase from the upload"
+            >
+              <Text
+                style={[styles.showcaseChipText, { color: colors.textPrimary }]}
+                numberOfLines={1}
+              >
+                {s.title}
+              </Text>
+              <X size={12} color={colors.textTertiary} strokeWidth={2} />
+            </Pressable>
+          ))}
+          <Pressable
+            onPress={onOpenShowcasePicker}
+            style={[styles.tagChipAdd, { borderColor: colors.brandVoltBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Add to a showcase"
           >
-            {showcaseLabel}
-          </Text>
-          <Text style={[styles.pickerRowChevron, { color: colors.textTertiary }]}>›</Text>
-        </Pressable>
+            <Text style={[styles.tagText, { color: colors.brandVolt }]}>+ SHOWCASE</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Tags */}
@@ -2855,6 +2909,28 @@ const styles = StyleSheet.create({
     fontFamily: TYPE.monoMedium,
     fontSize: 10,
     letterSpacing: 0.8,
+  },
+
+  // Showcase chip variant: slightly larger and pairs the title with an
+  // inline X icon to telegraph removability. Mirrors the tag chip's
+  // pill shape and silver fill so the two chip rows feel related, but
+  // uses interMedium 13pt so multi-word showcase titles read naturally
+  // (tags are mono uppercase, which would look wrong on title-case names).
+  showcaseChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+    paddingLeft: 12,
+    paddingRight: 10,
+    paddingVertical: 7,
+    maxWidth: '100%',
+  },
+  showcaseChipText: {
+    fontFamily: TYPE.interMedium,
+    fontSize: 13,
+    flexShrink: 1,
   },
 
   successWrap: {

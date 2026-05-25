@@ -45,10 +45,11 @@ import { InputDialog } from './input-dialog';
  *     to persist remotely, add to a local list, or both; this sheet doesn't
  *     write to Supabase itself.
  *
- * Deselection: the only path to unselect a showcase is reopening the
- * sheet and tapping the row again. We intentionally do not render remove
- * chips on the parent summary row — keeps the Finalize step text-only
- * and reinforces the sheet as the single source of truth for membership.
+ * Deselection: consumers can either reopen the sheet and tap the row
+ * again, or remove a single showcase directly from the chip the consumer
+ * renders in their summary surface (see upload-entry's Finalize step).
+ * Both paths drive the same `onSelectionChange` callback so the picker
+ * row state and the consumer's chip row stay in sync.
  */
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
