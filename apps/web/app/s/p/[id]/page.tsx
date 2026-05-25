@@ -20,6 +20,7 @@ async function getProfile(id: string) {
     .select("id", { count: "exact", head: true })
     .eq("user_id", id)
     .eq("visibility", "public")
+    .not("published_at", "is", null)
 
   return { ...(data as any), itemCount: itemCount ?? 0 }
 }

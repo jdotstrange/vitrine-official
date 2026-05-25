@@ -55,6 +55,7 @@ async function getFrankExploreItems(): Promise<LiveExploreItem[]> {
     .eq("visibility", "public")
     .not("photos", "is", null)
     .not("value", "is", null)
+    .not("published_at", "is", null)
 
   return ((data ?? []) as ExploreCollectibleRow[])
     .filter((row) => Array.isArray(row.photos) && row.photos[0])

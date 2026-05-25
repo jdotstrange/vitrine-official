@@ -1300,3 +1300,40 @@ details summary::-webkit-details-marker { display: none; }
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   HOLOGRAPHIC FRAME — subtle iridescent border glow
+   Applied via .holo-frame class on cards (Crown Jewel, Featured Showcase)
+   ═══════════════════════════════════════════════════════════════ */
+
+.holo-frame {
+  position: relative;
+}
+
+.holo-frame::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(232, 224, 212, 0.25) 0%,
+    rgba(59, 158, 255, 0.12) 25%,
+    rgba(167, 139, 250, 0.12) 50%,
+    rgba(17, 255, 153, 0.12) 75%,
+    rgba(232, 224, 212, 0.25) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+  z-index: 1;
+}
+
+.holo-frame:hover::before {
+  opacity: 1;
+}
+

@@ -15,6 +15,7 @@ async function getCollectible(id: string) {
     )
     .eq("id", id)
     .eq("visibility", "public")
+    .not("published_at", "is", null)
     .single()
 
   if (error || !data) return null
