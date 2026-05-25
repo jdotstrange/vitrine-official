@@ -1,10 +1,16 @@
 import { Stack, router } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
+import {
+  KeyboardProvider,
+  KeyboardController,
+  AndroidSoftInputModes,
+  KeyboardToolbar,
+} from 'react-native-keyboard-controller';
 import {
   SpaceGrotesk_400Regular,
   SpaceGrotesk_500Medium,
@@ -39,7 +45,7 @@ import { PushProvider } from '@/lib/contexts/push-context';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SkeletonProvider } from '@/components/skeleton';
 import { ThemeProvider } from '@/lib/design';
-import { DARK_COLORS } from '@vitrine/design-tokens';
+import { DARK_COLORS, LIGHT_COLORS } from '@vitrine/design-tokens';
 import { initSentry, Sentry } from '@/lib/sentry';
 import {
   setupNotificationHandler,
@@ -52,6 +58,32 @@ const pushLog = logger.create('PushHandler');
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
+
+/**
+ * Global theme for the iOS-style keyboard accessory toolbar (Prev / Next /
+ * Done). Mounted once at the root so every TextInput in the app gets the
+ * same HIG-aligned chrome.
+ *   primary    Foreground for active arrow + Done label.
+ *   disabled   Dim arrow when Prev/Next would be a no-op.
+ *   background Toolbar surface — matches our V3 sheet color so the bar
+ *              reads as part of the panel, not a system overlay.
+ *   ripple     Android touch-ripple tint on the toolbar buttons; brandVolt
+ *              so button presses feel like the rest of our chrome.
+ */
+const KEYBOARD_TOOLBAR_THEME = {
+  dark: {
+    primary: DARK_COLORS.textPrimary,
+    disabled: DARK_COLORS.textTertiary,
+    background: DARK_COLORS.sheetBg,
+    ripple: DARK_COLORS.brandVolt,
+  },
+  light: {
+    primary: LIGHT_COLORS.textPrimary,
+    disabled: LIGHT_COLORS.textTertiary,
+    background: LIGHT_COLORS.sheetBg,
+    ripple: LIGHT_COLORS.brandVolt,
+  },
+};
 
 /**
  * Handles notification setup and tap routing.
@@ -173,6 +205,21 @@ function RootLayout() {
     }
   }, [loaded, error]);
 
+  // Android: tell the OS to resize the available content area when the
+  // soft keyboard opens (instead of overlaying it). Paired with
+  // KeyboardProvider above, this lets KeyboardAvoidingView / KeyboardAware-
+  // ScrollView behave consistently across platforms. iOS handles this
+  // natively via the keyboard frame, so no equivalent call is needed.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    KeyboardController.setInputMode(
+      AndroidSoftInputModes.SOFT_INPUT_ADJUST_RESIZE,
+    );
+    return () => {
+      KeyboardController.setDefaultMode();
+    };
+  }, []);
+
   if (!loaded && !error) {
     return null;
   }
@@ -198,6 +245,7 @@ function RootLayout() {
                             animation: 'slide_from_right',
                           }}
                         />
+                        <KeyboardToolbar theme={KEYBOARD_TOOLBAR_THEME} />
                         </CategoryProvider>
                       </SkeletonProvider>
                     </PushProvider>

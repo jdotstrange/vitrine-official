@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { X } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -149,11 +149,7 @@ export function EditPricingModal({ isOpen, onClose, data, onSaved }: EditPricing
 
   return (
     <Modal visible={isOpen} animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior="padding"
-        automaticOffset
-        style={styles.container}
-      >
+      <KeyboardSafeSheet style={styles.container}>
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity
             onPress={onClose}
@@ -282,7 +278,7 @@ export function EditPricingModal({ isOpen, onClose, data, onSaved }: EditPricing
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafeSheet>
     </Modal>
   );
 }

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { X, Camera, Plus, Globe, Lock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/lib/colors';
@@ -137,11 +137,7 @@ export function EditInfoModal({ isOpen, onClose, data, onSaved }: EditInfoModalP
       <View style={styles.modalContainer}>
         <View style={styles.modalOverlay} />
 
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior="padding"
-          automaticOffset
-        >
+        <KeyboardSafeSheet style={styles.flex}>
           <View style={[styles.flex, { paddingTop: insets.top }]}>
             {/* Header */}
             <View style={styles.header}>
@@ -336,7 +332,7 @@ export function EditInfoModal({ isOpen, onClose, data, onSaved }: EditInfoModalP
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafeSheet>
       </View>
     </Modal>
   );

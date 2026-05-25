@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Platform,
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionIcon } from './ui/action-icon';
 import { Button } from './ui/button';
 import { Toast, ToastType } from './ui/toast';
+import { KeyboardSafeScroll } from '@/components/vault';
 
 export function SettingsBugReport() {
   const router = useRouter();
@@ -130,11 +130,9 @@ export function SettingsBugReport() {
         </Button>
       </View>
 
-      <ScrollView
+      <KeyboardSafeScroll
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.field}>
           <Text style={styles.label}>WHAT WENT WRONG?</Text>
@@ -213,7 +211,7 @@ export function SettingsBugReport() {
             Device info and app version are automatically included with your report.
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardSafeScroll>
 
       <Toast
         message={toastMessage}

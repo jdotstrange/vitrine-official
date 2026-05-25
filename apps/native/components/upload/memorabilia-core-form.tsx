@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { useRef } from 'react';
 import { ArrowLeft, Layers, ChevronRight, Globe, Lock } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
@@ -80,11 +80,7 @@ export function MemorabiliaCoreForm({
   const scrollViewRef = useRef<ScrollView>(null);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      automaticOffset
-    >
+    <KeyboardSafeSheet style={styles.container}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
@@ -257,7 +253,7 @@ export function MemorabiliaCoreForm({
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSafeSheet>
   );
 }
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, ActionSheetIOS, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ActionSheetIOS, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Camera, Check, Lock } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme, TYPE, SPACING, RADII } from '@/lib/design';
+import { KeyboardSafeScroll } from '@/components/vault';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Toast, ToastType } from './ui/toast';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -186,7 +187,7 @@ export function SettingsEditProfile() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={s.content} contentContainerStyle={s.contentContainer} showsVerticalScrollIndicator={false}>
+      <KeyboardSafeScroll style={s.content} contentContainerStyle={s.contentContainer}>
         <View style={[s.avatarSection, { borderBottomColor: colors.frostDivider }]}>
           <TouchableOpacity
             style={s.avatarTouchable}
@@ -262,7 +263,7 @@ export function SettingsEditProfile() {
             <Text style={[s.fieldHint, { color: colors.textTertiary }]}>{profile.bio.length}/160</Text>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardSafeScroll>
 
       <Toast message={toastMessage} type={toastType} visible={showToast} onDismiss={() => setShowToast(false)} />
     </View>

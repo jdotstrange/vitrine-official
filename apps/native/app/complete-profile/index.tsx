@@ -12,7 +12,7 @@ import {
   Alert,
   ActionSheetIOS,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardSafeScroll } from '@/components/vault';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { Check, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -492,7 +492,7 @@ export default function CompleteProfilePage() {
 
   if (step === 'finish-profile') {
     return (
-      <KeyboardAwareScrollView
+      <KeyboardSafeScroll
         style={styles.container}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         keyboardShouldPersistTaps="handled"
@@ -501,7 +501,7 @@ export default function CompleteProfilePage() {
         <View style={styles.content}>
           {renderFinishProfile()}
         </View>
-      </KeyboardAwareScrollView>
+      </KeyboardSafeScroll>
     );
   }
 
@@ -510,10 +510,9 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <KeyboardAwareScrollView
+    <KeyboardSafeScroll
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerSpacer} />
 
@@ -572,7 +571,7 @@ export default function CompleteProfilePage() {
             </View>
           </Animated.View>
         </View>
-    </KeyboardAwareScrollView>
+    </KeyboardSafeScroll>
   );
 }
 

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, Modal } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, X, Camera, Check, Layers, ChevronRight, Plus, Sparkles, Search } from 'lucide-react-native';
@@ -198,11 +198,7 @@ export function TradingCardDetailsForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      automaticOffset
-    >
+    <KeyboardSafeSheet style={styles.container}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -590,7 +586,7 @@ export function TradingCardDetailsForm({
           </View>
         </Modal>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSafeSheet>
   );
 }
 

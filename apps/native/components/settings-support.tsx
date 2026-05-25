@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { BottomSheetPicker } from './ui/bottom-sheet-picker';
 import { Toast } from './ui/toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { KeyboardSafeScroll } from '@/components/vault';
 
 const CATEGORY_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -116,11 +116,9 @@ export function SettingsSupport() {
         </Button>
       </View>
 
-      <ScrollView
+      <KeyboardSafeScroll
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.field}>
           <Text style={styles.label}>CATEGORY</Text>
@@ -166,7 +164,7 @@ export function SettingsSupport() {
           We typically respond within 24-48 hours. For urgent issues, include "URGENT" in your
           subject line.
         </Text>
-      </ScrollView>
+      </KeyboardSafeScroll>
 
       <BottomSheetPicker
         isOpen={pickerOpen}

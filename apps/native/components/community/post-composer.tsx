@@ -5,10 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
-  ScrollView,
   StyleSheet,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeScroll } from '@/components/vault';
 import { X, MessageSquare, Package, Shield, Camera } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/lib/colors';
@@ -122,11 +121,7 @@ export function PostComposer({
       onRequestClose={handleClose}
       accessibilityViewIsModal
     >
-      <KeyboardAvoidingView
-        style={[styles.container, { paddingTop: insets.top }]}
-        behavior="padding"
-        automaticOffset
-      >
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -152,7 +147,7 @@ export function PostComposer({
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} keyboardDismissMode="interactive">
+        <KeyboardSafeScroll style={styles.content}>
           {/* Type selector */}
           {!postType && (
             <View style={styles.typeSelector}>
@@ -256,8 +251,8 @@ export function PostComposer({
               <Text style={styles.backToTypesText}>Change post type</Text>
             </TouchableOpacity>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardSafeScroll>
+      </View>
     </Modal>
   );
 }

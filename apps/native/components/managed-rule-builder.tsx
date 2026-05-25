@@ -16,7 +16,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Plus, Trash2 } from 'lucide-react-native';
+import { KeyboardSafeScroll } from '@/components/vault';
 
 import { formatPrice, type CollectionItem } from '@/components/collectibles';
 import { previewRuleMatches } from '@/lib/api/showcases';
@@ -151,12 +151,9 @@ export function ManagedRuleBuilder({
   );
 
   return (
-    <ScrollView
+    <KeyboardSafeScroll
       style={styles.root}
       contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
     >
       {/* Match mode toggle */}
       <View style={styles.matchModeWrap}>
@@ -229,7 +226,7 @@ export function ManagedRuleBuilder({
           )}
         </View>
       )}
-    </ScrollView>
+    </KeyboardSafeScroll>
   );
 }
 

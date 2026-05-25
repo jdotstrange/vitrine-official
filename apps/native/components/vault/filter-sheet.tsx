@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme, RADII, SPACING, TYPE } from '@/lib/design';
 import { Button } from './button';
+import { KeyboardSafeSheet } from './keyboard-safe-sheet';
 
 /**
  * FilterSheet — iOS-HIG bottom sheet shell for filter / sort / settings
@@ -164,26 +165,30 @@ export function FilterSheet({
             ) : null}
           </View>
 
-          <ScrollView
-            style={styles.content}
-            contentContainerStyle={styles.contentInner}
-            showsVerticalScrollIndicator={false}
-          >
-            {children}
-          </ScrollView>
-
-          {onApply ? (
-            <View
-              style={[styles.footer, { borderTopColor: colors.frostDivider }]}
+          <KeyboardSafeSheet style={styles.keyboardSafe}>
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentInner}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
             >
-              <Button
-                label={applyLabel}
-                onPress={handleApply}
-                variant="solid"
-                fullWidth
-              />
-            </View>
-          ) : null}
+              {children}
+            </ScrollView>
+
+            {onApply ? (
+              <View
+                style={[styles.footer, { borderTopColor: colors.frostDivider }]}
+              >
+                <Button
+                  label={applyLabel}
+                  onPress={handleApply}
+                  variant="solid"
+                  fullWidth
+                />
+              </View>
+            ) : null}
+          </KeyboardSafeSheet>
         </Animated.View>
       </View>
     </Modal>
@@ -234,6 +239,9 @@ const styles = StyleSheet.create({
   resetLabel: {
     fontFamily: TYPE.interMedium,
     fontSize: 13,
+  },
+  keyboardSafe: {
+    flexShrink: 1,
   },
   content: {
     flexGrow: 0,

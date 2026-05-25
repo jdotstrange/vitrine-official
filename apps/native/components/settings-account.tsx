@@ -11,7 +11,7 @@ import {
   Modal,
   Animated as RNAnimated,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeScroll } from '@/components/vault';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Mail, Check, AlertCircle, LogOut, Trash2 } from 'lucide-react-native';
 import { useTheme, TYPE, SPACING, RADII } from '@/lib/design';
@@ -235,10 +235,9 @@ export function SettingsAccount() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView
+          <KeyboardSafeScroll
             style={s.editModalBody}
             contentContainerStyle={s.editModalBodyContent}
-            keyboardShouldPersistTaps="handled"
           >
             {editStep === 'input' ? (
               <>
@@ -377,7 +376,7 @@ export function SettingsAccount() {
                 </TouchableOpacity>
               </>
             )}
-          </ScrollView>
+          </KeyboardSafeScroll>
         </View>
       </View>
     );
@@ -394,7 +393,7 @@ export function SettingsAccount() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={s.deleteBody} keyboardShouldPersistTaps="handled">
+        <KeyboardSafeScroll contentContainerStyle={s.deleteBody}>
           <View style={s.deleteWarningCard}>
             <Trash2 size={24} color={colors.semanticRed} />
             <Text style={[s.deleteWarningTitle, { color: colors.semanticRed }]}>This action is permanent</Text>
@@ -434,17 +433,13 @@ export function SettingsAccount() {
               </Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardSafeScroll>
       </View>
     </Modal>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[s.container, { backgroundColor: colors.void }]}
-      behavior="padding"
-      automaticOffset
-    >
+    <View style={[s.container, { backgroundColor: colors.void }]}>
       <View style={[s.header, { paddingTop: insets.top + 16, borderBottomColor: colors.frostDivider }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ArrowLeft size={20} color={colors.textPrimary} />
@@ -508,7 +503,7 @@ export function SettingsAccount() {
         visible={showToast}
         onDismiss={() => setShowToast(false)}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

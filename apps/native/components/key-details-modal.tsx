@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ArrowLeft, ChevronRight, ChevronLeft, Check, X, AlertCircle } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
@@ -279,11 +279,7 @@ export function KeyDetailsModal({ isOpen, onClose, type, category, collectibleId
       <View style={styles.modalContainer}>
         <View style={styles.modalOverlay} />
 
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior="padding"
-          automaticOffset
-        >
+        <KeyboardSafeSheet style={styles.container}>
           <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* Header */}
             <View style={styles.header}>
@@ -507,7 +503,7 @@ export function KeyDetailsModal({ isOpen, onClose, type, category, collectibleId
               </>
             )}
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafeSheet>
       </View>
     </Modal>
   );

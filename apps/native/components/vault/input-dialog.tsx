@@ -9,7 +9,7 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from './keyboard-safe-sheet';
 
 import { useTheme, RADII, SPACING, TYPE } from '@/lib/design';
 import { Button } from './button';
@@ -99,11 +99,7 @@ export function InputDialog({
       onRequestClose={handleCancel}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior="padding"
-        automaticOffset
-        style={styles.root}
-      >
+      <KeyboardSafeSheet style={styles.root}>
         <Pressable style={[styles.scrim, { backgroundColor: colors.scrim }]} onPress={handleCancel} />
         <View style={[styles.card, { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder }]}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
@@ -134,7 +130,7 @@ export function InputDialog({
             />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafeSheet>
     </Modal>
   );
 }

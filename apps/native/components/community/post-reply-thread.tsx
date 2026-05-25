@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageBubble } from '@/components/messaging/message-bubble';
@@ -89,11 +89,7 @@ export function PostReplyThread({
   ), [currentUserId]);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior="padding"
-      automaticOffset
-    >
+    <KeyboardSafeSheet style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -146,7 +142,7 @@ export function PostReplyThread({
         paddingBottom={insets.bottom}
         placeholder="Write a reply..."
       />
-    </KeyboardAvoidingView>
+    </KeyboardSafeSheet>
   );
 }
 

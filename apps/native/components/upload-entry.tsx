@@ -11,7 +11,7 @@ import {
   View,
   type TextStyle,
 } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeScroll } from '@/components/vault';
 import Animated, {
   Easing,
   FadeIn,
@@ -957,25 +957,16 @@ function ScanStep({
   // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
   // padding) + an inner ScrollView for content + a docked footer (button)
   // *outside* the scroll. The KAV's padding behaviour shrinks the inner
-  // area when the keyboard appears; the ScrollView absorbs the squeeze and
-  // auto-scrolls the focused input into view; the footer stays parked above
-  // the keyboard. The previous offset of `insets.top + header` was wrong —
-  // KAV's offset is meant to compensate for native chrome RN can't see, and
-  // this screen has no native chrome above it.
+  // area when the keyboard appears. KeyboardSafeScroll auto-scrolls the
+  // focused TextInput into view above the keyboard (and accessory bar)
+  // without needing manual offset math. The ActionDock space is reserved
+  // via `paddingBottom` on the content container.
   return (
-    <KeyboardAvoidingView
-      style={styles.scanBody}
-      behavior="padding"
-      automaticOffset
+    <KeyboardSafeScroll
+      style={[styles.scanBody, styles.scanScroll]}
+      contentContainerStyle={[styles.scanScrollContent, { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 }]}
       pointerEvents={isUploading ? 'none' : 'auto'}
     >
-      <ScrollView
-        style={styles.scanScroll}
-        contentContainerStyle={[styles.scanScrollContent, { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 }]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}
-      >
       <View style={[styles.scanTitleBlock, isUploading && { opacity: 0.5 }]}>
         <Text style={[styles.scanTitle, { color: colors.textPrimary }]}>Scan Collectible</Text>
         <Text style={[styles.scanSubtitle, { color: colors.textSecondary }]}>
@@ -1039,8 +1030,7 @@ function ScanStep({
           <Text style={[styles.contextCounter, { color: colors.textTertiary }]}>{context.length}/{LISTING_TITLE_MAX}</Text>
         </View>
       </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardSafeScroll>
   );
 }
 
@@ -1684,21 +1674,13 @@ function ReviewStep({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.reviewShell}
-      behavior="padding"
-      automaticOffset
+    <KeyboardSafeScroll
+      style={[styles.reviewShell, styles.body]}
+      contentContainerStyle={[
+        styles.reviewContent,
+        { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 },
+      ]}
     >
-      <ScrollView
-        style={styles.body}
-        contentContainerStyle={[
-          styles.reviewContent,
-          { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-      >
         {/* Hero — same FramedHero used on the production CollectibleDetail
             DETAILS lens. Identical chrome, identical lightbox, gives the
             user a 1:1 preview of where this item lands post-commit. */}
@@ -1837,8 +1819,7 @@ function ReviewStep({
             />
           </View>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScroll>
   );
 }
 

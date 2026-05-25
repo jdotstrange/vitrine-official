@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronDown, ChevronUp, Search, X } from 'lucide-react-native';
 import { useTheme, TYPE, SPACING, RADII } from '@/lib/design';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardSafeScroll } from '@/components/vault';
 
 interface FAQItem {
   question: string;
@@ -89,7 +90,7 @@ export function SettingsHelp() {
         </View>
       </View>
 
-      <ScrollView style={s.content} contentContainerStyle={s.contentContainer} showsVerticalScrollIndicator={false}>
+      <KeyboardSafeScroll style={s.content} contentContainerStyle={s.contentContainer}>
         {filteredFAQs.length === 0 ? (
           <View style={s.emptyState}>
             <Text style={[s.emptyText, { color: colors.textSecondary }]}>No results found for "{searchQuery}"</Text>
@@ -125,7 +126,7 @@ export function SettingsHelp() {
             })}
           </View>
         )}
-      </ScrollView>
+      </KeyboardSafeScroll>
     </View>
   );
 }

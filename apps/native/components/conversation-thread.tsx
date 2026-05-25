@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { Text, TouchableOpacity } from 'react-native';
 import { AlertCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -262,7 +262,7 @@ export function ConversationThread({
 
   // DM mode
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding" automaticOffset>
+    <KeyboardSafeSheet style={styles.container}>
       <MessageList
         messages={messages} currentUserId={currentUserId} variant={variant}
         isLoading={isLoading} hasMore={hasMore} typingUserNames={typingUserNames}
@@ -289,7 +289,7 @@ export function ConversationThread({
         visible={showAttachmentPicker} onClose={() => setShowAttachmentPicker(false)}
         onSelect={handleAttachment} onSelectCollectible={() => {}} onSelectShowcase={() => {}}
       />
-    </KeyboardAvoidingView>
+    </KeyboardSafeSheet>
   );
 }
 

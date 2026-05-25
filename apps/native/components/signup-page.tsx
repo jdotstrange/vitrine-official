@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated as RNAnimated, ActivityIndicator } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { KeyboardSafeScroll } from '@/components/vault';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
@@ -194,7 +194,7 @@ export function SignupPage() {
   const canSendCode = emailStatus === 'available' && !isLoading;
 
   return (
-    <KeyboardAwareScrollView
+    <KeyboardSafeScroll
       style={styles.container}
       contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
       keyboardShouldPersistTaps="handled"
@@ -365,7 +365,7 @@ export function SignupPage() {
             </Animated.View>
           )}
         </View>
-    </KeyboardAwareScrollView>
+    </KeyboardSafeScroll>
   );
 }
 

@@ -80,6 +80,17 @@ export { ShowcaseSelectorSheet } from './showcase-selector-sheet';
 export { FieldEditor } from './field-editor';
 export { RapidFireEdit } from './rapid-fire-edit';
 
+// Keyboard surfaces --------------------------------------------------
+// Three archetypes covering every TextInput context in the app.
+// KeyboardSafeScroll  = multi-field forms (auto-scroll focused input).
+// KeyboardSafeSheet   = modals / chat threads (KAV padding semantics).
+// KeyboardSafeComposer = standalone sticky composer bars.
+// The global Prev/Next/Done accessory bar is mounted once in app/_layout.tsx,
+// so individual call sites only choose the right wrapper for their shape.
+export { KeyboardSafeScroll } from './keyboard-safe-scroll';
+export { KeyboardSafeSheet } from './keyboard-safe-sheet';
+export { KeyboardSafeComposer } from './keyboard-safe-composer';
+
 // Compositions --------------------------------------------------------
 export { CompCard, CompMeta } from './comp-card';
 export { SpatialCard } from './spatial-card';
@@ -146,3 +157,6 @@ export type {
   TelemetryDeltaDirection,
 } from './telemetry-card';
 export type { ActionSheetProps, ActionSheetOption } from './action-sheet';
+export type { KeyboardSafeScrollProps } from './keyboard-safe-scroll';
+export type { KeyboardSafeSheetProps } from './keyboard-safe-sheet';
+export type { KeyboardSafeComposerProps } from './keyboard-safe-composer';

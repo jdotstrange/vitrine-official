@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardSafeSheet } from '@/components/vault';
 import { useState, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ChevronRight, ChevronLeft, Check } from 'lucide-react-native';
@@ -118,11 +118,7 @@ export function KeyDetailsForm() {
       .join(' ');
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      automaticOffset
-    >
+    <KeyboardSafeSheet style={styles.container}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
@@ -212,7 +208,7 @@ export function KeyDetailsForm() {
           </TouchableOpacity>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardSafeSheet>
   );
 }
 
