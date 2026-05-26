@@ -79,6 +79,7 @@ export { InputDialog } from './input-dialog';
 export { ShowcaseSelectorSheet } from './showcase-selector-sheet';
 export { FieldEditor } from './field-editor';
 export { RapidFireEdit } from './rapid-fire-edit';
+export { PhotoReorderGrid } from './photo-reorder-grid';
 
 // Keyboard surfaces --------------------------------------------------
 // Three archetypes covering every TextInput context in the app.
@@ -132,6 +133,7 @@ export type {
 } from './showcase-selector-sheet';
 export type { FieldEditorProps, FieldEditorValue } from './field-editor';
 export type { RapidFireEditProps, RapidFireEditItem } from './rapid-fire-edit';
+export type { PhotoReorderGridProps, PhotoAsset } from './photo-reorder-grid';
 export type { SpatialCardProps } from './spatial-card';
 export type { CollectibleGridCardProps } from './collectible-grid-card';
 export type { CollectibleListCardProps } from './collectible-list-card';
