@@ -1,7 +1,7 @@
 # Quick Reference
 
-Last updated: 2026-05-24
-Last verified: 2026-05-24
+Last updated: 2026-05-26
+Last verified: 2026-05-26
 
 The fast-path memory file. Always loaded at chat start. Kept under 100 lines.
 
@@ -19,7 +19,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 
 ## Current Sprint Focus
 
-**Priming wave shipped 2026-05-24** — the project is now in a known-clean state for fast iteration: Upload Lane Unification Chunk A backend + web foundation committed to source control, `batch_uploads` INSERT bug resolved (root cause: missing GRANT to `authenticated`), EAS OTA pipeline live on the preview channel (verified on device), native Phase 2 modernization shipped (Sentry, push notifications, keyboard-controller). The authenticated web app is fully scaffolded (`/login`, `/signup`, `/complete-profile`, `/v/*` shell + all feature surfaces) but not yet deployed. Next: Upload Lane Chunks B-D (native MyQ surface, single-lane refactor, push for batch complete) and intermittent "97% hang" on single-lane uploads (Sentry-instrument first). Detail in `CURRENT_STATE.md`.
+**2026-05-26 — Drag-Reorder V2 Migration on `feature/drag-reorder-v2` (pending dev-client validation + PR merge).** Upload Scan-step photo grid migrated from `react-native-draggable-flatlist` to `react-native-reanimated-dnd@^2.0.0`, extracted as the canonical `<PhotoReorderGrid />` primitive at `components/vault/photo-reorder-grid.tsx`. New aesthetic: lift scale 1.12, inner glow + brandVolt border (NO shadow — cross-platform-consistency rule), live COVER badge re-anchoring during drag, remove-X disabled while dragging, 220ms long-press. Required bumping `react-native-reanimated` 4.1.7→4.3.1 and `react-native-worklets` 0.5→0.8 (native modules) so this is a binary rebuild, not OTA-eligible from the current preview binary. DFL retained in `package.json` because legacy V1 memorabilia flow still consumes it. Founder action: dev-client validate on iOS + Android, merge, `eas build --profile preview`, 24h soak. **Prior wave (2026-05-24):** keyboard wrapper system shipped (23 surfaces migrated), upload state-leak fix, native PHPicker swap-in (custom picker retired). Next-up tracks: (a) V1 memorabilia → `PhotoReorderGrid` cleanup, (b) Sentry-instrument the 97% upload hang, (c) Upload Lane Chunks B-D. Detail in `CURRENT_STATE.md`.
 
 ## Critical Constraints (must respect)
 
@@ -28,9 +28,12 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - **After any DDL change, run `NOTIFY pgrst, 'reload schema'`** or PostgREST will silently fail on the new entity.
 - Managed showcase evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep.
 - Do not hardcode secrets — use `EXPO_PUBLIC_*` env vars; keep `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Vault.
-- `upload-entry.tsx` holds the full upload-flow state machine — changes cascade to review, finalize, rapid-fire, and extraction overlay simultaneously.
-- `FramedHero`, `CollectionSurface`, `QRCodeModal`, `SearchBar` are multi-consumer shared components — breaking their prop interfaces cascades to 5+ surfaces.
-- Do NOT use `ImagePicker.launchImageLibraryAsync` for photo library — use custom `PhotoLibraryPicker` component (expo-notifications breaks native picker delegates for iCloud/HEIC photos).
+- `upload-entry.tsx` holds the full upload-flow state machine — changes cascade to review, finalize, rapid-fire, photo grid, and extraction overlay simultaneously.
+- `FramedHero`, `CollectionSurface`, `QRCodeModal`, `SearchBar`, **`PhotoReorderGrid`**, and the three `KeyboardSafe*` wrappers are multi-consumer shared components — breaking their prop interfaces cascades to 5+ surfaces.
+- **Keyboard handling uses `KeyboardSafeScroll` / `KeyboardSafeSheet` / `KeyboardSafeComposer` wrappers (from `@/components/vault`), NOT raw `KeyboardAvoidingView`.** 23 surfaces migrated 2026-05-24.
+- **Photo library picker is now native `PHPickerViewController` via `ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection, orderedSelection: true })`.** Custom `photo-library-picker.tsx` retired 2026-05-24 (evening); see DECISION_LOG and OPEN_THREADS for rollback path if hang regression recurs.
+- **Multi-photo reorder = `<PhotoReorderGrid />`** from `@/components/vault` (built on `react-native-reanimated-dnd@^2.0.0`). NEVER reach for the underlying drag library directly; the primitive owns the lift visual, COVER live-anchor, remove-X disable, haptics, and 220ms long-press. Current consumer: upload Scan step. Future consumers: Batch Lane Review tab, edit-existing-photos UI.
+- **Cross-platform consistency first**: when a UI decision has multiple valid implementations, pick the one that renders identically on iOS and Android. Drop shadows / `elevation` are PROHIBITED in new "elevated"/"lifted"/"selected" visuals — use inner-glow overlays + animated borders (the `PhotoReorderGrid` pattern). Full rule in `.cursor/rules/design-system-playbook.mdc`.
 
 ## Key Decisions (active)
 

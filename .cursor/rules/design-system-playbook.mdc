@@ -110,6 +110,27 @@ Raw hex, rgba, and pt numbers **do not appear at call sites in new V3 code**. Us
 
 Exceptions: screen-local constants that are genuinely one-screen geometry (e.g., a specific hero aspect ratio, a one-off animation duration) can stay local to the screen file with a comment explaining why it isn't a token.
 
+## Cross-Platform Consistency First
+
+When a styling or interaction decision has multiple valid implementations, **pick the one that renders identically on iOS and Android over platform-branched alternatives**. The more consistent the experience across both platforms, the better the design. Platform-specific code is acceptable only when the same outcome is genuinely unachievable any other way (e.g., true safe-area math, true keyboard avoidance) — never as a styling convenience.
+
+Canonical applications of this rule:
+
+- **No shadows / elevation in "lifted" / "selected" / "active" visuals.** iOS `shadowOpacity` and Android `elevation` produce different aesthetics, require different tuning, and degrade in dark themes inconsistently. Use the `PhotoReorderGrid` pattern instead: an animated inner-glow overlay (`rgba(255,255,255,0.06)` over the surface) plus an animated border color/width transition (frostBorder → brandVolt, 1px → 2px) via `withTiming(120)`. This reads identically on both platforms and works in dark + light.
+- **Spring + timing animations from `react-native-reanimated` are preferred** over `LayoutAnimation` (iOS-only quirks) and `Animated` legacy API (renderer-thread, jank-prone).
+- **Haptics via `expo-haptics`** (cross-platform abstraction) rather than `Vibration.vibrate(pattern)` (Android-leaning patterns) or raw `UIImpactFeedbackGenerator` bridging.
+- **Long-press / gesture activation** through `react-native-gesture-handler` (or libraries built on it) instead of `onLongPress` (which has a different default delay and feedback per platform).
+
+If you find yourself reaching for `Platform.select({ ios: ..., android: ... })` for a visual property, stop and look for a single solution that satisfies the design intent on both platforms — usually it exists.
+
+Exceptions worth keeping platform-branched (acknowledge in code comments):
+
+- Safe-area inset math (`useSafeAreaInsets()` already abstracts this).
+- Keyboard handling (`react-native-keyboard-controller` already abstracts this).
+- Status bar style + back-gesture chrome.
+
+Everything else: one implementation, both platforms.
+
 ## Prohibitions
 
 Do not:
