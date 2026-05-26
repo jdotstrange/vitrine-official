@@ -30,13 +30,8 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import DraggableFlatList, {
-  ScaleDecorator,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -46,7 +41,6 @@ import {
   ChevronLeft,
   ChevronDown,
   Eye,
-  ImagePlus,
   Headphones,
   Lock,
   Pencil,
@@ -61,6 +55,7 @@ import {
   Button,
   HolographicFrame,
   InputDialog,
+  PhotoReorderGrid,
   RapidFireEdit,
   SchemaRow,
   ShowcaseSelectorSheet,
@@ -1002,10 +997,6 @@ function getStepTitle(step: UploadStep): string {
 // Step 1 — Scan (single viewport, real picker)
 // ---------------------------------------------------------------------------
 
-type GridItem =
-  | { kind: 'photo'; photo: PhotoAsset }
-  | { kind: 'add' };
-
 function ScanStep({
   photos,
   context,
@@ -1029,113 +1020,6 @@ function ScanStep({
 }) {
   const { colors } = useTheme();
 
-  // Dynamic-grid data model: filled photos followed by a single trailing
-  // "+ Add" sentinel when count < 6. Matches the iOS Mail / iMessage /
-  // Notes photo-attach pattern (no pre-rendered empty placeholders;
-  // the grid grows as photos are added). DraggableFlatList drives the
-  // visual reorder and we filter out the sentinel before committing.
-  const gridData = useMemo<GridItem[]>(() => {
-    const items: GridItem[] = photos.map((photo) => ({ kind: 'photo' as const, photo }));
-    if (photos.length < 6) items.push({ kind: 'add' as const });
-    return items;
-  }, [photos]);
-
-  const gridKey = useCallback(
-    (item: GridItem) => (item.kind === 'photo' ? item.photo.id : '__add__'),
-    [],
-  );
-
-  const handleDragEnd = useCallback(
-    ({ data }: { data: GridItem[] }) => {
-      const next: PhotoAsset[] = data
-        .filter((d): d is { kind: 'photo'; photo: PhotoAsset } => d.kind === 'photo')
-        .map((d) => d.photo);
-      const unchanged =
-        next.length === photos.length && next.every((p, i) => p.id === photos[i]?.id);
-      if (unchanged) return;
-      onReorderPhotos(next);
-    },
-    [photos, onReorderPhotos],
-  );
-
-  const renderGridItem = useCallback(
-    ({ item, drag, isActive, getIndex }: RenderItemParams<GridItem>) => {
-      if (item.kind === 'add') {
-        return (
-          <Pressable
-            onPress={onPickPhotos}
-            style={[
-              styles.emptyTile,
-              { borderColor: colors.frostBorderStrong, backgroundColor: colors.sheetBg },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Add photo. ${6 - photos.length} of 6 slots remaining.`}
-          >
-            <ImagePlus size={20} color={colors.textTertiary} strokeWidth={1.6} />
-          </Pressable>
-        );
-      }
-      const index = getIndex() ?? 0;
-      const isCover = index === 0;
-      return (
-        <ScaleDecorator activeScale={1.06}>
-          <Pressable
-            onLongPress={drag}
-            disabled={isActive}
-            delayLongPress={220}
-            style={[
-              styles.photoTile,
-              { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg },
-              isCover && { borderColor: colors.brandVoltBorder, borderWidth: 1.5 },
-              // Drag-active state. Painted inline so it can read
-              // `colors.brandVolt` (theme-aware: warm ivory dark /
-              // warm gray-brown light). Hardcoding the legacy neon
-              // green here was the visual clash the founder flagged.
-              isActive && {
-                borderColor: colors.brandVolt,
-                borderWidth: 2,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.45,
-                shadowRadius: 16,
-                elevation: 12,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Photo ${index + 1}${isCover ? ', cover photo' : ''}. Long-press to reorder. Tap remove button to delete.`}
-          >
-            <Image source={{ uri: item.photo.uri }} style={styles.photoImage} contentFit="cover" />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.58)']}
-              locations={[0.45, 1]}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <Pressable
-              onPress={() => onRemovePhoto(item.photo.id)}
-              style={[styles.removeBadge, { borderColor: colors.frostBorder }]}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Remove photo"
-            >
-              <X size={12} color={colors.textPrimary} strokeWidth={2.5} />
-            </Pressable>
-            {isCover ? (
-              <View
-                style={[
-                  styles.coverBadge,
-                  { backgroundColor: colors.brandVoltFill, borderColor: colors.brandVoltBorder },
-                ]}
-              >
-                <Text style={[styles.coverBadgeText, { color: colors.brandVolt }]}>COVER</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </ScaleDecorator>
-      );
-    },
-    [colors, onPickPhotos, onRemovePhoto, photos.length],
-  );
-
   // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
   // padding) + an inner ScrollView for content + a docked footer (button)
   // *outside* the scroll. The KAV's padding behaviour shrinks the inner
@@ -1157,22 +1041,17 @@ function ScanStep({
         </Text>
       </View>
 
-      <View
-        style={[styles.photoGrid, isUploading && { opacity: 0.5 }]}
-        pointerEvents={isUploading ? 'none' : 'auto'}
-      >
-        <DraggableFlatList<GridItem>
-          data={gridData}
-          keyExtractor={gridKey}
-          renderItem={renderGridItem}
-          onDragEnd={handleDragEnd}
-          onDragBegin={() => Haptics.selectionAsync()}
-          onPlaceholderIndexChange={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-          numColumns={3}
-          scrollEnabled={false}
-          activationDistance={6}
-          containerStyle={styles.photoGridList}
-          columnWrapperStyle={styles.photoGridRow}
+      {/* Multi-photo reorder primitive — the canonical V3 surface for
+          this need. See apps/native/components/vault/photo-reorder-grid.tsx
+          for the lift visual, COVER live-anchor, haptic, and "+ sentinel"
+          behavior. Per-tile long-press 220ms to drag. */}
+      <View style={styles.photoGrid}>
+        <PhotoReorderGrid
+          photos={photos}
+          onReorder={onReorderPhotos}
+          onRemove={onRemovePhoto}
+          onAddMore={onPickPhotos}
+          disabled={isUploading}
         />
       </View>
 
@@ -2410,10 +2289,6 @@ function SuccessStep({
 // ---------------------------------------------------------------------------
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const GRID_GAP = 10;
-const GRID_COLS = 3;
-const GRID_H_PAD = SPACING.gutter * 2;
-const TILE_WIDTH = (SCREEN_WIDTH - GRID_H_PAD - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
 
 // ---------------------------------------------------------------------------
 // Styles
@@ -2496,67 +2371,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   scanSubtitleMuted: {},
-  // Wrapper for the DraggableFlatList grid. Layout (row gap, column gap,
-  // numColumns) is driven by DFL itself via photoGridList +
-  // photoGridRow below — we just give it top margin and a flexible
-  // height so the list can grow as photos accumulate.
+  // Wrapper for the <PhotoReorderGrid /> primitive. The primitive owns
+  // all the tile / lift / COVER / remove-X styling; this wrapper just
+  // supplies the top margin that anchors the grid below the title.
   photoGrid: {
     marginTop: 16,
-  },
-  photoGridList: {
-    // DraggableFlatList renders a FlatList internally; no extra config
-    // needed here, but the key exists so we can target it cleanly later
-    // (e.g., if we ever need an outline / inner padding).
-  },
-  photoGridRow: {
-    gap: 10,
-    marginBottom: 10,
-  },
-  photoTile: {
-    width: TILE_WIDTH,
-    height: TILE_WIDTH * (5 / 4),
-    borderRadius: RADII.medium,
-    overflow: 'hidden',
-    borderWidth: 1,
-  },
-  photoImage: { ...StyleSheet.absoluteFillObject },
-  // "COVER" badge — sits at the bottom-left of photo[0] so the cover
-  // photo is unambiguous after a drag-reorder. Uses brandVoltFill so it
-  // reads at a glance against the dark photo gradient.
-  coverBadge: {
-    position: 'absolute',
-    left: 8,
-    bottom: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADII.pill,
-    borderWidth: 1,
-  },
-  coverBadgeText: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 9,
-    letterSpacing: 1.2,
-  },
-  removeBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTile: {
-    width: TILE_WIDTH,
-    height: TILE_WIDTH * (5 / 4),
-    borderRadius: RADII.medium,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   contextBlock: { gap: 8, marginTop: 16 },
   contextLabel: { fontFamily: TYPE.groteskBold, fontSize: 13 },
