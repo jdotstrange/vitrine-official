@@ -1,7 +1,21 @@
 # Decision Log
 
-Last updated: 2026-05-26
-Last verified: 2026-05-26
+Last updated: 2026-05-27
+Last verified: 2026-05-27
+
+## Decision: Assembly UI is dossier seals (Direction B), not a utilitarian progress screen
+- Reason: v1 Assembly (shelf + linear bar + `2 of 6` counter) read as infrastructure, not closure. Direction B uses a frosted dossier card, blur-to-sharp filmstrip, ledger row seals, and a volt border + `BOUND` kicker swap so the beat reads as "this piece is now yours in the vault" — distinct from Theater's analytical HUD.
+- Alternatives Considered: (A) Keep v1 shelf — rejected after founder review; (B) HolographicFrame continuity from Theater — rejected (too similar to Theater); (C) Frosted card + filmstrip + ledger rows + volt seal — selected; (D) VAULT stamp under card — rejected (less is more).
+- Status: Active. Shipped 2026-05-27 (Assembly B OTA).
+- Files Or Areas Affected: `apps/native/components/upload/assembly-step.tsx`, `apps/native/components/upload-entry.tsx` (`title` prop).
+- Notes: Display row (`Mounting display`) is the only row gated on real variant work; other rows use cosmetic stagger capped by `MIN_TOTAL_MS`. Theater cap/sprint is a separate OTA.
+
+## Decision: Image variants are generated in Assembly, not at Identify (Looking Glass path stays variant-free)
+- Reason: `generateVariantsBackground` at Identify launched up to 18 parallel resize+upload jobs that continued through Theater 1 and into the next upload's Identify — the realistic source of back-to-back single-lane uploads feeling stuck/slow at the cosmetic 97% ring. Looking Glass extraction only consumes original URLs, so deferring variants does not affect extraction quality.
+- Alternatives Considered: (A) Keep background variants at Identify with a lower concurrency cap only — rejected, still overlaps Theater polling and the next upload's Identify; (B) Defer all variants to a gated Assembly step after Finalize commit — selected; (C) Regenerate variants on app relaunch only — rejected, grid thumbnails would 404 until then.
+- Status: Active. Shipped 2026-05-27 (pending founder dev-client validation + preview OTA soak).
+- Files Or Areas Affected: `apps/native/lib/image-utils.ts` (`generateVariants`, `assemblyVariants`, `uploadOriginalOnly` comment), `apps/native/components/upload/assembly-step.tsx`, `apps/native/components/upload-entry.tsx`, `apps/native/components/detail/framed-hero.tsx` (`displaySize` for upload Review/Finalize).
+- Notes: `uploadWithVariants` (avatar, legacy collectibles, trading-cards) remains inline — out of scope. Assembly hard-skips on empty work or 45s timeout (proceeds to Success; Sentry breadcrumb `assembly_complete`). Variant backfill after timeout is tracked in OPEN_THREADS.
 
 ## Decision: `PhotoReorderGrid` is the canonical multi-photo reorder primitive (built on `react-native-reanimated-dnd@^2.0.0`)
 - Reason: The upload-flow photo grid needed a Layer-2 polish (drop indicator + items-shuffle-aside motion) that DFL couldn't deliver without crashing (see the May 24 crash chain). Migrating the upload grid alone would have left the same UX gap on every FUTURE multi-photo surface — Upload Lane Chunk B (Batch Lane Review tab), the eventual edit-existing-collectible-photos surface, possibly bug-report multi-image attach. Extracting the implementation into `apps/native/components/vault/photo-reorder-grid.tsx` (a `<PhotoReorderGrid>` primitive in the vault barrel) locks the interface against the highest-value future consumer right now and prevents the copy-paste drift class that produced the DFL crash chain.

@@ -28,7 +28,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - **After any DDL change, run `NOTIFY pgrst, 'reload schema'`** or PostgREST will silently fail on the new entity.
 - Managed showcase evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep.
 - Do not hardcode secrets — use `EXPO_PUBLIC_*` env vars; keep `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Vault.
-- `upload-entry.tsx` holds the full upload-flow state machine — changes cascade to review, finalize, rapid-fire, photo grid, and extraction overlay simultaneously.
+- `upload-entry.tsx` holds the full upload-flow state machine (Scan → Theater → Review → Finalize → **Assembly** → Success) — changes cascade to review, finalize, assembly variants, rapid-fire, photo grid, and extraction overlay simultaneously. **Do not fire variants at Identify** — `variantWork` → `AssemblyStep` (dossier seals: filmstrip + ledger rows + `BINDING TO VAULT` → `BOUND`) → `assemblyVariants()`.
 - `FramedHero`, `CollectionSurface`, `QRCodeModal`, `SearchBar`, **`PhotoReorderGrid`**, and the three `KeyboardSafe*` wrappers are multi-consumer shared components — breaking their prop interfaces cascades to 5+ surfaces.
 - **Keyboard handling uses `KeyboardSafeScroll` / `KeyboardSafeSheet` / `KeyboardSafeComposer` wrappers (from `@/components/vault`), NOT raw `KeyboardAvoidingView`.** 23 surfaces migrated 2026-05-24.
 - **Photo library picker is now native `PHPickerViewController` via `ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection, orderedSelection: true })`.** Custom `photo-library-picker.tsx` retired 2026-05-24 (evening); see DECISION_LOG and OPEN_THREADS for rollback path if hang regression recurs.

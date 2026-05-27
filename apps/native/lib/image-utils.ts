@@ -172,10 +172,21 @@ export async function uploadWithVariants(
   return { url: publicUrl, storagePath: uploadData.path };
 }
 
+export interface VariantWorkJob {
+  storagePath: string;
+  compressedUri: string;
+}
+
+export interface GenerateVariantsResult {
+  uploaded: number;
+  failed: number;
+  /** True when the 400px card variant uploaded successfully (grid thumbnails). */
+  hasCardVariant: boolean;
+}
+
 /**
  * Upload only the compressed original — no variants. Returns the compressedUri
- * so the caller can fire generateVariantsBackground() separately without
- * re-compressing.
+ * so the caller can run generateVariants() later in Assembly without re-compressing.
  */
 export async function uploadOriginalOnly(
   bucket: string,
@@ -210,6 +221,68 @@ export async function uploadOriginalOnly(
   return { url: urlData.publicUrl, storagePath: jpgPath, compressedUri };
 }
 
+async function uploadVariantWidth(
+  bucket: string,
+  storagePath: string,
+  compressedUri: string,
+  width: number,
+  upsert: boolean,
+): Promise<boolean> {
+  try {
+    const resizedUri = await resizeImage(compressedUri, width);
+    const variantBytes = await readUriAsArrayBuffer(resizedUri);
+    if (variantBytes.byteLength === 0) {
+      log.warn(`Variant ${width}px produced 0 bytes, skipping`);
+      return false;
+    }
+    const vPath = variantPath(storagePath, width);
+
+    const { error } = await supabase.storage.from(bucket).upload(vPath, variantBytes, {
+      contentType: 'image/jpeg',
+      upsert,
+    });
+
+    if (error) {
+      log.warn(`Variant ${width}px upload failed:`, error.message);
+      return false;
+    }
+
+    log.debug(`Variant ${width}px uploaded:`, vPath);
+    return true;
+  } catch (err) {
+    log.warn(`Variant ${width}px generation failed:`, err);
+    return false;
+  }
+}
+
+/**
+ * Generate and upload all size variants for an already-compressed image.
+ * Best-effort per width — never throws.
+ */
+export async function generateVariants(
+  bucket: string,
+  storagePath: string,
+  compressedUri: string,
+  options?: { upsert?: boolean },
+): Promise<GenerateVariantsResult> {
+  const upsert = options?.upsert ?? false;
+  let uploaded = 0;
+  let failed = 0;
+  let hasCardVariant = false;
+
+  for (const width of VARIANT_WIDTHS) {
+    const ok = await uploadVariantWidth(bucket, storagePath, compressedUri, width, upsert);
+    if (ok) {
+      uploaded += 1;
+      if (width === IMAGE_SIZES.card) hasCardVariant = true;
+    } else {
+      failed += 1;
+    }
+  }
+
+  return { uploaded, failed, hasCardVariant };
+}
+
 /**
  * Generate and upload size variants for an already-compressed image.
  * Fire-and-forget — logs failures but never throws.
@@ -220,36 +293,100 @@ export function generateVariantsBackground(
   compressedUri: string,
   options?: { upsert?: boolean },
 ): void {
-  const variantJobs = VARIANT_WIDTHS.map(async (width) => {
-    try {
-      const resizedUri = await resizeImage(compressedUri, width);
-      const variantBytes = await readUriAsArrayBuffer(resizedUri);
-      if (variantBytes.byteLength === 0) {
-        log.warn(`Variant ${width}px produced 0 bytes, skipping`);
-        return;
-      }
-      const vPath = variantPath(storagePath, width);
+  void generateVariants(bucket, storagePath, compressedUri, options).then((result) => {
+    log.info('Background variants complete for:', storagePath, result);
+  });
+}
 
-      const { error } = await supabase.storage
-        .from(bucket)
-        .upload(vPath, variantBytes, {
-          contentType: 'image/jpeg',
-          upsert: options?.upsert ?? false,
-        });
+export interface AssemblyVariantsOptions {
+  upsert?: boolean;
+  /** Max concurrent resize+upload tasks across all photos (default 4). */
+  concurrency?: number;
+  /** Fired once per photo when its card (_400) variant is ready (or best-effort complete). */
+  onPhotoComplete?: (photoIndex: number) => void;
+}
 
-      if (error) {
-        log.warn(`BG variant ${width}px upload failed:`, error.message);
+type VariantTask = {
+  photoIndex: number;
+  width: number;
+  job: VariantWorkJob;
+};
+
+/**
+ * Run variant generation for many photos with a bounded worker pool.
+ * Used by the upload Assembly step so back-to-back uploads start on a quiet device.
+ */
+export async function assemblyVariants(
+  bucket: string,
+  jobs: VariantWorkJob[],
+  options?: AssemblyVariantsOptions,
+): Promise<{ completed: number; failed: number; durationMs: number }> {
+  const started = Date.now();
+  const upsert = options?.upsert ?? false;
+  const concurrency = options?.concurrency ?? 4;
+  const onPhotoComplete = options?.onPhotoComplete;
+
+  if (jobs.length === 0) {
+    return { completed: 0, failed: 0, durationMs: 0 };
+  }
+
+  const tasks: VariantTask[] = jobs.flatMap((job, photoIndex) =>
+    VARIANT_WIDTHS.map((width) => ({ photoIndex, width, job })),
+  );
+
+  const cardDone = new Set<number>();
+  const photoHasCard = new Map<number, boolean>();
+  let completed = 0;
+  let failed = 0;
+
+  const maybeNotifyPhoto = (photoIndex: number) => {
+    if (!onPhotoComplete || cardDone.has(photoIndex)) return;
+    if (!photoHasCard.get(photoIndex)) return;
+    cardDone.add(photoIndex);
+    onPhotoComplete(photoIndex);
+  };
+
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < tasks.length) {
+      const index = cursor;
+      cursor += 1;
+      const task = tasks[index];
+      if (!task) break;
+
+      const ok = await uploadVariantWidth(
+        bucket,
+        task.job.storagePath,
+        task.job.compressedUri,
+        task.width,
+        upsert,
+      );
+
+      if (ok) {
+        completed += 1;
+        if (task.width === IMAGE_SIZES.card) {
+          photoHasCard.set(task.photoIndex, true);
+          maybeNotifyPhoto(task.photoIndex);
+        }
       } else {
-        log.debug(`BG variant ${width}px uploaded:`, vPath);
+        failed += 1;
       }
-    } catch (err) {
-      log.warn(`BG variant ${width}px generation failed:`, err);
     }
-  });
+  }
 
-  Promise.allSettled(variantJobs).then(() => {
-    log.info('Background variants complete for:', storagePath);
-  });
+  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
+  await Promise.all(workers);
+
+  // Photos whose card variant failed but other widths succeeded — still advance UI.
+  for (let i = 0; i < jobs.length; i += 1) {
+    if (!cardDone.has(i)) {
+      cardDone.add(i);
+      onPhotoComplete?.(i);
+    }
+  }
+
+  return { completed, failed, durationMs: Date.now() - started };
 }
 
 /**

@@ -60,9 +60,19 @@ export interface FramedHeroProps {
    * true. Set false when the parent already handles zoom interactions.
    */
   enableLightbox?: boolean;
+  /**
+   * Controls which pre-generated variant width getOptimizedUrl targets.
+   * Use `full` during upload Review/Finalize when variants are not built yet.
+   */
+  displaySize?: keyof typeof IMAGE_SIZES;
 }
 
-export function FramedHero({ images, enableLightbox = true }: FramedHeroProps) {
+export function FramedHero({
+  images,
+  enableLightbox = true,
+  displaySize = 'detail',
+}: FramedHeroProps) {
+  const transformWidth = IMAGE_SIZES[displaySize];
   const { colors } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -115,7 +125,7 @@ export function FramedHero({ images, enableLightbox = true }: FramedHeroProps) {
               {img ? (
                 <>
                   <Image
-                    source={{ uri: getOptimizedUrl(img, IMAGE_SIZES.detail) }}
+                    source={{ uri: getOptimizedUrl(img, transformWidth) }}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     blurRadius={50}
@@ -123,7 +133,7 @@ export function FramedHero({ images, enableLightbox = true }: FramedHeroProps) {
                   />
                   <View style={styles.heroDarkenOverlay} pointerEvents="none" />
                   <Image
-                    source={{ uri: getOptimizedUrl(img, IMAGE_SIZES.detail) }}
+                    source={{ uri: getOptimizedUrl(img, transformWidth) }}
                     style={StyleSheet.absoluteFill}
                     contentFit="contain"
                     transition={200}
@@ -164,6 +174,7 @@ export function FramedHero({ images, enableLightbox = true }: FramedHeroProps) {
           visible={lightboxOpen}
           images={images}
           startIndex={activeIndex}
+          displaySize={displaySize}
           onClose={() => setLightboxOpen(false)}
         />
       ) : null}
@@ -179,13 +190,16 @@ function Lightbox({
   visible,
   images,
   startIndex,
+  displaySize,
   onClose,
 }: {
   visible: boolean;
   images: string[];
   startIndex: number;
+  displaySize: keyof typeof IMAGE_SIZES;
   onClose: () => void;
 }) {
+  const transformWidth = IMAGE_SIZES[displaySize];
   const { colors } = useTheme();
   const [scrollViewRef, setScrollViewRef] = useState<ScrollView | null>(null);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
@@ -238,7 +252,7 @@ function Lightbox({
               accessibilityLabel="Close full-size view"
             >
               <Image
-                source={{ uri: getOptimizedUrl(img, IMAGE_SIZES.detail) }}
+                source={{ uri: getOptimizedUrl(img, transformWidth) }}
                 style={StyleSheet.absoluteFill}
                 contentFit="contain"
                 transition={150}

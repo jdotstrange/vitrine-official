@@ -71,14 +71,15 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { getUserShowcases } from '@/lib/api/showcases';
 import { createDraftCollectible, updateExtractionJobId, commitDraftCollectible, deleteCollectible } from '@/lib/api/collectibles';
 import { enqueueExtraction, pollJobStatus, type ExtractionStatus } from '@/lib/api/extraction';
-import { uploadOriginalOnly, generateVariantsBackground } from '@/lib/image-utils';
+import { uploadOriginalOnly, type VariantWorkJob } from '@/lib/image-utils';
+import { AssemblyStep } from '@/components/upload/assembly-step';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UploadStep = 'scan' | 'theater' | 'review' | 'finalize' | 'success' | 'failed';
+type UploadStep = 'scan' | 'theater' | 'review' | 'finalize' | 'assembly' | 'success' | 'failed';
 type PhotoAsset = { id: string; uri: string };
 
 type FieldSchema = Record<string, { type: string; description: string }>;
@@ -171,6 +172,9 @@ export function UploadEntry() {
 
   // Upload / scan screen loading
   const [isUploading, setIsUploading] = useState(false);
+
+  // Deferred variant jobs — populated at Identify, consumed in Assembly.
+  const [variantWork, setVariantWork] = useState<VariantWorkJob[]>([]);
 
   // Theater HUD cosmetic state
   const [completedSteps, setCompletedSteps] = useState(0);
@@ -423,9 +427,12 @@ export function UploadEntry() {
       );
       const uploadedUrls = uploadResults.map((r) => r.url);
 
-      for (const r of uploadResults) {
-        generateVariantsBackground('collectible-images', r.storagePath, r.compressedUri);
-      }
+      setVariantWork(
+        uploadResults.map((r) => ({
+          storagePath: r.storagePath,
+          compressedUri: r.compressedUri,
+        })),
+      );
 
       const title = context.trim() || 'New Collectible';
       const collectibleId = await createDraftCollectible(user.id, {
@@ -628,6 +635,7 @@ export function UploadEntry() {
     setStatus('NFST');
     setVisibility('public');
     setEstimatedValue('');
+    setVariantWork([]);
   }, [draftCollectibleId, user?.id]);
 
   // Auto-reset on tab blur. Whenever the user leaves the upload tab — whether
@@ -897,7 +905,7 @@ export function UploadEntry() {
                 });
                 setCommittedCollectibleId(draftCollectibleId);
                 setDraftCollectibleId(null);
-                setStep('success');
+                setStep('assembly');
               } catch (err) {
                 uploadLog.error('Commit failed:', err);
                 Alert.alert('Error', 'Failed to save collectible. Please try again.');
@@ -905,12 +913,18 @@ export function UploadEntry() {
             }}
           />
         </>
+      ) : step === 'assembly' ? (
+        <AssemblyStep
+          work={variantWork}
+          title={effectiveListingTitle}
+          onComplete={() => setStep('success')}
+        />
       ) : step === 'failed' ? (
         <FailedStep
           onStartOver={resetFlow}
           onGetSupport={() => router.push('/settings/support' as Href)}
         />
-      ) : (
+      ) : step === 'success' ? (
         <SuccessStep
           extraction={effectiveExtraction}
           onAddAnother={resetFlow}
@@ -922,7 +936,7 @@ export function UploadEntry() {
             }
           }}
         />
-      )}
+      ) : null}
 
       <View style={{ height: insets.bottom + 10 }} />
 
@@ -988,6 +1002,7 @@ function getStepTitle(step: UploadStep): string {
     case 'theater': return 'Processing';
     case 'review': return 'Review';
     case 'finalize': return 'Preferences';
+    case 'assembly': return 'Collection';
     case 'failed': return 'Error';
     case 'success': return 'Saved';
   }
@@ -1727,7 +1742,7 @@ function ReviewStep({
         {/* Hero — same FramedHero used on the production CollectibleDetail
             DETAILS lens. Identical chrome, identical lightbox, gives the
             user a 1:1 preview of where this item lands post-commit. */}
-        <FramedHero images={images} />
+        <FramedHero images={images} displaySize="full" />
 
         {/* Identity block — pills above title (matches DETAILS lens
             ordering), title + description rendered as inline editable

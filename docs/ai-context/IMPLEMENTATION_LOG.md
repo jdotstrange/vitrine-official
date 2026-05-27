@@ -1,7 +1,23 @@
 # Implementation Log
 
-Last updated: 2026-05-26
-Last verified: 2026-05-26
+Last updated: 2026-05-27
+Last verified: 2026-05-27
+
+## 2026-05-27 — Upload Assembly step + deferred image variants
+
+- Summary: Decoupled image-variant generation from the Identify/Theater path. Variants no longer fire via `generateVariantsBackground` immediately after originals upload; they run in a new **Assembly** step after Finalize commit and before Success. `assemblyVariants()` caps concurrent resize+upload work (default 4). Upload Review/Finalize `FramedHero` uses `displaySize="full"` so heroes render originals until variants exist.
+- Files changed:
+  - `apps/native/lib/image-utils.ts` — `generateVariants()` (awaited), `assemblyVariants()` (worker pool), `generateVariantsBackground` delegates to `generateVariants`; `VariantWorkJob` type exported.
+  - `apps/native/components/detail/framed-hero.tsx` — optional `displaySize` prop (default `'detail'`).
+  - `apps/native/components/upload/assembly-step.tsx` (new) — v1 shelf + progress bar; **v2 (Assembly B)** replaced with dossier seals UI (see sub-entry below).
+  - `apps/native/components/upload-entry.tsx` — `UploadStep` adds `'assembly'`; `variantWork` state; Identify populates work, `resetFlow` clears; Finalize → Assembly → Success; passes `title` into Assembly.
+- Rollout: **OTA-eligible** (JS-only, no native/`runtimeVersion` change). Founder dev-client validation + `eas update --channel preview` soak before production.
+- Notes: `uploadWithVariants` consumers (avatar, legacy collectibles, trading-cards) unchanged. Theater 1 / extraction reliability work remains a separate thread.
+
+### Assembly B — Dossier seals (same day, second OTA)
+
+- Summary: Replaced v1 shelf/progress-bar Assembly with **Direction B**: frosted card on void + faint scanlines, `BINDING TO VAULT` → `BOUND` kicker swap, listing title header, overlapping blur-to-sharp photo filmstrip (volt border on seal), four ledger rows with variable-tempo cosmetic stagger (identity 200ms, classification 600ms, display earliest 1350ms gated on real `assemblyVariants` completion, ledger +900ms after display). Closing beat: 1→2px brandVolt border + inner glow (PhotoReorderGrid family, no shadow). `MIN_TOTAL_MS` 2.6s floor. Reduce Motion: instant border/kicker, haptics unchanged. 45s timeout → silent Success (unchanged).
+- Files: `apps/native/components/upload/assembly-step.tsx` (rewrite), `upload-entry.tsx` (`title={effectiveListingTitle}`).
 
 ## 2026-05-26 — Drag-Reorder V2 Migration + PhotoReorderGrid extraction
 
