@@ -27,9 +27,12 @@ import * as Haptics from 'expo-haptics';
  * bridging tap + swipe through the parent's setter.
  *
  * Gesture contract:
- *   - activeOffsetX [-12, 12] — requires clear horizontal intent before
- *     claiming the gesture. Leaves room for iOS edge-back swipe and
- *     vertical scroll-through inside each page.
+ *   - activeOffsetX [-12, 12] on pages 1..N — bidirectional lens swipes.
+ *   - On page 0 only, activeOffsetX [-12, ∞] — pager claims leftward swipes
+ *     (next lens) but never rightward swipes, so the stack edge-back gesture
+ *     is not stolen in the content band. There is no lens −1; rightward drag
+ *     is reserved for navigation pop.
+ *   - failOffsetY [-20, 20] — yields to vertical scroll inside each page.
  *   - Track translateX is clamped to [-(N-1)*width, 0] so overscroll at
  *     the ends is impossible; no rubber-band needed.
  *   - Commit threshold: velocity > 500 in a direction OR displacement >
@@ -55,6 +58,8 @@ import * as Haptics from 'expo-haptics';
 
 const PAGER_EASING = Easing.bezier(0.32, 0.72, 0, 1);
 const PAGER_TIMING = { duration: 280, easing: PAGER_EASING } as const;
+/** Pan never activates on rightward drag at this threshold (page 0 only). */
+const FIRST_PAGE_RIGHT_ACTIVE_OFFSET = 1_000_000;
 
 export interface LensPagerHandle {
   setPage: (index: number, animated?: boolean) => void;
@@ -160,10 +165,11 @@ export const LensPager = forwardRef<LensPagerHandle, LensPagerProps>(
     const pan = useMemo(
       () =>
         Gesture.Pan()
-          // Require 12pt of horizontal movement before claiming the
-          // gesture. This yields to vertical scrolls and leaves room
-          // for iOS edge-back.
-          .activeOffsetX([-12, 12])
+          // Page 0: only leftward movement activates the pager (next lens).
+          // Rightward movement is left for the stack edge-back pop gesture.
+          .activeOffsetX(
+            index === 0 ? [-12, FIRST_PAGE_RIGHT_ACTIVE_OFFSET] : [-12, 12]
+          )
           .failOffsetY([-20, 20])
           .onStart(() => {
             startX.value = translateX.value;

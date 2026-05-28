@@ -82,12 +82,11 @@ const log = logger.create('CollectibleDetailV3');
  * The dock persists across all six lenses by design — value + commit
  * are always within thumb reach, regardless of which surface is active.
  *
- * Back navigation: relies on the stock iOS edge-swipe-back gesture.
- * `LensPager`'s `activeOffsetX={[-12, 12]}` means the system gesture
- * recognizer wins on edge starts (the system claims tiny initial moves
- * before the pager's threshold trips), so we don't need an explicit
- * back button on the leftmost lens. Other lenses cycle via the pager
- * gesture as expected.
+ * Back navigation: stock edge-swipe-back on the DETAILS lens (page 0).
+ * `LensPager` uses asymmetric activation on page 0 — only leftward swipes
+ * claim the pager; rightward drags are left for the stack pop gesture, so
+ * we keep the selector as the top bar without a back chevron. Other lenses
+ * use bidirectional pager swipes as usual.
  */
 
 // ════════════════════════════════════════════════════════════════════
