@@ -122,12 +122,17 @@ interface ChecklistItem {
 const LISTING_TITLE_MAX = 90;
 const LISTING_DESCRIPTION_MAX = 420;
 
+/** Cosmetic Theater crawl — ring/photo/checklist; real exit is poll-driven. */
+const THEATER_COSMETIC_MS = 25_000;
+/** Cap below 100% so the ring never reads "almost done" while extraction is still running. */
+const THEATER_PROGRESS_CAP = 0.85;
+
 const CHECKLIST_ITEMS: ChecklistItem[] = [
-  { label: 'Visual calibration',  durationMs: 5000 },
-  { label: 'Object recognition',  durationMs: 5000 },
-  { label: 'Authentication scan', durationMs: 5000 },
-  { label: 'Provenance check',    durationMs: 5000 },
-  { label: 'Metadata extraction', durationMs: 10000 },
+  { label: 'Visual calibration',  durationMs: 4_000 },
+  { label: 'Object recognition',  durationMs: 4_000 },
+  { label: 'Authentication scan', durationMs: 4_000 },
+  { label: 'Provenance check',    durationMs: 4_000 },
+  { label: 'Metadata extraction', durationMs: 9_000 },
 ];
 
 const STATUS_OPTIONS: { key: ListingStatus; title: string; subtitle: string }[] = [
@@ -464,16 +469,19 @@ export function UploadEntry() {
     }
   }, [user?.id, photos, context]);
 
-  // --- Theater: start progress ring immediately on step transition ---
+  // --- Theater: linear ring crawl (starts once enqueue returns so duration can use ETA) ---
   useEffect(() => {
-    if (step !== 'theater') return;
+    if (step !== 'theater' || !extractionJobId) return;
+    const durationMs = THEATER_COSMETIC_MS;
     setCompletedSteps(0);
     progress.value = 0;
-    progress.value = withTiming(0.97, {
-      duration: 30000,
-      easing: Easing.inOut(Easing.quad),
+    progress.value = withTiming(THEATER_PROGRESS_CAP, {
+      duration: durationMs,
+      // Linear keeps steady motion — easeInOut races through the middle and
+      // parks at the cap early, which reads as "stuck at 90%".
+      easing: Easing.linear,
     });
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, extractionJobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Theater: 2s polling + cosmetic checklist (starts once upload completes) ---
   useEffect(() => {
@@ -821,6 +829,8 @@ export function UploadEntry() {
           completedSteps={completedSteps}
           progress={progress}
           extractionStatus={extractionStatus}
+          extractionJobId={extractionJobId}
+          cosmeticDurationMs={THEATER_COSMETIC_MS}
         />
       ) : step === 'review' && effectiveExtraction ? (
         <>
@@ -1110,39 +1120,50 @@ function TheaterStep({
   completedSteps,
   progress,
   extractionStatus,
+  extractionJobId,
+  cosmeticDurationMs,
 }: {
   photos: PhotoAsset[];
   completedSteps: number;
   progress: SharedValue<number>;
   extractionStatus: ExtractionStatus | null;
+  extractionJobId: string | null;
+  cosmeticDurationMs: number;
 }) {
   const { colors } = useTheme();
   const [percentText, setPercentText] = useState('0');
   const featuredPhoto = photos[0];
 
-  // Drive the percent label off the same shared value as the ring.
+  // Drive the percent label off the ring; floor + cap so "90%" never appears
+  // while we're still waiting on extraction (avoids stuck-at-90 misread).
+  const displayPercentCap = Math.floor(THEATER_PROGRESS_CAP * 100);
   useEffect(() => {
     const id = setInterval(() => {
-      const next = Math.round((progress.value ?? 0) * 100);
+      const raw = Math.floor((progress.value ?? 0) * 100);
+      const next =
+        extractionStatus === 'extracted' || extractionStatus === 'complete'
+          ? raw
+          : Math.min(raw, displayPercentCap);
       setPercentText((cur) => (cur === String(next) ? cur : String(next)));
     }, 100);
     return () => clearInterval(id);
-  }, [progress]);
+  }, [progress, extractionStatus, displayPercentCap]);
 
   // Hero reveal — the photo emerges from black as the ring climbs.
   // The whole image stack sits inside an Animated.View whose opacity
-  // climbs 0 → 0.5 over the 30s window, so the void shows through at
+  // climbs 0 → 0.5 over cosmeticDurationMs, so the void shows through at
   // the start (only the ring is visible) and the photo asymptotically
   // appears at half-strength — bright enough to identify, dim enough
   // for the ring + checklist to keep the spotlight.
   const revealOpacity = useSharedValue(0);
   useEffect(() => {
+    if (!extractionJobId) return;
     revealOpacity.value = 0;
     revealOpacity.value = withTiming(0.5, {
-      duration: 30000,
-      easing: Easing.inOut(Easing.quad),
+      duration: cosmeticDurationMs,
+      easing: Easing.linear,
     });
-  }, [revealOpacity]);
+  }, [revealOpacity, cosmeticDurationMs, extractionJobId]);
   useEffect(() => {
     if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
       revealOpacity.value = withTiming(0.5, { duration: 250 });
@@ -1151,15 +1172,16 @@ function TheaterStep({
   const revealStyle = useAnimatedStyle(() => ({ opacity: revealOpacity.value }));
 
   // Inside the reveal, the sharp image fades up over the blurred one so
-  // the photo also "loses focus" as it appears — same 30s window.
+  // the photo also "loses focus" as it appears — same cosmetic window.
   const sharpOpacity = useSharedValue(0);
   useEffect(() => {
+    if (!extractionJobId) return;
     sharpOpacity.value = 0;
     sharpOpacity.value = withTiming(1, {
-      duration: 30000,
-      easing: Easing.inOut(Easing.quad),
+      duration: cosmeticDurationMs,
+      easing: Easing.linear,
     });
-  }, [sharpOpacity]);
+  }, [sharpOpacity, cosmeticDurationMs, extractionJobId]);
   useEffect(() => {
     if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
       sharpOpacity.value = withTiming(1, { duration: 250 });
