@@ -3,6 +3,20 @@
 Last updated: 2026-05-27
 Last verified: 2026-05-27
 
+## 2026-05-27 — LensPager page-0 edge-back + Theater 25s pacing (preview OTAs)
+
+- Summary: **LensPager** — on page index `0` only, `activeOffsetX([-12, 1_000_000])` so the pager claims leftward swipes (next lens) but never rightward swipes, restoring iOS/Android stack edge-back in the collectible detail content band without adding a back chevron beside the display `LensSelector`. **Theater** — cosmetic ring/reveal/checklist retimed to 25s linear crawl capped at 85% until extraction completes; ring animation starts after `extractionJobId` exists (not on bare step transition); percent label uses `floor()` + cap so "90%" misread is avoided; poll success still sprints to 100%.
+- Files changed:
+  - `apps/native/components/vault/lens-pager.tsx` — `FIRST_PAGE_RIGHT_ACTIVE_OFFSET`, index-aware `activeOffsetX`, docblock gesture contract.
+  - `apps/native/components/collectible-detail-v3.tsx` — back-navigation comment aligned with asymmetric activation.
+  - `apps/native/components/upload-entry.tsx` — `THEATER_COSMETIC_MS = 25_000`, `THEATER_PROGRESS_CAP = 0.85`, checklist 4×4s + 9s, linear easing, `extractionJobId` gate on ring/reveal effects, `TheaterStep` percent cap props.
+- Git: `5d32845` (lens pager), `f09e891` (theater) on `main`, pushed to `origin/main`.
+- OTAs (channel `preview`, runtime `1`):
+  - Update group `a3610490-8612-4e9f-858f-ece6e2ca932b` — lens 0 edge-back.
+  - Update group `7356da1c-9b2c-4a34-b3d3-486c07796c54` — Theater pacing.
+- Validation: Founder dev-client — edge-back from middle of DETAILS lens works; lens 0 swipe-left → Specs; lens 1+ swipe-right → Details; vertical scroll in lenses unchanged. Theater pacing validated on dev client before OTA.
+- Notes: Collectible detail intentionally has **no visible back control** in the lens strip — product chrome is the display `LensSelector`. Do not "fix" back by adding a chevron without explicit design approval. `LensPager` on pages 1..N remains bidirectional `[-12, 12]`. Theater extraction-reliability thread (poll never completes) is unchanged — this OTA only fixes cosmetic pacing/cap behavior.
+
 ## 2026-05-27 — Upload Assembly step + deferred image variants
 
 - Summary: Decoupled image-variant generation from the Identify/Theater path. Variants no longer fire via `generateVariantsBackground` immediately after originals upload; they run in a new **Assembly** step after Finalize commit and before Success. `assemblyVariants()` caps concurrent resize+upload work (default 4). Upload Review/Finalize `FramedHero` uses `displaySize="full"` so heroes render originals until variants exist.
