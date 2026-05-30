@@ -1,61 +1,71 @@
 # Handoff
 
-Last updated: 2026-05-26
-Last verified: 2026-05-26
+Last updated: 2026-05-30
+Last verified: 2026-05-30
 
 ## Session Summary
-- **Drag-Reorder V2 migration** on branch `feature/drag-reorder-v2`: migrated the upload Scan-step photo grid from `react-native-draggable-flatlist` to `react-native-reanimated-dnd@^2.0.0` and extracted the implementation into the canonical `<PhotoReorderGrid />` vault primitive. Founder validated all 12 plan validation steps on dev client — lift/shuffle/COVER/remove-X/haptics/upload-flow regression all pass.
+- Shipped **LensPager page-0 edge-back fix** — asymmetric `activeOffsetX` so collectible detail keeps display `LensSelector` as top bar (no back chevron) while stack swipe-back works in the content band. Founder dev-client validated; committed `5d32845`; preview OTA `a3610490-8612-4e9f-858f-ece6e2ca932b`.
+- Shipped **Theater 25s linear / 85% cap** — ring/reveal after `extractionJobId`, linear easing, percent floor+cap until extraction done, poll sprint unchanged. Committed `f09e891`; preview OTA `7356da1c-9b2c-4a34-b3d3-486c07796c54`.
+- Prior on `main` (same sprint): Assembly dossier seals + deferred variants (`62d8222`, OTA earlier in week).
 
 ## Current State
-- **Branch `feature/drag-reorder-v2`** — implementation complete, founder dev-client validated, commits landing now. Not yet merged to `main`.
-- **Binary rebuild required** — bumped `react-native-reanimated` 4.1.7 → 4.3.1 and `react-native-worklets` 0.5 → 0.8 (native modules). Current preview binary cannot receive this via OTA alone. Next ship step: founder runs `eas build --profile preview` after merge.
-- **DFL retained** in `package.json` — legacy V1 memorabilia flow (`upload/memorabilia-core-form.tsx` → `upload/photo-grid.tsx`) still consumes it. Full DFL removal is a follow-up thread.
-- **Production / preview OTA** still at `cbc131b` on `main` until this branch merges and a new preview binary ships.
+- **`main` is current** with upload Assembly, LensPager gesture fix, and Theater pacing. Prior preview OTAs shipped on **runtime `1`**; **`runtimeVersion` bumped to `2`** in `app.json` so old binaries stop receiving incompatible JS.
+- **Collectible detail V3** — six lenses; back = edge swipe on DETAILS only (by design, no chevron in lens row).
+- **Preview binary cut in flight** — team on May 24 runtime-`1` installs cannot run `PhotoReorderGrid`; founder running `eas build --profile preview` after commit.
 
 ## Files Changed Recently
-- `apps/native/components/vault/photo-reorder-grid.tsx` (new) — canonical multi-photo reorder primitive (SortableGrid, lift visual, live COVER, remove-X disable, haptics, `+` sentinel).
-- `apps/native/components/vault/index.ts` — barrel export for `PhotoReorderGrid`, `PhotoReorderGridProps`, `PhotoAsset`.
-- `apps/native/components/upload-entry.tsx` — ScanStep now consumes `<PhotoReorderGrid />`; ~140 lines of inline DFL grid logic deleted.
-- `apps/native/package.json` + `pnpm-lock.yaml` — added `react-native-reanimated-dnd@^2.0.0`; bumped reanimated + worklets.
-- Memory docs + `.cursor/rules/design-system-playbook.mdc` — cross-platform-consistency-first principle, PhotoReorderGrid as canonical primitive, Layer-2 thread closed.
+- `apps/native/components/vault/lens-pager.tsx` — page-0 `activeOffsetX([-12, 1_000_000])`; docblock.
+- `apps/native/components/collectible-detail-v3.tsx` — back-navigation comment only.
+- `apps/native/components/upload-entry.tsx` — `THEATER_COSMETIC_MS`, `THEATER_PROGRESS_CAP`, linear Theater, checklist 25s, `extractionJobId` gates.
+- `apps/native/components/upload/assembly-step.tsx` — dossier seals (prior commit).
+- `apps/native/lib/image-utils.ts` — `assemblyVariants()` (prior commit).
 
 ## Incomplete Work
-- **Merge + preview binary** — commit, PR review, merge to `main`, then `eas build --profile preview` for team distribution.
-- **Migrate V1 memorabilia photo grid to `PhotoReorderGrid`** — removes last DFL dependency (horizontal carousel; needs orientation prop or sibling primitive). See OPEN_THREADS.
-- **Upload Lane Chunks B-D** — Batch Lane Review tab is the next `PhotoReorderGrid` consumer. Not started.
-- All prior open threads unchanged: 97% upload hang, native session conflict, subscription Phase 1, PHPicker regression watch, keyboardType audit, etc.
+- **Theater extraction reliability** — when poll never returns `extracted`/`complete`, user still stuck (now at ~84% cap, not 97%). Realtime / webhook / hard timeout — see OPEN_THREADS.
+- **Preview binary rebuild** — `runtimeVersion` `2` committed; run `eas build --profile preview` from `apps/native/`, distribute IPA, team reinstall (do not rely on OTA onto runtime-`1` installs).
+- **Upload Lane Chunks B-D** — Batch Lane Review tab next `PhotoReorderGrid` consumer; not started.
+- **V1 memorabilia → PhotoReorderGrid** — last DFL consumer; not started.
+- **Native session conflict** — web sign-in logs out native; no fix applied.
+- **Subscription Phase 1** — not started.
 
 ## Validation Performed
-- Founder dev-client: all 12 §Validation steps from the drag-reorder plan passed (grid growth, long-press lift, shuffle, COVER live-anchor, drop positions, snap-back, remove-X disable, theme switch, full upload-flow regression).
-- `npx tsc --noEmit` — 107-error baseline preserved; no new errors introduced.
-- `ReadLints` clean on `upload-entry.tsx` and `photo-reorder-grid.tsx`.
+- Founder dev-client: collectible detail edge-back from middle of DETAILS; lens 0 → Specs swipe left; lens 1+ → Details swipe right; vertical scroll in lenses OK.
+- Founder dev-client: Theater pacing approved before second OTA.
+- `eas update --channel preview` published twice (lens + theater); both succeeded runtime `1`.
+- No new `tsc` pass this session (project baseline ~107 errors unchanged).
 
 ## Risks And Warnings
-- **Do NOT OTA this to the current preview binary** — native dep bump requires a new preview build first.
-- **`PhotoReorderGrid` is a multi-consumer shared primitive** — breaking its prop interface cascades to every future multi-photo reorder surface. See DO_NOT_BREAK.
-- **No shadows in lift visuals** — cross-platform consistency rule; inner glow + brandVolt border only.
-- **Legacy DFL crash constraints still apply** to V1 memorabilia flow until that migration ships.
-- All prior Do-Not-Touch areas still apply: keyboard wrappers, `published_at` gate, native PHPicker rollback path, etc.
+- **Do not add a back chevron** beside DETAILS/SPECS to "fix" navigation — product rejected; asymmetric pan is the fix.
+- **Do not restore symmetric `activeOffsetX([-12, 12])` on LensPager page 0** — regresses swipe-back in content band.
+- **Do not re-add `generateVariantsBackground` at Identify** — Assembly owns variants.
+- **Theater 85% cap is cosmetic** — poll failure still blocks Review; don't confuse pacing fix with extraction fix.
+- **`PhotoReorderGrid` on old preview binary** — upload grid may break/crash without Reanimated 4.3 rebuild.
 
 ## Next Best Task
-1. Merge `feature/drag-reorder-v2` to `main`.
-2. `eas build --profile preview` (iOS + Android as needed) — distribute to team.
-3. 24h soak on preview; then JS-only polish can ship via `eas update --channel preview`.
-4. Optional follow-up: V1 memorabilia → `PhotoReorderGrid` to retire DFL entirely.
+**Theater 1 extraction reliability** — if founder still sees upload hang after OTAs: instrument Theater exit path (Sentry breadcrumbs on poll timeout), add Realtime subscription on `collectibles.extraction_status` for active job, or hard timeout → Failed step with retry. Read `looking-glass-webhook` + `upload-entry.tsx` Theater poll effect first.
+
+After preview binary ships: `eas update --channel preview --message "…"` for JS-only fixes (runtime `2` only).
 
 ## Suggested Starter Prompt For Next Agent
-`/rehydrate-project-memory. Drag-reorder V2 is merged and preview binary is rebuilding. Pick up Upload Lane Chunk B (Batch Lane Review tab photo reorder via PhotoReorderGrid) OR the V1 memorabilia DFL migration — founder preference required.`
+`/rehydrate-project-memory. Main has Assembly + LensPager page-0 edge-back + Theater 25s/85% cap on preview OTAs. Pick up Theater extraction reliability (poll stall / 84% cap forever) OR confirm preview binary includes Reanimated 4.3 for PhotoReorderGrid — founder preference.`
 
 ## Memory Updates Made This Session
-- `IMPLEMENTATION_LOG.md`, `DECISION_LOG.md`, `OPEN_THREADS.md`, `DO_NOT_BREAK.md`, `CURRENT_STATE.md`, `QUICK_REFERENCE.md`, `HANDOFF.md` (this file), `.cursor/rules/design-system-playbook.mdc`.
+- `IMPLEMENTATION_LOG.md` — lens pager + theater OTA entry
+- `DECISION_LOG.md` — LensPager page-0 gesture; Theater 25s/85%; Assembly/PhotoReorderGrid status corrections
+- `DO_NOT_BREAK.md` — LensPager page-0 + Theater constants
+- `CURRENT_STATE.md` — priority, Theater copy, LensPager note
+- `OPEN_THREADS.md` — resolved swipe-back + theater cosmetic; updated extraction thread
+- `QUICK_REFERENCE.md` — sprint focus + constraints
+- `HANDOFF.md` — this file
 
 ## What Not To Touch
-- `PhotoReorderGrid` prop interface without migrating all consumers.
-- Reach for `react-native-reanimated-dnd` directly at call sites — use the primitive.
-- Re-introduce DFL experimental flags / nested Reanimated layout in V1 memorabilia flow.
-- `supabase/.temp/*` — do not commit.
+- Collectible detail lens-strip chrome (no back button without explicit product ask).
+- `LensPager` page-0 gesture contract.
+- Assembly variant deferral path.
+- `PhotoReorderGrid` primitive internals unless founder asks for tactile tuning.
+- `supabase/.temp/*` — never commit.
 
 ## Proposed Updates To Watch For
-- After preview binary ships, confirm no upload-tab cold-open crash regression (24h Sentry watch).
-- Founder tactile feedback on spring/haptic tuning — iterate inside `photo-reorder-grid.tsx` only (OTA-eligible after new binary).
-- When V1 memorabilia migrates, remove `react-native-draggable-flatlist` from `package.json` and scrub legacy DFL constraints from DO_NOT_BREAK.
+- Preview soak: any regression of edge-back on Android predictive back.
+- Sentry: `assembly_complete` with `timedOut: true` rate after Assembly OTA.
+- Founder rapid-fire upload repro after variant deferral — drives extraction-reliability priority.

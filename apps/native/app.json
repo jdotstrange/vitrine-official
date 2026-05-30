@@ -3,7 +3,7 @@
     "name": "MyVitrine",
     "slug": "myvitrine",
     "version": "3.0.0",
-    "runtimeVersion": "1",
+    "runtimeVersion": "2",
     "updates": {
       "url": "https://u.expo.dev/e6910937-7d1c-4d59-9785-7b1d311a5378"
     },
