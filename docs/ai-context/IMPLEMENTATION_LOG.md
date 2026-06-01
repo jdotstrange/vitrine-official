@@ -1,7 +1,22 @@
 # Implementation Log
 
-Last updated: 2026-05-27
-Last verified: 2026-05-27
+Last updated: 2026-05-30
+Last verified: 2026-05-30
+
+## 2026-05-30 — Preview runtimeVersion 2 + EAS binary audit
+
+- Summary: Audited EAS build history via `eas build:list` / `eas update:list`. Confirmed team risk: **runtime-`1` preview installs** (especially May 24 build `e5113d4a` at `c357fae`, fingerprint `6617dd77`) cannot run `PhotoReorderGrid` / `react-native-reanimated-dnd` (Reanimated 4.1.1, no native dnd). May 26 preview `c69ae9b1` (`fd26b591`, fingerprint `9c713ce6`) had native deps but still used `runtimeVersion: "1"`, so incompatible JS OTAs could still target stale devices. **Bumped `runtimeVersion` to `"2"`** in `apps/native/app.json` to isolate the preview channel. Synced ai-context memory; pushed `origin/main`.
+- Files changed:
+  - `apps/native/app.json` — `runtimeVersion` `"1"` → `"2"`.
+  - `docs/ai-context/*` — memory sync for 5/27 polish wave + 5/30 preview-cut notes.
+  - `.cursor/rules/ota-update-discipline.mdc` — current runtime documented as `"2"`.
+- Git: `6a53a98` (docs 5/27 memory), `33ec04f` (runtimeVersion 2 + preview-cut memory). Pushed `f09e891..33ec04f` to `origin/main`.
+- Validation: `eas build:list` / `eas update:list` read-only. No new EAS preview build completed this session (founder cutting manually). No `tsc` / device test this session.
+- Notes:
+  - **EAS preview builds (iOS only, no Android preview history):** `e5113d4a` (2026-05-24, runtime `1`, pre–PhotoReorderGrid native); `c69ae9b1` (2026-05-26, runtime `1`, includes Reanimated 4.3.1 + dnd). **Development** latest `f0a71aef` (2026-05-26, `cbc131b`) — older than `main`; dev client + Metro for JS, not preview channel.
+  - **Runtime-`1` OTAs still on channel** (Assembly, LensPager, Theater) — safe only on matching native binary; dangerous on May 24 installs.
+  - **Next:** `eas build --profile preview --platform ios` from `apps/native/` on `33ec04f+`; team **reinstall** IPA; then `eas update --channel preview` for runtime-`2`-only JS fixes.
+  - **Dev build download:** `eas build:download --platform ios --latest` with `--profile development` via list+id; see HANDOFF.
 
 ## 2026-05-27 — LensPager page-0 edge-back + Theater 25s pacing (preview OTAs)
 

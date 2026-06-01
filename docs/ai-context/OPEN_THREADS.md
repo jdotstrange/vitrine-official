@@ -1,7 +1,7 @@
 # Open Threads
 
-Last updated: 2026-05-27
-Last verified: 2026-05-27
+Last updated: 2026-05-30
+Last verified: 2026-05-30
 
 ## Product / Design Threads
 
@@ -125,6 +125,20 @@ Day 2 plan called for installing `@supabase/ssr` and creating browser/server cli
 Down from 137 (pre-Day-2) → 125 (post-Day-2 baseline) → 107 after token retyping + jest types pass. None block runtime. Largest single offender is `components/key-details/field-renderers.tsx` (31 errors — discriminated union not narrowed before property access). Remainder is component-prop drift (`OptimizedImageProps`, `ButtonProps`), domain type mismatches, and tuple vs array. Opportunistic to fix.
 
 ## Release / Ops Threads
+
+### Preview binary runtime 2 distribution (ACTIVE — founder action)
+**Status 2026-05-30:** `runtimeVersion` bumped to `"2"` on `main` (`33ec04f`). Preview IPA **not yet built** this session — founder running manually.
+
+**Why:** May 24 preview (`e5113d4a`, commit `c357fae`) has Reanimated 4.1.1 and **no** `react-native-reanimated-dnd` — JS with `PhotoReorderGrid` crashes upload. May 26 preview (`c69ae9b1`, `fd26b591`) had native deps but shared runtime `1` with May 24, so incompatible OTAs could still deliver. Runtime `2` isolates the channel.
+
+**Ship checklist:**
+1. `cd apps/native && eas build --profile preview --platform ios --message "preview runtime 2 baseline"`
+2. Distribute IPA (Expo install link / TestFlight). **Team must reinstall** — delete old preview app if needed.
+3. Smoke: upload Scan reorder, Assembly, collectible detail edge-back, keyboard on Scan context field.
+4. Optional: `eas update --channel preview --message "runtime 2 baseline"` for JS-only fixes after soak.
+5. Consider first Android preview build (`--platform android`) — none in EAS history today.
+
+**Dev client note:** Latest cloud **development** build `f0a71aef` (2026-05-26, `cbc131b`) predates full `main` upload stack — use Metro for JS or rebuild `eas build --profile development` if testing native parity. Download: `eas build:list --profile development` then `eas build:download --id <ID>`.
 
 ### app.json production name
 Resolved 2026-05-13. `app.json` name is now `MyVitrine`, matching the App Store listing.

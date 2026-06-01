@@ -28,6 +28,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - **After any DDL change, run `NOTIFY pgrst, 'reload schema'`** or PostgREST will silently fail on the new entity.
 - Managed showcase evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep.
 - Do not hardcode secrets — use `EXPO_PUBLIC_*` env vars; keep `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Vault.
+- **Preview `runtimeVersion` is `"2"`** — bump + rebuild after native changes; OTAs on `preview` channel only hit matching binaries. Runtime-`1` preview installs need fresh IPA, not OTA.
 - `upload-entry.tsx` — Scan → Theater → Review → Finalize → **Assembly** → Success. **No variants at Identify.** Theater: 25s linear to 85% cap, ring after `extractionJobId`.
 - **Collectible detail:** display `LensSelector` is the top bar — **no back chevron.** Edge-back on DETAILS requires `LensPager` page-0 asymmetric pan — do not revert to symmetric `activeOffsetX` on index 0.
 - `FramedHero`, `CollectionSurface`, `QRCodeModal`, `SearchBar`, **`PhotoReorderGrid`**, `LensPager`, and the three `KeyboardSafe*` wrappers are multi-consumer — breaking prop/gesture contracts cascades.

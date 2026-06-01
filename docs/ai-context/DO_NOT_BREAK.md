@@ -1,7 +1,7 @@
 # Do Not Break
 
-Last updated: 2026-05-27
-Last verified: 2026-05-27
+Last updated: 2026-05-30
+Last verified: 2026-05-30
 
 ## Critical User Flows
 - Auth via Supabase email/phone OTP.
@@ -40,6 +40,7 @@ Last verified: 2026-05-27
 - **`LensPager` page 0 must not claim rightward horizontal drags.** On index `0`, use asymmetric `activeOffsetX([-12, LARGE])` so stack edge-back wins in the content band. Collectible detail V3 has **no back chevron** in the lens strip by design — do not "fix" navigation by adding one without explicit product approval. Reverting to symmetric `[-12, 12]` on page 0 regresses the swipe-back bug in the middle of DETAILS. Pages 1..N stay bidirectional.
 - **Theater cosmetic constants are load-bearing:** `THEATER_COSMETIC_MS = 25_000`, `THEATER_PROGRESS_CAP = 0.85`, linear easing, ring gated on `extractionJobId`. Do not raise the cap to 0.97 during wait — it reads as stuck. Poll success path must still sprint progress to 100%.
 - **Reanimated 4.2+ and Worklets 0.7+ are now the floor** as of 2026-05-26 (current resolved: 4.3.1 and 0.8.x). Required by `react-native-reanimated-dnd@^2.0.0` (the SortableGrid components landed in 2.0.0; v1.x has no grid support). This is OFF Expo SDK 54's `~4.1.1` pin — `expo doctor` will warn but the upgrade resolves cleanly. Do NOT downgrade either module without first reverting `PhotoReorderGrid` to the v1.1.0 API (which would require hand-rolling grid math).
+- **`runtimeVersion` in `apps/native/app.json` is `"2"` (preview baseline as of 2026-05-30).** After any native dep / plugin / permission change: bump runtime again and rebuild. Preview OTAs via `eas update --channel preview` apply **only** to installs whose embedded runtime matches. Do NOT ship JS that imports `PhotoReorderGrid` / `react-native-reanimated-dnd` to runtime-`1` preview binaries (May 24 `e5113d4a` especially — no dnd in native). Runtime-`1` devices need a fresh IPA install, not another OTA.
 - **DFL legacy constraint — V1 memorabilia upload flow only.** `react-native-draggable-flatlist@4.0.3` is still in `package.json` because `components/upload/memorabilia-core-form.tsx` → `components/upload/photo-grid.tsx` (the legacy V1 memorabilia route at `/upload/memorabilia/[type]/[category]`) still consumes it. For THAT file only: (1) do NOT enable DFL's `enableLayoutAnimationExperimental` flag with `numColumns` (crash-verified May 24); (2) do NOT wrap `<ScaleDecorator>` children in another `<Animated.View layout={...}>` (crash-verified); (3) theme-aware colors must read from `useTheme()` inline, not from static `StyleSheet.create()` (no `#C8FA38` hardcodes — `brandVolt` is now `#E8E0D4` dark / `#7A7168` light). When V1 memorabilia is migrated to `PhotoReorderGrid` (see OPEN_THREADS), DFL can leave `package.json` and these constraints become moot.
 
 ## Files Requiring Extra Caution
