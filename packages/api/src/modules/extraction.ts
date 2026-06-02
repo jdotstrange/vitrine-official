@@ -25,11 +25,28 @@ export type ExtractionStatus =
   | 'processing'
   | 'extracted'
   | 'complete'
-  | 'failed';
+  | 'failed'
+  | 'rejected';
 
 export interface ExtractionStatusUpdate {
   extractionStatus: ExtractionStatus;
   row: Record<string, unknown>;
+}
+
+/**
+ * Live engine job status, fetched from the app-side job-status proxy (which
+ * forwards to the Looking Glass engine and reconciles dropped webhooks). This
+ * is the SOURCE OF TRUTH for theater stage + completion — distinct from the
+ * app's own collectibles.extraction_status.
+ */
+export interface EngineJobStatus {
+  status: 'queued' | 'processing' | 'complete' | 'failed' | null;
+  stage: string | null;
+  outcome: 'extracted' | 'rejected' | null;
+  failureCode: string | null;
+  rejectionReason: string | null;
+  position?: number;
+  etaSeconds?: number;
 }
 
 export interface ExtractionEnv {
@@ -41,6 +58,7 @@ export interface ExtractionApi {
   enqueueExtraction(params: { imageUrls: string[]; title: string; hint?: string }): Promise<EnqueueResult>;
   subscribeToCollectibleRow(collectibleId: string, callback: (update: ExtractionStatusUpdate) => void): () => void;
   pollJobStatus(jobId: string): Promise<{ status: ExtractionStatus | 'unknown'; row?: Record<string, unknown> }>;
+  pollEngineJobStatus(jobId: string): Promise<EngineJobStatus>;
   raceForCompletion(
     collectibleId: string,
     jobId: string,
@@ -48,7 +66,7 @@ export interface ExtractionApi {
   ): { cancel: () => void };
 }
 
-const TERMINAL_STATUSES: ExtractionStatus[] = ['extracted', 'failed', 'complete'];
+const TERMINAL_STATUSES: ExtractionStatus[] = ['extracted', 'failed', 'complete', 'rejected'];
 
 export function createExtractionApi(
   supabase: SupabaseClient,
@@ -175,6 +193,44 @@ export function createExtractionApi(
     };
   }
 
+  async function pollEngineJobStatus(jobId: string): Promise<EngineJobStatus> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) throw new Error('Not authenticated');
+
+    const url = `${env.supabaseUrl}/functions/v1/job-status?jobId=${encodeURIComponent(jobId)}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: env.supabaseAnonKey,
+      },
+    });
+
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = await res.json();
+    } catch {
+      // non-JSON; handled below
+    }
+
+    if (!res.ok) {
+      const message =
+        (payload.error as string) || `job-status proxy returned ${res.status}`;
+      throw new Error(message);
+    }
+
+    return {
+      status: (payload.status as EngineJobStatus['status']) ?? null,
+      stage: (payload.stage as string) ?? null,
+      outcome: (payload.outcome as EngineJobStatus['outcome']) ?? null,
+      failureCode: (payload.failure_code as string) ?? null,
+      rejectionReason: (payload.rejection_reason as string) ?? null,
+      position: payload.position as number | undefined,
+      etaSeconds: payload.eta_seconds as number | undefined,
+    };
+  }
+
   function raceForCompletion(
     collectibleId: string,
     jobId: string,
@@ -213,5 +269,11 @@ export function createExtractionApi(
     return { cancel: cleanup };
   }
 
-  return { enqueueExtraction, subscribeToCollectibleRow, pollJobStatus, raceForCompletion };
+  return {
+    enqueueExtraction,
+    subscribeToCollectibleRow,
+    pollJobStatus,
+    pollEngineJobStatus,
+    raceForCompletion,
+  };
 }

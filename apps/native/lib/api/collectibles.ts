@@ -6,7 +6,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import { uploadWithVariants } from '@/lib/image-utils';
+import { uploadImage as uploadStorageImage } from '@/lib/image-utils';
 import { logger } from '../logger';
 import { sendNotification } from './notifications';
 
@@ -718,13 +718,13 @@ export async function uploadImage(
     const fileExt = filename?.split('.').pop() || 'jpg';
     const basePath = `${userId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-    const { url, storagePath } = await uploadWithVariants(
+    const { url, storagePath } = await uploadStorageImage(
       'collectible-images',
       basePath,
       imageUri,
     );
 
-    log.info('Image uploaded with variants:', url);
+    log.info('Image uploaded:', url);
 
     return { url, id: storagePath };
   } catch (error) {
@@ -1301,17 +1301,29 @@ export async function getCategoryBreakdown(
 // Draft collectible lifecycle (async extraction pipeline)
 // ---------------------------------------------------------------------------
 
+export interface CreateDraftCollectibleRequest {
+  title: string;
+  photos: string[];
+  hint?: string;
+  availableForSale?: boolean;
+  availableForTrade?: boolean;
+  value?: number | null;
+  visibility?: string;
+  tags?: string[];
+}
+
 /**
- * Create a staging row for the extraction pipeline. The row is invisible to
- * collection queries until the user taps "Add to Collection" (which sets
- * extraction_status to 'complete').
+ * Create a staging row for the extraction pipeline. Owner preferences are
+ * written at insert (mirrors web bulk). The row stays out of collection
+ * queries until Catalog commit sets published_at.
  */
 export async function createDraftCollectible(
   userId: string,
-  data: { title: string; photos: string[]; hint?: string },
+  data: CreateDraftCollectibleRequest,
 ): Promise<string> {
   const now = new Date().toISOString();
   const collectibleId = `col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const visibility = data.visibility || 'public';
 
   const { error } = await supabase
     .from('collectibles')
@@ -1322,11 +1334,12 @@ export async function createDraftCollectible(
       description: data.hint || null,
       photos: data.photos,
       category: 'pending',
-      privacy: 'public',
-      visibility: 'public',
-      tags: [],
-      available_for_sale: false,
-      available_for_trade: false,
+      privacy: visibility,
+      visibility,
+      tags: data.tags || [],
+      available_for_sale: data.availableForSale ?? false,
+      available_for_trade: data.availableForTrade ?? false,
+      value: data.value ?? null,
       collectible_type: 'memorabilia',
       extraction_status: 'queued',
       created_at: now,
@@ -1365,7 +1378,7 @@ export async function updateExtractionJobId(
 
 /**
  * Commit a staging row into the user's permanent collection. Called when the
- * user taps "Add to Collection" on the finalize screen.
+ * user taps Catalog on the review screen.
  */
 export async function commitDraftCollectible(
   collectibleId: string,
@@ -1386,8 +1399,14 @@ export async function commitDraftCollectible(
 ): Promise<void> {
   const now = new Date().toISOString();
 
+  // Client-owned publish: setting published_at IS the publish action. The
+  // server-side trigger promotes single-lane rows to 'complete' but never sets
+  // published_at, so the row sits in My Queue -> Review until this commit. We
+  // set 'complete' too for idempotency in case we commit straight from
+  // 'extracted' (e.g. before the trigger-promoted value round-trips to state).
   const updatePayload: Record<string, unknown> = {
     extraction_status: 'complete',
+    published_at: now,
     updated_at: now,
   };
 

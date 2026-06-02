@@ -5,6 +5,29 @@ Last verified: 2026-05-30
 
 ## Product / Design Threads
 
+### Native upload: Identify-first flow (prefs on screen 1, drop Finalize step)
+**Status: Implemented (2026-06-02).**
+
+Merge today's **Scan + Finalize (Preferences)** into a single scrolling **Identify** screen, matching the web bulk uploader's "stage everything, then fire" model:
+
+```
+Identify (photos + context + owner prefs) → Analyze
+  → Theater
+  → Review / Confirm (AI verification + edits)
+  → Catalog → Success
+```
+
+**Locked product rules:**
+- **Scrolling Identify is fine** — iterate on layout after ship.
+- **Strict Analyze gate:** block Analyze until photos exist AND listing prefs are valid (value required when status is For Sale / Sell+Trade). Intent: cataloging workflow, not casual reverse-image lookup.
+- **Prefs on draft insert:** extend `createDraftCollectible` to write status, value, visibility, tags at row creation (mirror `batch-processor.ts` insert). Showcase junction rows stay on **Catalog** commit to avoid orphan links on abandoned drafts.
+- **Review primary CTA:** **Catalog** (lexicon = confirm & add to collection), not "Add to Collection". Finalize step removed from the state machine.
+- **Speculative upload** (already shipped) overlaps with time spent on Identify prefs — keep it.
+
+**Implementation touchpoints:** `apps/native/components/upload-entry.tsx` (merge `ScanStep` + `FinalizeStep` UI, remove `finalize` step, gate Analyze), `apps/native/lib/api/collectibles.ts` (`createDraftCollectible` signature + insert payload), `commitDraftCollectible` (lighter — AI fields + `published_at`; prefs already on row unless user edits on Review).
+
+**Web parity (deferred):** When the authenticated web app gets a single-item catalog flow, it must follow this same Identify → Theater → Review → Catalog pattern — not the legacy 5-step `catalog/single/page.tsx` machine. Bulk uploader already matches Identify-first prefs; single-lane web should converge when built.
+
 ### Marketing site real testimonials
 The `PressSection` on `/` ships with a refactored `Quote` shape (`{ quote, name, role, placeholder? }`) so real testimonials can drop in cleanly. The third card is wired as an explicit `placeholder: true` entry rendering "[Your name here]" / "OPEN SLOT · HELLO@VITRINE.APP" with a dashed-border treatment. The first two cards are also generic ("Collector / 22 YR · CARDS" + "Collector / 8 YR · WATCHES") and should become real names + roles before launch. Edit `PRESS_QUOTES` in `apps/web/lib/marketing/constants.ts` and remove the `placeholder` flag once the third card is real.
 

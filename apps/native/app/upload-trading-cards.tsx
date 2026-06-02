@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/lib/colors';
 import { logger } from '@/lib/logger';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { uploadWithVariants } from '@/lib/image-utils';
+import { uploadImage } from '@/lib/image-utils';
 import { TradingCardSearch } from '@/components/trading-card-search';
 import { TradingCardGradeSelect } from '@/components/trading-card-grade-select';
 import { TradingCardDetailsForm, TradingCardDetailsFormData } from '@/components/trading-card-details-form';
@@ -21,7 +21,7 @@ async function uploadPhotos(userId: string, localUris: string[]): Promise<string
     localUris.map(async (uri, idx) => {
       const ext = uri.split('.').pop()?.split('?')[0] || 'jpg';
       const basePath = `${userId}/${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
-      const { url } = await uploadWithVariants('collectible-images', basePath, uri);
+      const { url } = await uploadImage('collectible-images', basePath, uri);
       return url;
     }),
   );

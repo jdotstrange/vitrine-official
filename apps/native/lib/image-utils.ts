@@ -16,7 +16,10 @@ async function readUriAsArrayBuffer(uri: string): Promise<ArrayBuffer> {
   return await file.arrayBuffer();
 }
 
-/** Preset widths for common display contexts */
+/**
+ * Preset display widths. These are the WIDTHS requested from the Supabase
+ * image transform endpoint (see getOptimizedUrl) — not separate stored files.
+ */
 export const IMAGE_SIZES = {
   thumbnail: 200,
   card: 400,
@@ -24,15 +27,9 @@ export const IMAGE_SIZES = {
   full: 1200,
 } as const;
 
-const VARIANT_WIDTHS = [
-  IMAGE_SIZES.thumbnail,
-  IMAGE_SIZES.card,
-  IMAGE_SIZES.detail,
-] as const;
-
 /**
  * Compress and resize an image before uploading to storage.
- * Ensures the longest dimension is at most MAX_DIMENSION px,
+ * Ensures the longest dimension is at most maxDimension px,
  * and the output is JPEG at the configured quality.
  */
 export async function compressImage(uri: string): Promise<string> {
@@ -59,35 +56,10 @@ export async function compressImage(uri: string): Promise<string> {
 }
 
 /**
- * Resize an image to a specific width.
- */
-async function resizeImage(uri: string, width: number): Promise<string> {
-  const result = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width } }],
-    {
-      compress: IMAGE_UPLOAD.jpegQuality,
-      format: ImageManipulator.SaveFormat.JPEG,
-    }
-  );
-  return result.uri;
-}
-
-/**
- * Insert a size suffix before the file extension.
- * e.g. "user123/abc.jpg" -> "user123/abc_400.jpg"
- */
-function variantPath(basePath: string, width: number): string {
-  const lastDot = basePath.lastIndexOf('.');
-  if (lastDot === -1) return `${basePath}_${width}`;
-  return `${basePath.slice(0, lastDot)}_${width}${basePath.slice(lastDot)}`;
-}
-
-/**
  * Normalize an upload path to end in `.jpg`, regardless of the caller's
- * original filename. We always produce JPEG bytes via compressImage/resizeImage,
- * so the storage object must carry the matching extension to keep URL-based
- * image decoders happy.
+ * original filename. We always produce JPEG bytes via compressImage, so the
+ * storage object must carry the matching extension to keep URL-based image
+ * decoders happy.
  */
 function normalizeJpgExtension(basePath: string): string {
   const lastDot = basePath.lastIndexOf('.');
@@ -97,16 +69,15 @@ function normalizeJpgExtension(basePath: string): string {
 }
 
 /**
- * Upload an image and all size variants to a Supabase Storage bucket.
- * Returns the public URL of the original (full-size) image.
+ * Upload ONE optimized original to a Supabase Storage bucket. All display
+ * sizes are derived on demand by Supabase's image transform endpoint via
+ * getOptimizedUrl — we no longer pre-generate per-width variant files.
  *
- * Variant files are stored alongside the original with a _<width> suffix
- * so getOptimizedUrl can resolve them without hitting the transform endpoint.
- *
- * IMPORTANT: The storage path is always normalized to end in `.jpg` since
- * this pipeline always produces JPEG bytes.
+ * Returns the public URL of the stored original and its storage path. The
+ * storage path is always normalized to `.jpg` since this pipeline always
+ * produces JPEG bytes.
  */
-export async function uploadWithVariants(
+export async function uploadImage(
   bucket: string,
   basePath: string,
   imageUri: string,
@@ -130,298 +101,56 @@ export async function uploadWithVariants(
     });
 
   if (uploadError) {
-    log.error('Error uploading original:', uploadError);
+    log.error('Error uploading image:', uploadError);
     throw new Error(`Failed to upload image: ${uploadError.message}`);
   }
 
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(jpgPath);
-  const publicUrl = urlData.publicUrl;
 
-  log.info('Original uploaded:', jpgPath, `${bytes.byteLength}B`);
+  log.info('Image uploaded:', jpgPath, `${bytes.byteLength}B`);
 
-  // Generate and upload variants in parallel (best-effort)
-  const variantJobs = VARIANT_WIDTHS.map(async (width) => {
-    try {
-      const resizedUri = await resizeImage(compressedUri, width);
-      const variantBytes = await readUriAsArrayBuffer(resizedUri);
-      if (variantBytes.byteLength === 0) {
-        log.warn(`Variant ${width}px produced 0 bytes, skipping`);
-        return;
-      }
-      const vPath = variantPath(jpgPath, width);
-
-      const { error } = await supabase.storage
-        .from(bucket)
-        .upload(vPath, variantBytes, {
-          contentType: 'image/jpeg',
-          upsert: options?.upsert ?? false,
-        });
-
-      if (error) {
-        log.warn(`Variant ${width}px upload failed:`, error.message);
-      } else {
-        log.debug(`Variant ${width}px uploaded:`, vPath, `${variantBytes.byteLength}B`);
-      }
-    } catch (err) {
-      log.warn(`Variant ${width}px generation failed:`, err);
-    }
-  });
-
-  await Promise.allSettled(variantJobs);
-
-  return { url: publicUrl, storagePath: uploadData.path };
+  return { url: urlData.publicUrl, storagePath: uploadData.path };
 }
 
-export interface VariantWorkJob {
-  storagePath: string;
-  compressedUri: string;
-}
-
-export interface GenerateVariantsResult {
-  uploaded: number;
-  failed: number;
-  /** True when the 400px card variant uploaded successfully (grid thumbnails). */
-  hasCardVariant: boolean;
-}
+const OBJECT_MARKER = '/storage/v1/object/public/';
+const RENDER_MARKER = '/storage/v1/render/image/public/';
 
 /**
- * Upload only the compressed original — no variants. Returns the compressedUri
- * so the caller can run generateVariants() later in Assembly without re-compressing.
- */
-export async function uploadOriginalOnly(
-  bucket: string,
-  basePath: string,
-  imageUri: string,
-  options?: { upsert?: boolean },
-): Promise<{ url: string; storagePath: string; compressedUri: string }> {
-  const jpgPath = normalizeJpgExtension(basePath);
-  const compressedUri = await compressImage(imageUri);
-
-  const bytes = await readUriAsArrayBuffer(compressedUri);
-  if (bytes.byteLength === 0) {
-    log.error('Upload aborted: 0-byte file for', compressedUri);
-    throw new Error('Image produced zero bytes; refusing to upload empty file');
-  }
-
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from(bucket)
-    .upload(jpgPath, bytes, {
-      contentType: 'image/jpeg',
-      upsert: options?.upsert ?? false,
-    });
-
-  if (uploadError) {
-    log.error('Error uploading original:', uploadError);
-    throw new Error(`Failed to upload image: ${uploadError.message}`);
-  }
-
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(jpgPath);
-  log.info('Original uploaded (fast path):', jpgPath, `${bytes.byteLength}B`);
-
-  return { url: urlData.publicUrl, storagePath: jpgPath, compressedUri };
-}
-
-async function uploadVariantWidth(
-  bucket: string,
-  storagePath: string,
-  compressedUri: string,
-  width: number,
-  upsert: boolean,
-): Promise<boolean> {
-  try {
-    const resizedUri = await resizeImage(compressedUri, width);
-    const variantBytes = await readUriAsArrayBuffer(resizedUri);
-    if (variantBytes.byteLength === 0) {
-      log.warn(`Variant ${width}px produced 0 bytes, skipping`);
-      return false;
-    }
-    const vPath = variantPath(storagePath, width);
-
-    const { error } = await supabase.storage.from(bucket).upload(vPath, variantBytes, {
-      contentType: 'image/jpeg',
-      upsert,
-    });
-
-    if (error) {
-      log.warn(`Variant ${width}px upload failed:`, error.message);
-      return false;
-    }
-
-    log.debug(`Variant ${width}px uploaded:`, vPath);
-    return true;
-  } catch (err) {
-    log.warn(`Variant ${width}px generation failed:`, err);
-    return false;
-  }
-}
-
-/**
- * Generate and upload all size variants for an already-compressed image.
- * Best-effort per width — never throws.
- */
-export async function generateVariants(
-  bucket: string,
-  storagePath: string,
-  compressedUri: string,
-  options?: { upsert?: boolean },
-): Promise<GenerateVariantsResult> {
-  const upsert = options?.upsert ?? false;
-  let uploaded = 0;
-  let failed = 0;
-  let hasCardVariant = false;
-
-  for (const width of VARIANT_WIDTHS) {
-    const ok = await uploadVariantWidth(bucket, storagePath, compressedUri, width, upsert);
-    if (ok) {
-      uploaded += 1;
-      if (width === IMAGE_SIZES.card) hasCardVariant = true;
-    } else {
-      failed += 1;
-    }
-  }
-
-  return { uploaded, failed, hasCardVariant };
-}
-
-/**
- * Generate and upload size variants for an already-compressed image.
- * Fire-and-forget — logs failures but never throws.
- */
-export function generateVariantsBackground(
-  bucket: string,
-  storagePath: string,
-  compressedUri: string,
-  options?: { upsert?: boolean },
-): void {
-  void generateVariants(bucket, storagePath, compressedUri, options).then((result) => {
-    log.info('Background variants complete for:', storagePath, result);
-  });
-}
-
-export interface AssemblyVariantsOptions {
-  upsert?: boolean;
-  /** Max concurrent resize+upload tasks across all photos (default 4). */
-  concurrency?: number;
-  /** Fired once per photo when its card (_400) variant is ready (or best-effort complete). */
-  onPhotoComplete?: (photoIndex: number) => void;
-}
-
-type VariantTask = {
-  photoIndex: number;
-  width: number;
-  job: VariantWorkJob;
-};
-
-/**
- * Run variant generation for many photos with a bounded worker pool.
- * Used by the upload Assembly step so back-to-back uploads start on a quiet device.
- */
-export async function assemblyVariants(
-  bucket: string,
-  jobs: VariantWorkJob[],
-  options?: AssemblyVariantsOptions,
-): Promise<{ completed: number; failed: number; durationMs: number }> {
-  const started = Date.now();
-  const upsert = options?.upsert ?? false;
-  const concurrency = options?.concurrency ?? 4;
-  const onPhotoComplete = options?.onPhotoComplete;
-
-  if (jobs.length === 0) {
-    return { completed: 0, failed: 0, durationMs: 0 };
-  }
-
-  const tasks: VariantTask[] = jobs.flatMap((job, photoIndex) =>
-    VARIANT_WIDTHS.map((width) => ({ photoIndex, width, job })),
-  );
-
-  const cardDone = new Set<number>();
-  const photoHasCard = new Map<number, boolean>();
-  let completed = 0;
-  let failed = 0;
-
-  const maybeNotifyPhoto = (photoIndex: number) => {
-    if (!onPhotoComplete || cardDone.has(photoIndex)) return;
-    if (!photoHasCard.get(photoIndex)) return;
-    cardDone.add(photoIndex);
-    onPhotoComplete(photoIndex);
-  };
-
-  let cursor = 0;
-
-  async function worker() {
-    while (cursor < tasks.length) {
-      const index = cursor;
-      cursor += 1;
-      const task = tasks[index];
-      if (!task) break;
-
-      const ok = await uploadVariantWidth(
-        bucket,
-        task.job.storagePath,
-        task.job.compressedUri,
-        task.width,
-        upsert,
-      );
-
-      if (ok) {
-        completed += 1;
-        if (task.width === IMAGE_SIZES.card) {
-          photoHasCard.set(task.photoIndex, true);
-          maybeNotifyPhoto(task.photoIndex);
-        }
-      } else {
-        failed += 1;
-      }
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker());
-  await Promise.all(workers);
-
-  // Photos whose card variant failed but other widths succeeded — still advance UI.
-  for (let i = 0; i < jobs.length; i += 1) {
-    if (!cardDone.has(i)) {
-      cardDone.add(i);
-      onPhotoComplete?.(i);
-    }
-  }
-
-  return { completed, failed, durationMs: Date.now() - started };
-}
-
-/**
- * Resolve the best pre-generated variant URL for a given display width.
- * Falls back to the original URL if it's not a Supabase storage URL,
- * if requesting full size, or if the image wasn't uploaded through
- * the variant pipeline.
+ * Build a Supabase image-transform URL for the requested display width.
  *
- * Images uploaded via uploadWithVariants() have filenames like
- * {userId}/{timestamp}-{rand}.jpg — we only rewrite those.
- * All other Supabase storage URLs (e.g. mock data, legacy migrated/)
- * are returned as-is to avoid 404s.
+ * Supabase resizes the stored original on demand and caches the result on the
+ * CDN, so we store exactly ONE optimized original per image and derive every
+ * size from it. Applies to ALL Supabase storage buckets, including legacy
+ * `migrated/` paths — every existing item benefits retroactively. Non-Supabase
+ * URLs (mock data, remote comps) are returned untouched.
  */
 export function getOptimizedUrl(
   url: string,
   width: number,
-  _quality?: number,
+  quality = 75,
 ): string {
   if (!url) return url;
 
-  const isSupabaseStorage = url.includes('/storage/v1/object/public/');
-  if (!isSupabaseStorage) return url;
+  const idx = url.indexOf(OBJECT_MARKER);
+  if (idx === -1) return url; // non-Supabase or already a render URL — leave as-is
 
-  if (width >= IMAGE_SIZES.full) return url;
+  const origin = url.slice(0, idx); // e.g. https://<ref>.supabase.co
+  const objectPath = url.slice(idx + OBJECT_MARKER.length).split('?')[0]; // {bucket}/{path}
+  const w = Math.max(1, Math.round(width));
 
-  // Only rewrite URLs that match the uploadWithVariants naming pattern:
-  // .../{userId}/{timestamp}-{randomChars}.{ext}
-  // or .../{userId}/{timestamp}.{ext} (avatars)
-  const filenameMatch = url.match(/\/([^/]+\/\d{13,}[^/]*)\.[^.]+$/);
-  if (!filenameMatch) return url;
+  return `${origin}${RENDER_MARKER}${objectPath}?width=${w}&quality=${quality}&resize=contain`;
+}
 
-  const bestWidth = VARIANT_WIDTHS.find((w) => w >= width) ?? VARIANT_WIDTHS[VARIANT_WIDTHS.length - 1];
-
-  const lastDot = url.lastIndexOf('.');
-  if (lastDot === -1) return url;
-
-  return `${url.slice(0, lastDot)}_${bestWidth}${url.slice(lastDot)}`;
+/**
+ * Strip a transform back to the raw stored original. Used as the onError
+ * fallback in image components so a failed/disabled transform never renders
+ * blank — we fall back to the full original bytes.
+ */
+export function getOriginalUrl(url: string): string {
+  if (!url) return url;
+  const idx = url.indexOf(RENDER_MARKER);
+  if (idx === -1) return url;
+  const origin = url.slice(0, idx);
+  const objectPath = url.slice(idx + RENDER_MARKER.length).split('?')[0];
+  return `${origin}${OBJECT_MARKER}${objectPath}`;
 }

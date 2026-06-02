@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
-  Dimensions,
+  InputAccessoryView,
+  Keyboard,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,20 +15,22 @@ import {
 } from 'react-native';
 import { KeyboardSafeScroll } from '@/components/vault';
 import Animated, {
+  cancelAnimation,
   Easing,
   FadeIn,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
-  withSequence,
   withTiming,
+  withSpring,
   type SharedValue,
 } from 'react-native-reanimated';
 import Svg, {
   Circle,
   Defs,
-  LinearGradient as SvgLinearGradient,
+  Line,
+  RadialGradient,
   Stop,
 } from 'react-native-svg';
 import { Image } from 'expo-image';
@@ -38,8 +42,8 @@ import {
   AlertCircle,
   ArrowRight,
   Check,
-  ChevronLeft,
   ChevronDown,
+  ChevronRight,
   Eye,
   Headphones,
   Lock,
@@ -53,12 +57,12 @@ import {
   ActionDock,
   ActionSheet,
   Button,
-  HolographicFrame,
   InputDialog,
   PhotoReorderGrid,
   RapidFireEdit,
   SchemaRow,
   ShowcaseSelectorSheet,
+  StatusPill,
   TraitPill,
   type FieldEditorValue,
   type RapidFireEditItem,
@@ -70,17 +74,49 @@ import { useTheme, RADII, SPACING, STATUS_CONFIG, TYPE, type ListingStatus } fro
 import { useAuth } from '@/lib/contexts/auth-context';
 import { getUserShowcases } from '@/lib/api/showcases';
 import { createDraftCollectible, updateExtractionJobId, commitDraftCollectible, deleteCollectible } from '@/lib/api/collectibles';
-import { enqueueExtraction, pollJobStatus, type ExtractionStatus } from '@/lib/api/extraction';
-import { uploadOriginalOnly, type VariantWorkJob } from '@/lib/image-utils';
-import { AssemblyStep } from '@/components/upload/assembly-step';
+import {
+  enqueueExtraction,
+  pollJobStatus,
+  pollEngineJobStatus,
+  subscribeToCollectibleRow,
+  type ExtractionStatus,
+} from '@/lib/api/extraction';
+import { uploadImage } from '@/lib/image-utils';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type UploadStep = 'scan' | 'theater' | 'review' | 'finalize' | 'assembly' | 'success' | 'failed';
+type UploadStep = 'identify' | 'theater' | 'review' | 'success' | 'failed' | 'rejected';
 type PhotoAsset = { id: string; uri: string };
+
+/** In-flight or completed storage upload keyed by local photo id. */
+type SpeculativeUploadEntry = {
+  storagePath: string;
+  promise: Promise<string>;
+};
+
+function buildCollectibleStoragePath(userId: string): string {
+  return `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 11)}.jpg`;
+}
+
+/** Max wait for upload + draft + enqueue before surfacing a failure. */
+const ANALYZE_LAUNCH_TIMEOUT_MS = 120_000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 type FieldSchema = Record<string, { type: string; description: string }>;
 type AiMetadata = Record<string, unknown>;
@@ -110,11 +146,6 @@ interface ExtractionResult {
 
 const uploadLog = logger.create('Upload');
 
-interface ChecklistItem {
-  label: string;
-  durationMs: number;
-}
-
 // Listing copy length ceilings. Hugged tight to the observed maximum
 // across john@myvitrine.app's 529 production collectibles
 // (max title 86 / max desc 418) — just enough buffer to absorb edge
@@ -122,31 +153,136 @@ interface ChecklistItem {
 const LISTING_TITLE_MAX = 90;
 const LISTING_DESCRIPTION_MAX = 420;
 
-/** Cosmetic Theater crawl — ring/photo/checklist; real exit is poll-driven. */
-const THEATER_COSMETIC_MS = 25_000;
-/** Cap below 100% so the ring never reads "almost done" while extraction is still running. */
-const THEATER_PROGRESS_CAP = 0.85;
+// Theater is an indeterminate *scan*, not a progress bar. There is deliberately
+// no percentage — AI extraction is variable-latency, and a determinate bar that
+// stalls reads as "broken." The scan line loops forever and always looks alive.
+/** How long each cosmetic status phrase holds before cross-dissolving. */
+const STATUS_PHRASE_MS = 2_800;
+/** After this, copy softens to reassurance while the scan keeps looping. */
+const THEATER_REASSURE_AFTER_MS = 30_000;
+/** Engine poll cadence — stage labels + reconcile backstop. */
+const ENGINE_POLL_MS = 2_000;
+/** Row poll cadence — primary completion signal (collectibles row). */
+const ROW_POLL_MS = 2_000;
+/**
+ * Emergency reassurance only — never a terminal state. After this we soften copy
+ * but keep polling until the row or engine is genuinely terminal.
+ */
+const THEATER_MAX_MS = 300_000;
+/** Minimum time a stage label stays on screen (anti-strobe). */
+const THEATER_STAGE_MIN_DWELL_MS = 500;
+/** Beat after extraction completes — lets the Lattice convergence land before Review. */
+const THEATER_REVIEW_TRANSITION_MS = 880;
 
-const CHECKLIST_ITEMS: ChecklistItem[] = [
-  { label: 'Visual calibration',  durationMs: 4_000 },
-  { label: 'Object recognition',  durationMs: 4_000 },
-  { label: 'Authentication scan', durationMs: 4_000 },
-  { label: 'Provenance check',    durationMs: 4_000 },
-  { label: 'Metadata extraction', durationMs: 9_000 },
+// Fallback narration shown ONLY before the first real engine stage arrives.
+// Once the engine reports a stage, we show the true stage label instead.
+const SCAN_PHRASES = [
+  'Reading the piece',
+  'Identifying the maker',
+  'Reading condition & detail',
+  'Cross-referencing comps',
+  'Extracting the details',
 ];
+const THEATER_REASSURE_COPY = 'Still reading — detailed pieces take a little longer';
 
-const STATUS_OPTIONS: { key: ListingStatus; title: string; subtitle: string }[] = [
-  { key: 'NFST', title: 'NFST', subtitle: 'Catalog only' },
-  { key: 'FOR_TRADE', title: 'Trade', subtitle: 'Open to offers' },
-  { key: 'FOR_SALE', title: 'Sale', subtitle: 'Set asking price' },
-  { key: 'SELL_TRADE', title: 'Sale + Trade', subtitle: 'All inquiries welcome' },
-];
+// Real engine stage -> honest, user-facing label. Stages are non-linear; any
+// stage can be skipped. Unknown/missing stages fall back to cosmetic narration.
+const ENGINE_STAGE_LABELS: Record<string, string> = {
+  queued: 'Waiting in line',
+  preparing: 'Preparing your photos',
+  classifying: 'Identifying the piece',
+  routing: 'Choosing the right lens',
+  designing_schema: 'Learning this category',
+  extracting: 'Reading the details',
+  verifying: 'Verifying & finishing up',
+};
 
-function deriveStatus(seed: ExtractionResult): ListingStatus {
-  if (seed.availableForSale && seed.availableForTrade) return 'SELL_TRADE';
-  if (seed.availableForSale) return 'FOR_SALE';
-  if (seed.availableForTrade) return 'FOR_TRADE';
-  return 'NFST';
+// Engine stage -> ordinal rank. Stages are non-linear (any can be skipped), so a
+// later stage implies every earlier visual beat is already resolved. The Lattice
+// choreographs against this rank rather than a (nonexistent) linear progress %.
+const STAGE_RANK: Record<string, number> = {
+  queued: 0,
+  preparing: 1,
+  classifying: 2,
+  routing: 3,
+  designing_schema: 4,
+  extracting: 5,
+  verifying: 6,
+};
+
+// Rejection reason (engine REJECTION_CODES) -> user-facing explanation.
+const REJECTION_COPY: Record<string, string> = {
+  not_a_collectible: 'This doesn\u2019t look like a collectible we can catalog. Try a clearer photo of a single item.',
+  multiple_distinct_items: 'We spotted several different items. Photograph one collectible at a time.',
+  image_quality_too_low: 'The photo was too blurry or dark to read. Retake it in better light.',
+  content_unclear: 'We couldn\u2019t make out enough detail to identify this. Try a sharper, closer photo.',
+};
+const REJECTION_FALLBACK_COPY =
+  'We couldn\u2019t recognize this as a collectible. Try a clearer photo of a single item.';
+
+// failure_code transience. Only transient failures offer a retry; permanent
+// ones (bad input, cost cap) route to support/start-over instead.
+const TRANSIENT_FAILURE_CODES = new Set([
+  'AI_SERVICE_ERROR',
+  'AI_TIMEOUT',
+  'INTERNAL_ERROR',
+  'UNKNOWN',
+  'engine_error',
+  'timeout',
+]);
+const FAILURE_COPY: Record<string, string> = {
+  AI_TIMEOUT: 'The analysis took too long this time. This is usually temporary — give it another try.',
+  AI_SERVICE_ERROR: 'Our analysis service hit a snag. This is usually temporary — give it another try.',
+  AI_FORMAT_ERROR: 'We had trouble reading this item. Try a clearer photo.',
+  URL_NOT_ALLOWED: 'We had trouble reading this item. Try a clearer photo.',
+  COST_CAP_EXCEEDED: 'This item was unusually complex to analyze. Please reach out and we\u2019ll help.',
+  // App-mapped reasons (from older failures / extraction_failure_reason)
+  timeout: 'The analysis took too long this time. This is usually temporary — give it another try.',
+  engine_error: 'Something went wrong during analysis. This is usually temporary — give it another try.',
+  unreadable_image: 'We had trouble reading this item. Try a clearer photo.',
+};
+const FAILURE_FALLBACK_COPY =
+  'Something went wrong during extraction. This can happen with unusual items or temporary service issues.';
+
+const LISTING_STATUS_OPTIONS: ListingStatus[] = ['NFST', 'FOR_TRADE', 'FOR_SALE', 'SELL_TRADE'];
+
+/** NFST-only UI: blank or all-zero input reads as priceless, not $0.00. */
+function isZeroPersonalValue(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return true;
+  return /^0(\.0+)?$/.test(trimmed);
+}
+
+/**
+ * Map a `collectibles` row (as written by the engine webhook / reconciler)
+ * into the review-screen ExtractionResult. Pure — reused by both the Realtime
+ * subscription and the poll fallback so they can't diverge.
+ */
+function buildExtractionFromRow(
+  row: Record<string, unknown>,
+  fallbackTitle: string,
+): ExtractionResult {
+  return {
+    id: row.id as string,
+    listingTitle: (row.listing_title as string) || fallbackTitle,
+    listingDescription: (row.listing_description as string) || '',
+    classification: (row.classification as string) || 'unknown',
+    confidence: (row.confidence as string) || 'medium',
+    collectibleType: (row.collectible_type as string) || 'memorabilia',
+    category: (row.category as string) || 'pending',
+    subcategory: (row.subcategory as string) || '',
+    traits: (row.traits as string[]) || [],
+    aiMetadata: (row.ai_metadata as AiMetadata) || {},
+    traitMetadata: (row.trait_metadata as TraitMetadata) || {},
+    fieldSchema: (row.field_schema as FieldSchema) || {},
+    value: '0.00',
+    tags: (row.tags as string[]) || [],
+    verificationUrl: (row.verification_url as string) || null,
+    photos: (row.photos as string[]) || [],
+    availableForSale: false,
+    availableForTrade: false,
+    visibility: (row.visibility as string) || 'public',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +295,7 @@ export function UploadEntry() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const [step, setStep] = useState<UploadStep>('scan');
+  const [step, setStep] = useState<UploadStep>('identify');
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [context, setContext] = useState('');
   const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
@@ -175,17 +311,18 @@ export function UploadEntry() {
   const [etaSeconds, setEtaSeconds] = useState<number>(30);
   const [theaterError, setTheaterError] = useState<string | null>(null);
 
-  // Upload / scan screen loading
-  const [isUploading, setIsUploading] = useState(false);
+  // Theater narration phase — softens copy after a wait without ever failing.
+  const [theaterPhase, setTheaterPhase] = useState<'analyzing' | 'reassure'>('analyzing');
 
-  // Deferred variant jobs — populated at Identify, consumed in Assembly.
-  const [variantWork, setVariantWork] = useState<VariantWorkJob[]>([]);
+  // Live engine stage (source of truth for the theater label). Null until the
+  // first poll reports a stage — fall back to cosmetic narration until then.
+  const [theaterStage, setTheaterStage] = useState<string | null>(null);
 
-  // Theater HUD cosmetic state
-  const [completedSteps, setCompletedSteps] = useState(0);
-  const progress = useSharedValue(0);
+  // Terminal diagnostics for the failed / rejected screens.
+  const [failureCode, setFailureCode] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
-  // Finalize (pre-filled from seed once extraction lands)
+  // Owner prefs — collected on Identify before Analyze
   const [status, setStatus] = useState<ListingStatus>('NFST');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [estimatedValue, setEstimatedValue] = useState('');
@@ -220,6 +357,60 @@ export function UploadEntry() {
   const [rapidFireOpen, setRapidFireOpen] = useState(false);
   const [pulseKeys, setPulseKeys] = useState<QueueId[]>([]);
   const [pulseNonce, setPulseNonce] = useState(0);
+
+  // Speculative uploads: start pushing photos to storage as soon as they land
+  // on the scan screen so Analyze can enqueue without waiting on compression +
+  // upload again.
+  const speculativeUploadsRef = useRef<Map<string, SpeculativeUploadEntry>>(
+    new Map(),
+  );
+
+  const ensureSpeculativeUpload = useCallback(
+    (photo: PhotoAsset, userId: string) => {
+      const map = speculativeUploadsRef.current;
+      if (map.has(photo.id)) return;
+
+      const storagePath = buildCollectibleStoragePath(userId);
+      const promise = uploadImage('collectible-images', storagePath, photo.uri)
+        .then((result) => result.url)
+        .catch((err) => {
+          map.delete(photo.id);
+          throw err;
+        });
+      map.set(photo.id, { storagePath, promise });
+    },
+    [],
+  );
+
+  const resolveSpeculativeUrls = useCallback(
+    async (photoList: PhotoAsset[], userId: string): Promise<string[]> => {
+      const urls: string[] = [];
+      for (const photo of photoList) {
+        let entry = speculativeUploadsRef.current.get(photo.id);
+        if (!entry) {
+          ensureSpeculativeUpload(photo, userId);
+          entry = speculativeUploadsRef.current.get(photo.id)!;
+        }
+        urls.push(await entry.promise);
+      }
+      return urls;
+    },
+    [ensureSpeculativeUpload],
+  );
+
+  useEffect(() => {
+    if (!user?.id || step !== 'identify') return;
+
+    const activeIds = new Set(photos.map((p) => p.id));
+    for (const photo of photos) {
+      ensureSpeculativeUpload(photo, user.id);
+    }
+    for (const id of speculativeUploadsRef.current.keys()) {
+      if (!activeIds.has(id)) {
+        speculativeUploadsRef.current.delete(id);
+      }
+    }
+  }, [photos, user?.id, step, ensureSpeculativeUpload]);
 
   // Listing copy edits (title / description). Tracked separately from
   // `fieldEdits` because copy is fundamentally a different surface from
@@ -272,7 +463,7 @@ export function UploadEntry() {
     [localShowcases, remoteShowcases],
   );
 
-  // Resolved showcase objects for the chips on the finalize screen. Filters
+  // Resolved showcase objects for the chips on the Identify screen. Filters
   // out any selected id that no longer maps to a known showcase (e.g.,
   // deleted out-of-band) so the chip row never renders a ghost.
   const selectedShowcases = useMemo(
@@ -417,210 +608,253 @@ export function UploadEntry() {
     setPhotos(next);
   }, []);
 
-  // --- Scan screen: upload + draft + enqueue handler ---
+  const canAnalyze = photos.length > 0 && !valueMissing;
+
+  const analyzeDockLabel = valueMissing
+    ? 'Set a Value First'
+    : photos.length === 0
+      ? 'Add Images'
+      : 'Activate Looking Glass';
+
+  const analyzeDockHint = valueMissing
+    ? 'Enter a personal value greater than zero when listing for sale or trade'
+    : photos.length === 0
+      ? 'Add at least one photo first'
+      : 'Starts Looking Glass analysis on your photos';
+
+  // --- Identify screen: upload + draft + enqueue handler ---
   const handleAnalyze = useCallback(async () => {
-    if (!user?.id || photos.length === 0) return;
-    setIsUploading(true);
+    if (!user?.id || !canAnalyze) return;
+
+    // Transition immediately — prep (upload, draft, enqueue) runs on Theater
+    // so Identify never blocks interaction behind pointerEvents while waiting.
+    Keyboard.dismiss();
+    setTheaterPhase('analyzing');
+    setTheaterStage('preparing');
+    setExtractionStatus(null);
+    setTheaterError(null);
+    setDraftCollectibleId(null);
+    setExtractionJobId(null);
     setStep('theater');
 
     try {
-      const uploadResults = await Promise.all(
-        photos.map((photo) => {
-          const basePath = `${user.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-          return uploadOriginalOnly('collectible-images', basePath, photo.uri);
-        }),
+      await withTimeout(
+        (async () => {
+          const uploadedUrls = await resolveSpeculativeUrls(photos, user.id);
+
+          const title = context.trim() || 'New Collectible';
+          const parsedVal = parseFloat(estimatedValue);
+          const collectibleId = await createDraftCollectible(user.id, {
+            title,
+            photos: uploadedUrls,
+            hint: context.trim() || undefined,
+            availableForSale: status === 'FOR_SALE' || status === 'SELL_TRADE',
+            availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
+            value: parsedVal > 0 ? parsedVal : null,
+            visibility,
+            tags,
+          });
+          setDraftCollectibleId(collectibleId);
+
+          const enqueueResult = await enqueueExtraction({
+            imageUrls: uploadedUrls.slice(0, 4),
+            title,
+            hint: context.trim() || undefined,
+          });
+          setQueuePosition(enqueueResult.position);
+          setEtaSeconds(enqueueResult.etaSeconds);
+          setExtractionJobId(enqueueResult.jobId);
+
+          await updateExtractionJobId(collectibleId, enqueueResult.jobId);
+
+          speculativeUploadsRef.current.clear();
+
+          setExtractionStatus('queued');
+          setTheaterStage(null);
+        })(),
+        ANALYZE_LAUNCH_TIMEOUT_MS,
+        'Upload timed out. Check your connection and try again.',
       );
-      const uploadedUrls = uploadResults.map((r) => r.url);
-
-      setVariantWork(
-        uploadResults.map((r) => ({
-          storagePath: r.storagePath,
-          compressedUri: r.compressedUri,
-        })),
-      );
-
-      const title = context.trim() || 'New Collectible';
-      const collectibleId = await createDraftCollectible(user.id, {
-        title,
-        photos: uploadedUrls,
-        hint: context.trim() || undefined,
-      });
-      setDraftCollectibleId(collectibleId);
-
-      const enqueueResult = await enqueueExtraction({
-        imageUrls: uploadedUrls.slice(0, 4),
-        title,
-        hint: context.trim() || undefined,
-      });
-      setQueuePosition(enqueueResult.position);
-      setEtaSeconds(enqueueResult.etaSeconds);
-      setExtractionJobId(enqueueResult.jobId);
-
-      await updateExtractionJobId(collectibleId, enqueueResult.jobId);
-
-      setIsUploading(false);
-      setExtractionStatus('queued');
     } catch (err) {
-      setIsUploading(false);
       uploadLog.error('Upload pipeline failed:', err);
       setTheaterError(err instanceof Error ? err.message : 'Upload failed');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setStep('failed');
     }
-  }, [user?.id, photos, context]);
+  }, [user?.id, photos, context, canAnalyze, status, estimatedValue, visibility, tags, resolveSpeculativeUrls]);
 
-  // --- Theater: linear ring crawl (starts once enqueue returns so duration can use ETA) ---
-  useEffect(() => {
-    if (step !== 'theater' || !extractionJobId) return;
-    const durationMs = THEATER_COSMETIC_MS;
-    setCompletedSteps(0);
-    progress.value = 0;
-    progress.value = withTiming(THEATER_PROGRESS_CAP, {
-      duration: durationMs,
-      // Linear keeps steady motion — easeInOut races through the middle and
-      // parks at the cap early, which reads as "stuck at 90%".
-      easing: Easing.linear,
-    });
-  }, [step, extractionJobId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // --- Theater: 2s polling + cosmetic checklist (starts once upload completes) ---
+  // --- Theater: row is the PRIMARY completion signal (review needs row data).
+  // Realtime + row poll open review as soon as the webhook/reconciler writes
+  // extracted/complete. Engine poll drives stage labels and reconciles drops.
   useEffect(() => {
     if (step !== 'theater' || !draftCollectibleId || !extractionJobId) return;
-    let cancelled = false;
-    let lastStatus: ExtractionStatus | null = null;
+    const jobId = extractionJobId;
+    const collectibleId = draftCollectibleId;
+    const fallbackTitle = context.trim() || 'New Collectible';
 
-    const cosmeticTimers: ReturnType<typeof setTimeout>[] = [];
+    let resolved = false;
+    let latestRow: Record<string, unknown> | null = null;
+    let rowPollTimer: ReturnType<typeof setInterval> | null = null;
+    let enginePollTimer: ReturnType<typeof setInterval> | null = null;
+    let maxWaitLogged = false;
+    const startedAt = Date.now();
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-    let cumulative = 0;
-    for (let i = 0; i < CHECKLIST_ITEMS.length - 1; i++) {
-      cumulative += CHECKLIST_ITEMS[i].durationMs;
-      const target = i + 1;
-      cosmeticTimers.push(
+    setTheaterPhase('analyzing');
+    setTheaterStage(null);
+
+    timers.push(
+      setTimeout(() => {
+        if (!resolved) setTheaterPhase('reassure');
+      }, THEATER_REASSURE_AFTER_MS),
+    );
+
+    function stopWatching() {
+      resolved = true;
+      timers.forEach(clearTimeout);
+      if (rowPollTimer) clearInterval(rowPollTimer);
+      if (enginePollTimer) clearInterval(enginePollTimer);
+    }
+
+    function goToReview(row: Record<string, unknown>, source: string) {
+      if (resolved) return;
+      stopWatching();
+      uploadLog.info('Theater → review', { source, collectibleId, jobId });
+      const mapped = buildExtractionFromRow(row, fallbackTitle);
+      setExtraction(mapped);
+      setExtractionStatus('extracted');
+      timers.push(
         setTimeout(() => {
-          if (!cancelled) setCompletedSteps((cur) => Math.max(cur, target));
-        }, cumulative),
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setStep('review');
+        }, THEATER_REVIEW_TRANSITION_MS),
       );
     }
 
-    function handleStatus(status: ExtractionStatus, row: Record<string, unknown>) {
-      if (cancelled || status === lastStatus) return;
-      lastStatus = status;
-      setExtractionStatus(status);
+    function goToRejected(reason: string | null | undefined, source: string) {
+      if (resolved) return;
+      stopWatching();
+      uploadLog.info('Theater → rejected', { source, collectibleId, jobId, reason });
+      setRejectionReason(reason ?? null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setStep('rejected');
+    }
 
-      if (status === 'processing') {
-        // Cosmetic timers already running — nothing else to do here
-      } else if (status === 'extracted' || status === 'complete') {
-        // After upload-lane-unification, the BEFORE UPDATE trigger flips
-        // 'extracted' -> 'complete' atomically and sets published_at, so
-        // single-lane polling will most often see 'complete' here. Both
-        // statuses route to the review screen identically — the row is
-        // already a real, published collectible by the time we arrive.
-        cosmeticTimers.forEach(clearTimeout);
-        progress.value = withTiming(1, { duration: 250 });
+    function goToFailed(code: string | null | undefined, source: string) {
+      if (resolved) return;
+      stopWatching();
+      uploadLog.info('Theater → failed', { source, collectibleId, jobId, code });
+      setFailureCode(code ?? null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setStep('failed');
+    }
 
-        const classification = (row.classification as string) || 'unknown';
-        const confidence = (row.confidence as string) || 'medium';
-        const traits = (row.traits as string[]) || [];
-        const aiMeta = (row.ai_metadata as AiMetadata) || {};
+    function tryResolveFromRow(row: Record<string, unknown>, source: string): boolean {
+      if (resolved) return true;
+      const status = row.extraction_status as string | undefined;
+      if (status === 'extracted' || status === 'complete') {
+        goToReview(row, source);
+        return true;
+      }
+      if (status === 'rejected') {
+        goToRejected((row.extraction_failure_reason as string) ?? null, source);
+        return true;
+      }
+      if (status === 'failed') {
+        goToFailed((row.extraction_failure_reason as string) ?? null, source);
+        return true;
+      }
+      return false;
+    }
 
-        const title = context.trim() || 'New Collectible';
-        const mapped: ExtractionResult = {
-          id: row.id as string,
-          listingTitle: (row.listing_title as string) || title,
-          listingDescription: (row.listing_description as string) || '',
-          classification,
-          confidence,
-          collectibleType: (row.collectible_type as string) || 'memorabilia',
-          category: (row.category as string) || 'pending',
-          subcategory: (row.subcategory as string) || '',
-          traits,
-          aiMetadata: aiMeta,
-          traitMetadata: (row.trait_metadata as TraitMetadata) || {},
-          fieldSchema: (row.field_schema as FieldSchema) || {},
-          value: '0.00',
-          tags: (row.tags as string[]) || [],
-          verificationUrl: (row.verification_url as string) || null,
-          photos: (row.photos as string[]) || [],
-          availableForSale: false,
-          availableForTrade: false,
-          visibility: (row.visibility as string) || 'public',
-        };
+    const unsubscribe = subscribeToCollectibleRow(collectibleId, (update) => {
+      latestRow = update.row;
+      tryResolveFromRow(update.row, 'realtime');
+    });
 
-        setExtraction(mapped);
-        setStatus(deriveStatus(mapped));
-        setEstimatedValue('0.00');
-        setVisibility(mapped.visibility === 'private' ? 'private' : 'public');
-
-        // Cascade-complete any remaining items (~80ms stagger).
-        setCompletedSteps((cur) => {
-          const remaining = CHECKLIST_ITEMS.length - cur;
-          for (let i = 0; i < remaining; i++) {
-            const target = cur + i + 1;
-            cosmeticTimers.push(
-              setTimeout(() => {
-                if (!cancelled) setCompletedSteps((c) => Math.max(c, target));
-              }, i * 80),
-            );
-          }
-          return cur;
-        });
-
-        // ~1s pause after the cascade, then transition to Review.
-        cosmeticTimers.push(
-          setTimeout(() => {
-            if (!cancelled) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              cancelled = true;
-              clearInterval(pollTimer);
-              setStep('review');
-            }
-          }, 1000),
-        );
-      } else if (status === 'failed') {
-        cosmeticTimers.forEach(clearTimeout);
-        cancelled = true;
-        clearInterval(pollTimer);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setStep('failed');
+    async function pollRow(source: string) {
+      if (resolved) return;
+      if (latestRow && tryResolveFromRow(latestRow, `${source}:cache`)) return;
+      try {
+        const polled = await pollJobStatus(jobId);
+        if (polled.row) {
+          latestRow = polled.row;
+          tryResolveFromRow(polled.row, source);
+        }
+      } catch (err) {
+        uploadLog.warn('Theater row poll failed:', err);
       }
     }
 
-    const pollTimer = setInterval(async () => {
-      if (cancelled) return;
+    // Immediate row check — don't wait for first interval tick.
+    void pollRow('row-poll-initial');
+
+    rowPollTimer = setInterval(() => {
+      void pollRow('row-poll');
+    }, ROW_POLL_MS);
+
+    enginePollTimer = setInterval(async () => {
+      if (resolved) return;
+
+      let engine;
       try {
-        const result = await pollJobStatus(extractionJobId);
-        if (result.status !== 'unknown' && result.row) {
-          handleStatus(result.status as ExtractionStatus, result.row);
-        }
+        engine = await pollEngineJobStatus(jobId);
       } catch (err) {
-        uploadLog.warn('Poll cycle failed:', err);
+        uploadLog.warn('Engine poll failed:', err);
+        return;
       }
-    }, 2000);
+      if (resolved) return;
+
+      if (engine.stage) {
+        setTheaterStage(engine.stage);
+      }
+
+      if (engine.status === 'failed') {
+        goToFailed(engine.failureCode, 'engine-poll');
+        return;
+      }
+
+      if (engine.status === 'complete' && engine.outcome === 'rejected') {
+        goToRejected(engine.rejectionReason, 'engine-poll');
+        return;
+      }
+
+      // Engine done — row should follow via webhook/reconcile; nudge row poll now.
+      if (engine.status === 'complete') {
+        uploadLog.info('Engine complete — checking row', { jobId, outcome: engine.outcome });
+        await pollRow('engine-complete');
+      }
+
+      // Never terminal — only soften copy after a long wait while still listening.
+      if (!maxWaitLogged && Date.now() - startedAt > THEATER_MAX_MS) {
+        maxWaitLogged = true;
+        uploadLog.warn('Theater long wait — still polling', { collectibleId, jobId });
+        setTheaterPhase('reassure');
+      }
+    }, ENGINE_POLL_MS);
 
     return () => {
-      cancelled = true;
-      cosmeticTimers.forEach(clearTimeout);
-      clearInterval(pollTimer);
+      stopWatching();
+      unsubscribe();
     };
   }, [step, draftCollectibleId, extractionJobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clears all local device state so the next piece starts clean. Contained
+  // lifecycle: this does NOT delete the draft — an abandoned piece resolves
+  // into My Queue (Review when it finishes, Errors if it failed). Only the
+  // explicit discard (X) and the rejected dead-end delete the row.
   const resetFlow = useCallback(() => {
-    if (draftCollectibleId && user?.id) {
-      deleteCollectible(draftCollectibleId, user.id).catch(() => {});
-      setDraftCollectibleId(null);
-    } else if (draftCollectibleId) {
-      setDraftCollectibleId(null);
-    }
-
-    setStep('scan');
-    setIsUploading(false);
+    setDraftCollectibleId(null);
+    setStep('identify');
     setExtractionStatus(null);
     setExtractionJobId(null);
     setQueuePosition(0);
     setEtaSeconds(30);
     setTheaterError(null);
-    setCompletedSteps(0);
-    progress.value = 0;
+    setTheaterPhase('analyzing');
+    setTheaterStage(null);
+    setFailureCode(null);
+    setRejectionReason(null);
     setPhotos([]);
     setContext('');
     setExtraction(null);
@@ -632,7 +866,7 @@ export function UploadEntry() {
     setPulseNonce(0);
     setRapidFireOpen(false);
 
-    // Finalize-screen fields. Without these, a follow-up upload starts with
+    // Identify-screen fields. Without these, a follow-up upload starts with
     // the previous run's showcase selection, tags, status, value, etc. still
     // pre-filled — and any locally-minted showcase stubs (`local-${ts}` ids)
     // keep showing up in the picker even though they were already committed
@@ -643,8 +877,32 @@ export function UploadEntry() {
     setStatus('NFST');
     setVisibility('public');
     setEstimatedValue('');
-    setVariantWork([]);
-  }, [draftCollectibleId, user?.id]);
+    speculativeUploadsRef.current.clear();
+  }, []);
+
+  // Explicit discard: delete the draft row, then reset. Used by the rejected
+  // dead-end and "retake". (The X-button discard deletes inline in handleClose.)
+  const discardAndReset = useCallback(() => {
+    if (draftCollectibleId && user?.id) {
+      deleteCollectible(draftCollectibleId, user.id).catch(() => {});
+    }
+    resetFlow();
+  }, [draftCollectibleId, user?.id, resetFlow]);
+
+  // Retry a transient failure: drop the dead attempt and re-run extraction with
+  // the photos/context still in local state.
+  const handleRetry = useCallback(() => {
+    if (draftCollectibleId && user?.id) {
+      deleteCollectible(draftCollectibleId, user.id).catch(() => {});
+    }
+    setDraftCollectibleId(null);
+    setExtractionJobId(null);
+    setExtractionStatus(null);
+    setFailureCode(null);
+    setTheaterError(null);
+    setTheaterStage(null);
+    void handleAnalyze();
+  }, [draftCollectibleId, user?.id, handleAnalyze]);
 
   // Auto-reset on tab blur. Whenever the user leaves the upload tab — whether
   // they tapped X mid-flow, hit "View in Collection" from the success screen,
@@ -666,7 +924,7 @@ export function UploadEntry() {
   );
 
   // Effective extraction = seed + any committed edits. Used by review and
-  // finalize alike so edits are honored wherever data renders.
+  // review alike so edits are honored wherever data renders.
   const effectiveExtraction = useMemo(
     () => (extraction ? applyEdits(extraction, fieldEdits) : null),
     [extraction, fieldEdits],
@@ -743,6 +1001,47 @@ export function UploadEntry() {
     [],
   );
 
+  const handleCatalog = useCallback(async () => {
+    if (!draftCollectibleId || !effectiveExtraction || !user?.id) {
+      return;
+    }
+    try {
+      const parsedVal = parseFloat(estimatedValue);
+      const finalTitle = (listingEdits.title ?? effectiveExtraction.listingTitle ?? '').trim();
+      const finalDescription = (listingEdits.description ?? effectiveExtraction.listingDescription ?? '').trim();
+      await commitDraftCollectible(draftCollectibleId, user.id, {
+        title: finalTitle,
+        listingTitle: finalTitle,
+        listingDescription: finalDescription,
+        value: parsedVal > 0 ? parsedVal : 0,
+        availableForSale: status === 'FOR_SALE' || status === 'SELL_TRADE',
+        availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
+        visibility,
+        tags,
+        showcaseIds: selectedShowcaseIds,
+        aiMetadata: effectiveExtraction.aiMetadata,
+        traitMetadata: effectiveExtraction.traitMetadata,
+      });
+      setCommittedCollectibleId(draftCollectibleId);
+      setDraftCollectibleId(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setStep('success');
+    } catch (err) {
+      uploadLog.error('Catalog commit failed:', err);
+      Alert.alert('Error', 'Failed to catalog collectible. Please try again.');
+    }
+  }, [
+    draftCollectibleId,
+    effectiveExtraction,
+    user?.id,
+    estimatedValue,
+    listingEdits,
+    status,
+    visibility,
+    tags,
+    selectedShowcaseIds,
+  ]);
+
   const hasInProgressWork =
     step !== 'success' && (photos.length > 0 || context.trim().length > 0 || extraction !== null);
 
@@ -774,63 +1073,60 @@ export function UploadEntry() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.void }]}>
       <View style={[styles.header, { borderBottomColor: colors.frostDivider }]}>
-        {step === 'finalize' ? (
-          <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              setStep('review');
-            }}
-            style={[styles.closeButton, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }]}
-            accessibilityRole="button"
-            accessibilityLabel="Back to review"
-          >
-            <ChevronLeft size={20} color={colors.textPrimary} />
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={handleClose}
-            style={[styles.closeButton, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }]}
-            accessibilityRole="button"
-            accessibilityLabel="Close upload"
-          >
-            <X size={18} color={colors.textPrimary} />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={handleClose}
+          style={[styles.closeButton, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }]}
+          accessibilityRole="button"
+          accessibilityLabel="Close upload"
+        >
+          <X size={18} color={colors.textPrimary} />
+        </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={[styles.kicker, { color: colors.brandVolt }]}>AI UPLOAD</Text>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{getStepTitle(step)}</Text>
         </View>
         <View style={styles.closeButtonGhost} />
       </View>
 
-      {step === 'scan' ? (
+      {step === 'identify' ? (
         <>
-          <ScanStep
+          <IdentifyStep
             photos={photos}
             context={context}
             onContextChange={setContext}
             onPickPhotos={openPhotoSourceSheet}
             onRemovePhoto={removePhoto}
             onReorderPhotos={handleReorderPhotos}
-            onAnalyze={handleAnalyze}
-            isUploading={isUploading}
             bottomInset={insets.bottom}
+            status={status}
+            value={estimatedValue}
+            visibility={visibility}
+            selectedShowcases={selectedShowcases}
+            tags={tags}
+            valueRequired={valueRequired}
+            valueMissing={valueMissing}
+            onStatusChange={setStatus}
+            onValueChange={setEstimatedValue}
+            onVisibilityChange={setVisibility}
+            onOpenShowcasePicker={() => setShowcaseSheetOpen(true)}
+            onRemoveShowcase={handleRemoveShowcase}
+            onOpenTagDialog={() => setTagDialogOpen(true)}
+            onRemoveTag={(t) => setTags(tags.filter((x) => x !== t))}
           />
           <ActionDock
-            label="Identify"
+            label={analyzeDockLabel}
             bottomInset={insets.bottom}
             onPress={handleAnalyze}
-            disabled={isUploading || photos.length === 0}
+            disabled={!canAnalyze}
+            accessibilityHint={analyzeDockHint}
           />
         </>
       ) : step === 'theater' ? (
         <TheaterStep
           photos={photos}
-          completedSteps={completedSteps}
-          progress={progress}
           extractionStatus={extractionStatus}
-          extractionJobId={extractionJobId}
-          cosmeticDurationMs={THEATER_COSMETIC_MS}
+          phase={theaterPhase}
+          stage={theaterStage}
+          extraction={effectiveExtraction}
         />
       ) : step === 'review' && effectiveExtraction ? (
         <>
@@ -855,84 +1151,39 @@ export function UploadEntry() {
             onToggleQueue={toggleQueue}
           />
           <ActionDock
-            label={editQueue.length > 0 ? `Make Edits (${editQueue.length})` : 'Looks Good'}
-            icon={editQueue.length > 0 ? Pencil : ArrowRight}
+            label={editQueue.length > 0 ? `Make Edits (${editQueue.length})` : 'Catalog'}
+            icon={editQueue.length > 0 ? Pencil : Check}
             bottomInset={insets.bottom}
             onPress={() => {
               if (editQueue.length > 0) {
                 setRapidFireOpen(true);
               } else {
-                setStep('finalize');
+                void handleCatalog();
               }
             }}
           />
         </>
-      ) : step === 'finalize' && effectiveExtraction ? (
-        <>
-          <FinalizeStep
-            extraction={effectiveExtraction}
-            status={status}
-            value={estimatedValue}
-            visibility={visibility}
-            selectedShowcases={selectedShowcases}
-            onRemoveShowcase={handleRemoveShowcase}
-            tags={tags}
-            bottomInset={insets.bottom}
-            valueRequired={valueRequired}
-            valueMissing={valueMissing}
-            onStatusChange={setStatus}
-            onValueChange={setEstimatedValue}
-            onVisibilityChange={setVisibility}
-            onOpenShowcasePicker={() => setShowcaseSheetOpen(true)}
-            onOpenTagDialog={() => setTagDialogOpen(true)}
-            onRemoveTag={(t) => setTags(tags.filter((x) => x !== t))}
-          />
-          <ActionDock
-            label={valueMissing ? 'Set a Value First' : 'Add to Collection'}
-            icon={Check}
-            bottomInset={insets.bottom}
-            disabled={valueMissing}
-            onPress={async () => {
-              if (!draftCollectibleId || !effectiveExtraction) {
-                return;
-              }
-              try {
-                const parsedVal = parseFloat(estimatedValue);
-                const finalTitle = (listingEdits.title ?? effectiveExtraction.listingTitle ?? '').trim();
-                const finalDescription = (listingEdits.description ?? effectiveExtraction.listingDescription ?? '').trim();
-                await commitDraftCollectible(draftCollectibleId, user!.id, {
-                  title: finalTitle,
-                  listingTitle: finalTitle,
-                  listingDescription: finalDescription,
-                  value: parsedVal > 0 ? parsedVal : 0,
-                  availableForSale: status === 'FOR_SALE' || status === 'SELL_TRADE',
-                  availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
-                  visibility,
-                  tags,
-                  showcaseIds: selectedShowcaseIds,
-                  aiMetadata: effectiveExtraction.aiMetadata,
-                  traitMetadata: effectiveExtraction.traitMetadata,
-                });
-                setCommittedCollectibleId(draftCollectibleId);
-                setDraftCollectibleId(null);
-                setStep('assembly');
-              } catch (err) {
-                uploadLog.error('Commit failed:', err);
-                Alert.alert('Error', 'Failed to save collectible. Please try again.');
-              }
-            }}
-          />
-        </>
-      ) : step === 'assembly' ? (
-        <AssemblyStep
-          work={variantWork}
-          title={effectiveListingTitle}
-          onComplete={() => setStep('success')}
-        />
       ) : step === 'failed' ? (
         <FailedStep
-          onStartOver={resetFlow}
+          failureCode={failureCode}
+          onRetry={
+            failureCode && TRANSIENT_FAILURE_CODES.has(failureCode)
+              ? handleRetry
+              : undefined
+          }
+          onStartOver={discardAndReset}
           onGetSupport={() => router.push('/settings/support' as Href)}
+        />
+      ) : step === 'rejected' ? (
+        <RejectedStep
+          rejectionReason={rejectionReason}
+          onRetake={discardAndReset}
+          onCancel={() => {
+            if (draftCollectibleId && user?.id) {
+              deleteCollectible(draftCollectibleId, user.id).catch(() => {});
+            }
+            router.back();
+          }}
         />
       ) : step === 'success' ? (
         <SuccessStep
@@ -1008,30 +1259,96 @@ export function UploadEntry() {
 
 function getStepTitle(step: UploadStep): string {
   switch (step) {
-    case 'scan': return 'Capture';
+    case 'identify': return 'Identify';
     case 'theater': return 'Processing';
     case 'review': return 'Review';
-    case 'finalize': return 'Preferences';
-    case 'assembly': return 'Collection';
     case 'failed': return 'Error';
+    case 'rejected': return 'Not Recognized';
     case 'success': return 'Saved';
   }
 }
 
+const IDENTIFY_VALUE_ACCESSORY_ID = 'identify-value-input-done';
+
 // ---------------------------------------------------------------------------
-// Step 1 — Scan (single viewport, real picker)
+// Identify screen helpers (grouped sections + decimal-pad Done bar)
 // ---------------------------------------------------------------------------
 
-function ScanStep({
+function IdentifySection({
+  title,
+  hint,
+  children,
+  dimmed,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+  dimmed?: boolean;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.identifySection, dimmed]}>
+      <View style={styles.identifySectionHeader}>
+        <Text style={[styles.identifySectionTitle, { color: colors.textPrimary }]}>{title}</Text>
+        {hint ? (
+          <Text style={[styles.identifySectionHint, { color: colors.textTertiary }]}>{hint}</Text>
+        ) : null}
+      </View>
+      <View style={styles.identifySectionBody}>{children}</View>
+    </View>
+  );
+}
+
+function DecimalPadDoneAccessory({ nativeID }: { nativeID: string }) {
+  const { colors } = useTheme();
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <InputAccessoryView nativeID={nativeID}>
+      <View
+        style={[
+          styles.keyboardAccessory,
+          { borderTopColor: colors.frostBorder, backgroundColor: colors.sheetBg },
+        ]}
+      >
+        <Pressable
+          onPress={() => Keyboard.dismiss()}
+          style={styles.keyboardAccessoryBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Done"
+        >
+          <Text style={[styles.keyboardAccessoryDone, { color: colors.brandVolt }]}>Done</Text>
+        </Pressable>
+      </View>
+    </InputAccessoryView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 1 — Identify (photos + context + owner prefs)
+// ---------------------------------------------------------------------------
+
+function IdentifyStep({
   photos,
   context,
   onContextChange,
   onPickPhotos,
   onRemovePhoto,
   onReorderPhotos,
-  onAnalyze: _onAnalyze,
-  isUploading,
   bottomInset,
+  status,
+  value,
+  visibility,
+  selectedShowcases,
+  tags,
+  valueRequired,
+  valueMissing,
+  onStatusChange,
+  onValueChange,
+  onVisibilityChange,
+  onOpenShowcasePicker,
+  onRemoveShowcase,
+  onOpenTagDialog,
+  onRemoveTag,
 }: {
   photos: PhotoAsset[];
   context: string;
@@ -1039,394 +1356,982 @@ function ScanStep({
   onPickPhotos: () => void;
   onRemovePhoto: (id: string) => void;
   onReorderPhotos: (next: PhotoAsset[]) => void;
-  onAnalyze: () => void;
-  isUploading: boolean;
   bottomInset: number;
+  status: ListingStatus;
+  value: string;
+  visibility: 'public' | 'private';
+  selectedShowcases: { id: string; title: string }[];
+  tags: string[];
+  valueRequired: boolean;
+  valueMissing: boolean;
+  onStatusChange: (s: ListingStatus) => void;
+  onValueChange: (v: string) => void;
+  onVisibilityChange: (v: 'public' | 'private') => void;
+  onOpenShowcasePicker: () => void;
+  onRemoveShowcase: (id: string) => void;
+  onOpenTagDialog: () => void;
+  onRemoveTag: (tag: string) => void;
 }) {
   const { colors } = useTheme();
+  const isNfst = status === 'NFST';
+  const personalValueDisplay = isNfst && isZeroPersonalValue(value) ? '' : value;
+  const personalValuePlaceholder = isNfst ? 'PRICELESS' : '0.00';
 
-  // Use the same pattern as `vault/rapid-fire-edit.tsx`: KAV(offset=0,
-  // padding) + an inner ScrollView for content + a docked footer (button)
-  // *outside* the scroll. The KAV's padding behaviour shrinks the inner
-  // area when the keyboard appears. KeyboardSafeScroll auto-scrolls the
-  // focused TextInput into view above the keyboard (and accessory bar)
-  // without needing manual offset math. The ActionDock space is reserved
-  // via `paddingBottom` on the content container.
   return (
+    <>
     <KeyboardSafeScroll
       style={[styles.scanBody, styles.scanScroll]}
-      contentContainerStyle={[styles.scanScrollContent, { paddingBottom: ActionDock.reservedHeight(bottomInset) + 24 }]}
-      pointerEvents={isUploading ? 'none' : 'auto'}
+      contentContainerStyle={[
+        styles.scanScrollContent,
+        { paddingBottom: ActionDock.reservedHeight(bottomInset) + SPACING.sectionGap },
+      ]}
     >
-      <View style={[styles.scanTitleBlock, isUploading && { opacity: 0.5 }]}>
-        <Text style={[styles.scanTitle, { color: colors.textPrimary }]}>Scan Collectible</Text>
-        <Text style={[styles.scanSubtitle, { color: colors.textSecondary }]}>
-          Add 1–6 photos{' '}
-          <Text style={[styles.scanSubtitleMuted, { color: colors.textTertiary }]}>· 1 required · first = featured</Text>
-        </Text>
-      </View>
-
-      {/* Multi-photo reorder primitive — the canonical V3 surface for
-          this need. See apps/native/components/vault/photo-reorder-grid.tsx
-          for the lift visual, COVER live-anchor, haptic, and "+ sentinel"
-          behavior. Per-tile long-press 220ms to drag. */}
-      <View style={styles.photoGrid}>
+      <IdentifySection title="Add Collectible Images" hint="min 1 · max 6">
         <PhotoReorderGrid
           photos={photos}
           onReorder={onReorderPhotos}
           onRemove={onRemovePhoto}
           onAddMore={onPickPhotos}
-          disabled={isUploading}
         />
-      </View>
+      </IdentifySection>
 
-      <View style={[styles.contextBlock, isUploading && { opacity: 0.5 }]}>
+      <View style={styles.identifySectionBlock}>
         <Text style={[styles.contextLabel, { color: colors.textPrimary }]}>
-          Context <Text style={[styles.contextOptional, { color: colors.textTertiary }]}>(Optional)</Text>
+          Context <Text style={[styles.contextOptional, { color: colors.textTertiary }]}>(optional)</Text>
         </Text>
-        <View style={[styles.contextFieldWrap, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }]}>
+        <View style={[styles.contextFieldWrap, { borderColor: colors.frostBorder, backgroundColor: 'transparent' }]}>
           <TextInput
             value={context}
             onChangeText={(text) => onContextChange(text.slice(0, LISTING_TITLE_MAX))}
-            placeholder="Origin, set, condition, player, cert info..."
+            placeholder="Help Looking Glass identify this"
             placeholderTextColor={colors.textTertiary}
             style={[styles.contextInput, { color: colors.textPrimary }]}
             maxLength={LISTING_TITLE_MAX}
             returnKeyType="done"
-            editable={!isUploading}
+            multiline={false}
+            numberOfLines={1}
           />
-          <Text style={[styles.contextCounter, { color: colors.textTertiary }]}>{context.length}/{LISTING_TITLE_MAX}</Text>
         </View>
       </View>
+
+      <IdentifySection title="Listing Status">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.identifyStatusScroll}
+          contentContainerStyle={styles.identifyStatusScrollContent}
+        >
+          {LISTING_STATUS_OPTIONS.map((option) => {
+            const active = status === option;
+            const chrome = STATUS_CONFIG[option];
+            return (
+              <Pressable
+                key={option}
+                onPress={() => onStatusChange(option)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={chrome.label}
+                accessibilityHint={active ? 'Currently selected' : 'Select this listing status'}
+                style={[
+                  styles.statusChipOption,
+                  active && { borderColor: colors.brandVoltBorder, backgroundColor: colors.brandVoltFill },
+                ]}
+              >
+                <View style={!active && styles.statusChipMuted}>
+                  <StatusPill status={option} />
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.identifySectionBlock}>
+          <View style={styles.identifyFieldHeader}>
+            <View style={styles.kickerRow}>
+              <Text style={[styles.identifyFieldLabel, { color: colors.textSecondary }]}>
+                Personal Value
+                {!valueRequired ? (
+                  <Text style={[styles.contextOptional, { color: colors.textTertiary }]}> (optional)</Text>
+                ) : null}
+              </Text>
+              {valueRequired ? (
+                <Text
+                  style={[
+                    styles.requiredHint,
+                    { color: colors.textTertiary },
+                    valueMissing && { color: colors.semanticRed },
+                  ]}
+                >
+                  Required
+                </Text>
+              ) : null}
+            </View>
+            <Text style={[styles.identifyFieldHint, { color: colors.textTertiary }]}>
+              How much is this piece worth to you?
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.contextFieldWrap,
+              styles.valueFieldWrap,
+              {
+                borderColor: valueMissing ? colors.semanticRed : colors.frostBorder,
+                backgroundColor: 'transparent',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.valueCurrencyInline,
+                { color: colors.textTertiary },
+                valueMissing && { color: colors.semanticRed },
+              ]}
+            >
+              $
+            </Text>
+            <TextInput
+              value={personalValueDisplay}
+              onChangeText={onValueChange}
+              style={[styles.valueInputInline, { color: colors.textPrimary }]}
+              keyboardType="decimal-pad"
+              inputAccessoryViewID={IDENTIFY_VALUE_ACCESSORY_ID}
+              placeholder={personalValuePlaceholder}
+              placeholderTextColor={valueMissing ? colors.semanticRed : colors.textTertiary}
+              accessibilityLabel="Personal value"
+              accessibilityHint={
+                valueMissing
+                  ? 'Required when listing for sale or trade'
+                  : isNfst
+                    ? 'Optional for catalog-only items. Leave blank for priceless.'
+                    : undefined
+              }
+            />
+          </View>
+        </View>
+
+        <View style={styles.identifySectionBlock}>
+          <Text style={[styles.identifyFieldLabel, { color: colors.textSecondary }]}>Visibility</Text>
+          <View style={styles.visibilityRow}>
+            {(['public', 'private'] as const).map((option) => {
+              const active = visibility === option;
+              const Icon = option === 'public' ? Eye : Lock;
+              const label = option === 'public' ? 'Public' : 'Private';
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => onVisibilityChange(option)}
+                  style={[
+                    styles.visibilityBtn,
+                    { borderColor: colors.frostBorderStrong, backgroundColor: 'transparent' },
+                    active && { borderColor: colors.brandVoltBorder, backgroundColor: colors.brandVoltFill },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={label}
+                >
+                  <Icon
+                    size={14}
+                    color={active ? colors.textPrimary : colors.textSecondary}
+                    strokeWidth={1.8}
+                  />
+                  <Text
+                    style={[
+                      styles.visibilityBtnText,
+                      { color: colors.textSecondary },
+                      active && { color: colors.textPrimary },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.identifySectionBlock}>
+          <Text style={[styles.identifyFieldLabel, { color: colors.textSecondary }]}>Assign to Showcase(s)</Text>
+          <Pressable
+            onPress={onOpenShowcasePicker}
+            style={[
+              styles.showcasePickerRow,
+              { borderColor: colors.frostBorder, backgroundColor: 'transparent' },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Assign to showcase"
+            accessibilityHint={
+              selectedShowcases.length > 0
+                ? `${selectedShowcases.length} showcase${selectedShowcases.length === 1 ? '' : 's'} selected. Opens picker.`
+                : 'Opens showcase picker'
+            }
+          >
+            <Text
+              style={[
+                styles.showcasePickerRowLabel,
+                {
+                  color: selectedShowcases.length > 0 ? colors.textPrimary : colors.textTertiary,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {selectedShowcases.length === 0
+                ? 'Create or Select Showcase(s)'
+                : selectedShowcases.length === 1
+                  ? selectedShowcases[0].title
+                  : `${selectedShowcases.length} showcases assigned`}
+            </Text>
+            <ChevronRight size={18} color={colors.textTertiary} strokeWidth={2} />
+          </Pressable>
+          {selectedShowcases.length > 0 ? (
+            <View style={styles.tagRow}>
+              {selectedShowcases.map((s) => (
+                <Pressable
+                  key={s.id}
+                  onPress={() => onRemoveShowcase(s.id)}
+                  style={[
+                    styles.showcaseChip,
+                    { backgroundColor: colors.semanticSilverFill, borderColor: colors.frostBorder },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove from ${s.title}`}
+                  accessibilityHint="Double-tap to remove this showcase from the upload"
+                >
+                  <Text
+                    style={[styles.showcaseChipText, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
+                    {s.title}
+                  </Text>
+                  <X size={12} color={colors.textTertiary} strokeWidth={2} />
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.identifySectionBlock}>
+          <View style={styles.identifyFieldHeader}>
+            <Text style={[styles.identifyFieldLabel, { color: colors.textSecondary }]}>Add Tags</Text>
+            <Text style={[styles.identifyFieldHint, { color: colors.textTertiary }]}>
+              Tags are designed to help organize your collection. They are only visible to you.
+            </Text>
+          </View>
+          <View style={styles.tagRow}>
+            {tags.map((tag) => (
+              <Pressable
+                key={tag}
+                onPress={() => onRemoveTag(tag)}
+                style={[styles.tagChip, { backgroundColor: colors.semanticSilverFill, borderColor: colors.frostBorder }]}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove tag ${tag}`}
+              >
+                <Text style={[styles.tagText, { color: colors.textPrimary }]}>#{tag}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={onOpenTagDialog}
+              style={[styles.tagChipAdd, { borderColor: colors.brandVoltBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Add tag"
+            >
+              <Text style={[styles.tagText, { color: colors.brandVolt }]}>+ Tag</Text>
+            </Pressable>
+          </View>
+        </View>
+      </IdentifySection>
     </KeyboardSafeScroll>
+    <DecimalPadDoneAccessory nativeID={IDENTIFY_VALUE_ACCESSORY_ID} />
+    </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// The Lattice — the Looking Glass, made visible.
+//
+// A reasoning graph that assembles itself in lock-step with the REAL engine
+// pipeline. The collectible is the core node; hypotheses fan out as the machine
+// classifies, one branch locks when it routes, the schema grows leaf-by-leaf on
+// cold starts, energy pulses race inward while it extracts, then the whole
+// structure collapses into the piece at the verdict. There is no fake progress
+// bar — every beat is wired to an actual `stage`, and ambient looping motion
+// keeps a 15-second run and a 90-second run equally alive (time-agnostic by
+// construction). Monochrome ivory while it thinks; the single trait color only
+// blooms at the end, when the atomic result finally lands.
+// ---------------------------------------------------------------------------
+
+const AnimatedLine = Animated.createAnimatedComponent(Line);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+type LatticeTier = 'primary' | 'leaf' | 'schema';
+type LatNode = { id: string; x: number; y: number; baseR: number; tier: LatticeTier; branch: number };
+type LatEdge = {
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  tier: LatticeTier;
+  branch: number;
+};
+
+type SV = SharedValue<number>;
+type LatticeAnim = {
+  ignite: SV;
+  classify: SV;
+  route: SV;
+  schema: SV;
+  converge: SV;
+  orbit: SV;
+  extractPulse: SV;
+  extractOn: SV;
+  breathe: SV;
+  attnLock: SV;
+  attnX: SV;
+  attnY: SV;
+  attnOpacity: SV;
+};
+
+// The graph is generated deterministically from the stage size so it reads as a
+// designed instrument, never random noise. One branch is the route target;
+// schema growth sprouts from it on cold-start runs only.
+const PRIMARY_COUNT = 6;
+const CHOSEN_BRANCH = 1;
+
+function buildLattice(w: number, h: number) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const base = Math.min(w, h);
+  const r1 = base * 0.3;
+  const r2 = base * 0.42;
+  const nodes: LatNode[] = [];
+  const edges: LatEdge[] = [];
+
+  for (let i = 0; i < PRIMARY_COUNT; i++) {
+    const ang = -Math.PI / 2 + (i * Math.PI * 2) / PRIMARY_COUNT + 0.18;
+    const px = cx + r1 * Math.cos(ang);
+    const py = cy + r1 * Math.sin(ang);
+    nodes.push({ id: `p${i}`, x: px, y: py, baseR: 3.4, tier: 'primary', branch: i });
+    edges.push({ id: `ec${i}`, x1: cx, y1: cy, x2: px, y2: py, tier: 'primary', branch: i });
+
+    const leafCount = i % 2 === 0 ? 2 : 1;
+    for (let l = 0; l < leafCount; l++) {
+      const spread = leafCount === 2 ? (l === 0 ? -0.2 : 0.2) : 0;
+      const a2 = ang + spread;
+      const lx = cx + r2 * Math.cos(a2);
+      const ly = cy + r2 * Math.sin(a2);
+      nodes.push({ id: `l${i}_${l}`, x: lx, y: ly, baseR: 2.3, tier: 'leaf', branch: i });
+      edges.push({ id: `el${i}_${l}`, x1: px, y1: py, x2: lx, y2: ly, tier: 'leaf', branch: i });
+    }
+  }
+
+  const chosenP = nodes.find((n) => n.id === `p${CHOSEN_BRANCH}`)!;
+  const chosenLeaf =
+    nodes.find((n) => n.tier === 'leaf' && n.branch === CHOSEN_BRANCH) ?? chosenP;
+  const baseAng = -Math.PI / 2 + (CHOSEN_BRANCH * Math.PI * 2) / PRIMARY_COUNT + 0.18;
+  for (let s = 0; s < 3; s++) {
+    const a = baseAng + (s - 1) * 0.26;
+    const rr = r2 * (1.04 + s * 0.07);
+    const sx = cx + rr * Math.cos(a);
+    const sy = cy + rr * Math.sin(a);
+    nodes.push({ id: `s${s}`, x: sx, y: sy, baseR: 2, tier: 'schema', branch: CHOSEN_BRANCH });
+    edges.push({
+      id: `es${s}`,
+      x1: chosenP.x,
+      y1: chosenP.y,
+      x2: sx,
+      y2: sy,
+      tier: 'schema',
+      branch: CHOSEN_BRANCH,
+    });
+  }
+
+  return { cx, cy, r1, base, nodes, edges, chosenP, chosenLeaf };
+}
+
+// Trait → accent color. The graph runs ivory while it reasons — we genuinely
+// don't know the type yet — then resolves to the real trait hue at the verdict.
+function traitAccent(
+  ex: ExtractionResult | null | undefined,
+  fallback: string,
+  colors: { traitCyan: string; traitViolet: string; traitOlive: string; traitPink: string },
+) {
+  const t = ex?.traits ?? [];
+  if (t.includes('graded')) return colors.traitCyan;
+  if (t.includes('signed') || t.includes('autograph') || t.includes('autographed'))
+    return colors.traitViolet;
+  if (t.includes('game_used') || t.includes('gameUsed') || t.includes('game-used'))
+    return colors.traitOlive;
+  if (t.includes('rookie')) return colors.traitPink;
+  return fallback;
+}
+
+// An edge that draws itself (dash offset) when its tier activates, recedes if it
+// isn't on the chosen branch once routed, and fades on convergence.
+function LatticeEdge({
+  edge,
+  A,
+  color,
+  isChosen,
+}: {
+  edge: LatEdge;
+  A: LatticeAnim;
+  color: string;
+  isChosen: boolean;
+}) {
+  const len = Math.hypot(edge.x2 - edge.x1, edge.y2 - edge.y1);
+  const baseOpacity = edge.tier === 'primary' ? 0.5 : edge.tier === 'leaf' ? 0.3 : 0.36;
+  const animatedProps = useAnimatedProps(() => {
+    'worklet';
+    const reveal =
+      edge.tier === 'primary'
+        ? A.classify.value
+        : edge.tier === 'leaf'
+          ? A.route.value
+          : A.schema.value;
+    const conv = A.converge.value;
+    const emph = isChosen ? 1 : 1 - 0.62 * A.route.value;
+    return {
+      strokeDashoffset: len * (1 - reveal),
+      strokeOpacity: baseOpacity * reveal * emph * (1 - conv),
+    };
+  });
+  return (
+    <AnimatedLine
+      x1={edge.x1}
+      y1={edge.y1}
+      x2={edge.x2}
+      y2={edge.y2}
+      stroke={color}
+      strokeWidth={isChosen ? 1.4 : 1}
+      strokeDasharray={len}
+      strokeDashoffset={len}
+      animatedProps={animatedProps}
+    />
+  );
+}
+
+// A node that swells in when its tier activates, shimmers as a candidate during
+// classification, then rides inward to the core on convergence.
+function LatticeNode({
+  node,
+  A,
+  color,
+  isChosen,
+  cx,
+  cy,
+  phase,
+}: {
+  node: LatNode;
+  A: LatticeAnim;
+  color: string;
+  isChosen: boolean;
+  cx: number;
+  cy: number;
+  phase: number;
+}) {
+  const animatedProps = useAnimatedProps(() => {
+    'worklet';
+    const tau = 6.283185307179586;
+    const reveal =
+      node.tier === 'primary'
+        ? A.classify.value
+        : node.tier === 'leaf'
+          ? A.route.value
+          : A.schema.value;
+    const conv = A.converge.value;
+    const emph = isChosen ? 1 : 1 - 0.55 * A.route.value;
+    let flicker = 1;
+    if (node.tier === 'primary') {
+      const s = 0.78 + 0.22 * Math.sin(A.orbit.value * tau + phase);
+      flicker = s + (1 - s) * A.route.value; // candidate shimmer calms once routed
+    }
+    const x = node.x + (cx - node.x) * conv;
+    const y = node.y + (cy - node.y) * conv;
+    const r = node.baseR * (0.45 + 0.55 * reveal) * (1 - 0.3 * conv);
+    return {
+      cx: x,
+      cy: y,
+      r: Math.max(0.1, r),
+      opacity: reveal * emph * flicker * (1 - conv),
+    };
+  });
+  return <AnimatedCircle cx={node.x} cy={node.y} r={node.baseR} fill={color} animatedProps={animatedProps} />;
+}
+
+// The attention point — the machine's focus. Orbits the candidate ring while
+// classifying, then locks to wherever the work is happening.
+function AttentionNode({
+  A,
+  cx,
+  cy,
+  r1,
+  color,
+}: {
+  A: LatticeAnim;
+  cx: number;
+  cy: number;
+  r1: number;
+  color: string;
+}) {
+  const corePos = useAnimatedProps(() => {
+    'worklet';
+    const tau = 6.283185307179586;
+    const ang = A.orbit.value * tau;
+    const ox = cx + r1 * Math.cos(ang);
+    const oy = cy + r1 * Math.sin(ang);
+    const lock = A.attnLock.value;
+    return {
+      cx: ox + (A.attnX.value - ox) * lock,
+      cy: oy + (A.attnY.value - oy) * lock,
+      opacity: A.attnOpacity.value * (1 - A.converge.value),
+    };
+  });
+  const glowPos = useAnimatedProps(() => {
+    'worklet';
+    const tau = 6.283185307179586;
+    const ang = A.orbit.value * tau;
+    const ox = cx + r1 * Math.cos(ang);
+    const oy = cy + r1 * Math.sin(ang);
+    const lock = A.attnLock.value;
+    return {
+      cx: ox + (A.attnX.value - ox) * lock,
+      cy: oy + (A.attnY.value - oy) * lock,
+      opacity: A.attnOpacity.value * 0.28 * (1 - A.converge.value),
+    };
+  });
+  return (
+    <>
+      <AnimatedCircle cx={cx} cy={cy} r={15} fill={color} animatedProps={glowPos} />
+      <AnimatedCircle cx={cx} cy={cy} r={3.6} fill={color} animatedProps={corePos} />
+    </>
+  );
+}
+
+// A mote of energy riding a primary edge inward to the core during extraction.
+function Pulse({
+  fromX,
+  fromY,
+  toX,
+  toY,
+  A,
+  color,
+  phase,
+}: {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  A: LatticeAnim;
+  color: string;
+  phase: number;
+}) {
+  const animatedProps = useAnimatedProps(() => {
+    'worklet';
+    const t = (A.extractPulse.value + phase) % 1;
+    const fade = Math.sin(t * Math.PI); // soft in/out at both ends of the run
+    return {
+      cx: fromX + (toX - fromX) * t,
+      cy: fromY + (toY - fromY) * t,
+      opacity: A.extractOn.value * fade * (1 - A.converge.value),
+    };
+  });
+  return <AnimatedCircle cx={fromX} cy={fromY} r={2.4} fill={color} animatedProps={animatedProps} />;
 }
 
 // ---------------------------------------------------------------------------
 // Step 2 — Theater (Looking Glass HUD)
 // ---------------------------------------------------------------------------
 
-const PROGRESS_RING_SIZE = 140;
-const PROGRESS_RING_STROKE = 4;
-const PROGRESS_RING_RADIUS = (PROGRESS_RING_SIZE - PROGRESS_RING_STROKE) / 2;
-const PROGRESS_RING_CIRCUM = 2 * Math.PI * PROGRESS_RING_RADIUS;
-const PROGRESS_RING_GRADIENT_ID = 'lookingGlassRingGradient';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-
 function TheaterStep({
   photos,
-  completedSteps,
-  progress,
   extractionStatus,
-  extractionJobId,
-  cosmeticDurationMs,
+  phase,
+  stage,
+  extraction,
 }: {
   photos: PhotoAsset[];
-  completedSteps: number;
-  progress: SharedValue<number>;
   extractionStatus: ExtractionStatus | null;
-  extractionJobId: string | null;
-  cosmeticDurationMs: number;
+  phase: 'analyzing' | 'reassure';
+  stage: string | null;
+  extraction: ExtractionResult | null;
 }) {
   const { colors } = useTheme();
-  const [percentText, setPercentText] = useState('0');
   const featuredPhoto = photos[0];
+  const done = extractionStatus === 'extracted' || extractionStatus === 'complete';
 
-  // Drive the percent label off the ring; floor + cap so "90%" never appears
-  // while we're still waiting on extraction (avoids stuck-at-90 misread).
-  const displayPercentCap = Math.floor(THEATER_PROGRESS_CAP * 100);
+  // The stage the Lattice is drawn into — geometry is derived from its size.
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const lat = useMemo(
+    () => (box.w > 4 && box.h > 4 ? buildLattice(box.w, box.h) : null),
+    [box.w, box.h],
+  );
+
+  // Cosmetic fallback narration — shown ONLY before the first real engine stage
+  // arrives. Cycles while analyzing; the looping (not a number) keeps it honest
+  // about an indeterminate wait.
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const hasStage = !!stage && !!ENGINE_STAGE_LABELS[stage];
   useEffect(() => {
-    const id = setInterval(() => {
-      const raw = Math.floor((progress.value ?? 0) * 100);
-      const next =
-        extractionStatus === 'extracted' || extractionStatus === 'complete'
-          ? raw
-          : Math.min(raw, displayPercentCap);
-      setPercentText((cur) => (cur === String(next) ? cur : String(next)));
-    }, 100);
+    if (done || phase !== 'analyzing' || hasStage) return;
+    const id = setInterval(
+      () => setPhraseIdx((i) => (i + 1) % SCAN_PHRASES.length),
+      STATUS_PHRASE_MS,
+    );
     return () => clearInterval(id);
-  }, [progress, extractionStatus, displayPercentCap]);
+  }, [done, phase, hasStage]);
 
-  // Hero reveal — the photo emerges from black as the ring climbs.
-  // The whole image stack sits inside an Animated.View whose opacity
-  // climbs 0 → 0.5 over cosmeticDurationMs, so the void shows through at
-  // the start (only the ring is visible) and the photo asymptotically
-  // appears at half-strength — bright enough to identify, dim enough
-  // for the ring + checklist to keep the spotlight.
-  const revealOpacity = useSharedValue(0);
+  // Anti-strobe: hold each real stage label for a minimum dwell so rapid
+  // engine transitions don't flicker. Latches the latest stage after dwell.
+  const [shownStage, setShownStage] = useState<string | null>(null);
+  const lastShownAt = useRef(0);
   useEffect(() => {
-    if (!extractionJobId) return;
-    revealOpacity.value = 0;
-    revealOpacity.value = withTiming(0.5, {
-      duration: cosmeticDurationMs,
-      easing: Easing.linear,
-    });
-  }, [revealOpacity, cosmeticDurationMs, extractionJobId]);
-  useEffect(() => {
-    if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
-      revealOpacity.value = withTiming(0.5, { duration: 250 });
+    if (!hasStage || !stage) return;
+    const since = Date.now() - lastShownAt.current;
+    if (since >= THEATER_STAGE_MIN_DWELL_MS) {
+      setShownStage(stage);
+      lastShownAt.current = Date.now();
+      return;
     }
-  }, [extractionStatus, revealOpacity]);
-  const revealStyle = useAnimatedStyle(() => ({ opacity: revealOpacity.value }));
+    const t = setTimeout(() => {
+      setShownStage(stage);
+      lastShownAt.current = Date.now();
+    }, THEATER_STAGE_MIN_DWELL_MS - since);
+    return () => clearTimeout(t);
+  }, [stage, hasStage]);
 
-  // Inside the reveal, the sharp image fades up over the blurred one so
-  // the photo also "loses focus" as it appears — same cosmetic window.
-  const sharpOpacity = useSharedValue(0);
+  const stageLabel = shownStage ? ENGINE_STAGE_LABELS[shownStage] : null;
+  const verdictTitle = extraction?.listingTitle?.trim();
+  const accent = useMemo(
+    () => traitAccent(extraction, colors.brandVolt, colors),
+    [extraction, colors],
+  );
+
+  const statusText = done
+    ? verdictTitle || 'Identified'
+    : phase === 'reassure'
+      ? THEATER_REASSURE_COPY
+      : stageLabel ?? SCAN_PHRASES[phraseIdx];
+  const statusKey = done
+    ? 'done'
+    : phase === 'reassure'
+      ? 'reassure'
+      : stageLabel
+        ? `s-${shownStage}`
+        : `p-${phraseIdx}`;
+  const verdictSub = done
+    ? [extraction?.category, extraction?.confidence]
+        .filter((v) => v && v !== 'pending')
+        .join('   ·   ')
+        .toUpperCase() || 'CATALOG READY'
+    : phase === 'reassure'
+      ? 'A DEEPER READ IS IN PROGRESS'
+      : 'THE LOOKING GLASS IS REASONING';
+
+  // A tactile tick each time the machine advances a reasoning step.
+  const firstStageRef = useRef(true);
   useEffect(() => {
-    if (!extractionJobId) return;
-    sharpOpacity.value = 0;
-    sharpOpacity.value = withTiming(1, {
-      duration: cosmeticDurationMs,
-      easing: Easing.linear,
-    });
-  }, [sharpOpacity, cosmeticDurationMs, extractionJobId]);
-  useEffect(() => {
-    if (extractionStatus === 'extracted' || extractionStatus === 'complete') {
-      sharpOpacity.value = withTiming(1, { duration: 250 });
+    if (!shownStage) return;
+    if (firstStageRef.current) {
+      firstStageRef.current = false;
+      return;
     }
-  }, [extractionStatus, sharpOpacity]);
-  const sharpStyle = useAnimatedStyle(() => ({ opacity: sharpOpacity.value }));
+    Haptics.selectionAsync().catch(() => {});
+  }, [shownStage]);
 
-  // Pulsing semanticGreen dot beside SYSTEM ONLINE.
-  const dotOpacity = useSharedValue(1);
+  // --- Lattice shared values (all UI-thread) ----------------------------
+  const ignite = useSharedValue(0);
+  const classify = useSharedValue(0);
+  const route = useSharedValue(0);
+  const schema = useSharedValue(0);
+  const converge = useSharedValue(0);
+  const orbit = useSharedValue(0);
+  const extractPulse = useSharedValue(0);
+  const extractOn = useSharedValue(0);
+  const breathe = useSharedValue(0);
+  const attnLock = useSharedValue(1);
+  const attnX = useSharedValue(0);
+  const attnY = useSharedValue(0);
+  const attnOpacity = useSharedValue(0);
+  const A: LatticeAnim = {
+    ignite,
+    classify,
+    route,
+    schema,
+    converge,
+    orbit,
+    extractPulse,
+    extractOn,
+    breathe,
+    attnLock,
+    attnX,
+    attnY,
+    attnOpacity,
+  };
+
+  // Ambient loops never stop while mounted, so the scene stays alive whether the
+  // run takes 15s or 90s. They are a handful of cheap UI-thread interpolations.
   useEffect(() => {
-    dotOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.4, { duration: 900, easing: Easing.inOut(Easing.sin) }),
-        withTiming(1, { duration: 900, easing: Easing.inOut(Easing.sin) }),
-      ),
+    orbit.value = withRepeat(withTiming(1, { duration: 5200, easing: Easing.linear }), -1, false);
+    extractPulse.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.linear }),
       -1,
       false,
     );
-  }, [dotOpacity]);
-  const dotStyle = useAnimatedStyle(() => ({ opacity: dotOpacity.value }));
+    breathe.value = withRepeat(
+      withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+    return () => {
+      cancelAnimation(orbit);
+      cancelAnimation(extractPulse);
+      cancelAnimation(breathe);
+    };
+  }, [orbit, extractPulse, breathe]);
 
-  // Animated stroke offset for the progress ring.
-  const ringProps = useAnimatedProps(() => ({
-    strokeDashoffset: PROGRESS_RING_CIRCUM * (1 - (progress.value ?? 0)),
+  // Seed the attention point at the core once we know where center is.
+  useEffect(() => {
+    if (!lat) return;
+    attnX.value = lat.cx;
+    attnY.value = lat.cy;
+  }, [lat, attnX, attnY]);
+
+  // Schema growth is exclusive to cold-start runs; latch it the instant we see
+  // the stage so cached runs (which skip it) never show phantom growth.
+  const [schemaSeen, setSchemaSeen] = useState(false);
+  useEffect(() => {
+    if (stage === 'designing_schema') setSchemaSeen(true);
+  }, [stage]);
+
+  // The choreography: map the real engine stage onto the structure's evolution.
+  useEffect(() => {
+    if (!lat) return;
+    const rank = done
+      ? 7
+      : stage && STAGE_RANK[stage] !== undefined
+        ? STAGE_RANK[stage]
+        : hasStage
+          ? 2
+          : 1;
+
+    ignite.value = withTiming(rank >= 1 ? 1 : 0, { duration: 600 });
+    classify.value = withTiming(rank >= 2 ? 1 : 0, { duration: 700 });
+    route.value = withTiming(rank >= 3 ? 1 : 0, { duration: 700 });
+    extractOn.value = withTiming(rank === 5 ? 1 : 0, { duration: 500 });
+    if (schemaSeen) schema.value = withTiming(1, { duration: 900 });
+    converge.value = withTiming(done ? 1 : 0, {
+      duration: done ? 760 : 300,
+      easing: Easing.inOut(Easing.cubic),
+    });
+    attnOpacity.value = withTiming(done ? 0 : 1, { duration: done ? 240 : 600 });
+
+    const lockTo = (x: number, y: number, lock: number) => {
+      attnX.value = withSpring(x, { damping: 17, stiffness: 70 });
+      attnY.value = withSpring(y, { damping: 17, stiffness: 70 });
+      attnLock.value = withTiming(lock, { duration: 520 });
+    };
+
+    if (done) {
+      lockTo(lat.cx, lat.cy, 1);
+    } else if (rank <= 1) {
+      lockTo(lat.cx, lat.cy, 1); // queued / preparing — focus rests on the core
+    } else if (rank === 2) {
+      attnLock.value = withTiming(0, { duration: 520 }); // classifying — orbit the candidates
+    } else if (rank === 3) {
+      lockTo(lat.chosenP.x, lat.chosenP.y, 1); // routing — dart to the chosen branch
+    } else if (rank === 4) {
+      lockTo(lat.chosenLeaf.x, lat.chosenLeaf.y, 1); // schema — hover the growth
+    } else {
+      lockTo(lat.cx, lat.cy, 1); // extracting / verifying — draw back to the core
+    }
+  }, [
+    stage,
+    done,
+    lat,
+    schemaSeen,
+    hasStage,
+    ignite,
+    classify,
+    route,
+    schema,
+    extractOn,
+    converge,
+    attnOpacity,
+    attnX,
+    attnY,
+    attnLock,
+  ]);
+
+  // --- photo (the core node) + glows ------------------------------------
+  const photoStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + 0.012 * breathe.value + 0.09 * converge.value }],
   }));
+  const sharpStyle = useAnimatedStyle(() => ({ opacity: converge.value }));
+  const veilStyle = useAnimatedStyle(() => ({ opacity: 0.46 * (1 - converge.value) }));
+  const ringStyle = useAnimatedStyle(() => ({ opacity: converge.value }));
+  const livePulse = useAnimatedStyle(() => ({ opacity: 0.45 + 0.55 * breathe.value }));
+
+  const coreGlowProps = useAnimatedProps(() => {
+    'worklet';
+    return { opacity: Math.min(0.92, 0.16 + 0.42 * ignite.value + 0.32 * converge.value) };
+  });
+  const burstProps = useAnimatedProps(() => {
+    'worklet';
+    return { opacity: 0.62 * converge.value };
+  });
+
+  const photoSize = lat ? Math.max(88, Math.min(150, lat.base * 0.3)) : 110;
+  const pulseEdges = useMemo(
+    () =>
+      lat
+        ? lat.nodes
+            .filter((n) => n.tier === 'primary')
+            .map((n) => ({ x: n.x, y: n.y, branch: n.branch, phase: n.branch / PRIMARY_COUNT }))
+        : [],
+    [lat],
+  );
 
   return (
-    <View style={styles.theaterWrap}>
-      {/* Header band — kicker + pulsing system online */}
-      <View style={styles.theaterHeader}>
-        <Text style={[styles.headerKicker, { color: colors.textPrimary }]}>
-          LENS: LOOKING GLASS
-        </Text>
-        <View style={styles.systemOnlineRow}>
-          <Animated.View
-            style={[styles.onlineDot, { backgroundColor: colors.semanticGreen }, dotStyle]}
-          />
-          <Text style={[styles.systemOnline, { color: colors.textTertiary }]}>
-            SYSTEM ONLINE
-          </Text>
-        </View>
+    <View style={[styles.theaterWrap, { backgroundColor: colors.void }]}>
+      <View style={styles.latticeTop}>
+        <Animated.View style={[styles.liveDot, { backgroundColor: colors.brandVolt }, livePulse]} />
+        <Text style={[styles.latticeWordmark, { color: colors.textTertiary }]}>LOOKING GLASS</Text>
       </View>
 
-      {/* Hero — holo-framed photo with matte padding; the photo emerges
-          from black as the ring climbs, with the ring overlaid on top. */}
-      <View style={styles.heroBlock}>
-        <HolographicFrame intensity="standard" style={styles.heroFrame}>
-          <View style={[styles.heroInner, { backgroundColor: colors.void }]}>
-            <View style={[styles.heroPhotoContainer, { backgroundColor: colors.void }]}>
-              {featuredPhoto ? (
-                <Animated.View style={[StyleSheet.absoluteFill, revealStyle]}>
-                  <Image
-                    source={{ uri: featuredPhoto.uri }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    blurRadius={20}
-                    recyclingKey={`hero-blur-${featuredPhoto.id}`}
-                  />
-                  <Animated.View style={[StyleSheet.absoluteFill, sharpStyle]}>
+      <View
+        style={styles.latticeStage}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setBox((b) => (b.w === width && b.h === height ? b : { w: width, h: height }));
+        }}
+      >
+        {lat ? (
+          <>
+            <Svg width={box.w} height={box.h} style={StyleSheet.absoluteFill}>
+              <Defs>
+                <RadialGradient id="latticeCore" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor={colors.brandVolt} stopOpacity={0.5} />
+                  <Stop offset="100%" stopColor={colors.brandVolt} stopOpacity={0} />
+                </RadialGradient>
+                <RadialGradient id="latticeBurst" cx="50%" cy="50%" r="50%">
+                  <Stop offset="0%" stopColor={accent} stopOpacity={0.75} />
+                  <Stop offset="55%" stopColor={accent} stopOpacity={0.18} />
+                  <Stop offset="100%" stopColor={accent} stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+
+              <AnimatedCircle
+                cx={lat.cx}
+                cy={lat.cy}
+                r={lat.base * 0.34}
+                fill="url(#latticeCore)"
+                animatedProps={coreGlowProps}
+              />
+              <AnimatedCircle
+                cx={lat.cx}
+                cy={lat.cy}
+                r={lat.base * 0.52}
+                fill="url(#latticeBurst)"
+                animatedProps={burstProps}
+              />
+
+              {lat.edges.map((edge) => (
+                <LatticeEdge
+                  key={edge.id}
+                  edge={edge}
+                  A={A}
+                  color={colors.brandVolt}
+                  isChosen={edge.branch === CHOSEN_BRANCH}
+                />
+              ))}
+
+              {lat.nodes.map((node, i) => (
+                <LatticeNode
+                  key={node.id}
+                  node={node}
+                  A={A}
+                  color={colors.brandVolt}
+                  isChosen={node.branch === CHOSEN_BRANCH}
+                  cx={lat.cx}
+                  cy={lat.cy}
+                  phase={(i * 1.7) % 6.283}
+                />
+              ))}
+
+              {pulseEdges.map((p, i) => (
+                <Pulse
+                  key={`pulse-${i}`}
+                  fromX={p.x}
+                  fromY={p.y}
+                  toX={lat.cx}
+                  toY={lat.cy}
+                  A={A}
+                  color={colors.brandVolt}
+                  phase={p.phase}
+                />
+              ))}
+
+              <AttentionNode A={A} cx={lat.cx} cy={lat.cy} r1={lat.r1} color={colors.brandVolt} />
+            </Svg>
+
+            <View style={styles.latticePhotoCenter} pointerEvents="none">
+              <Animated.View
+                style={[
+                  styles.latticePhoto,
+                  { width: photoSize, height: photoSize, borderColor: colors.frostBorder },
+                  photoStyle,
+                ]}
+              >
+                {featuredPhoto ? (
+                  <>
                     <Image
                       source={{ uri: featuredPhoto.uri }}
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
-                      recyclingKey={`hero-sharp-${featuredPhoto.id}`}
+                      blurRadius={14}
+                      recyclingKey={`lat-blur-${featuredPhoto.id}`}
                     />
-                  </Animated.View>
-                </Animated.View>
-              ) : null}
+                    <Animated.View style={[StyleSheet.absoluteFill, sharpStyle]}>
+                      <Image
+                        source={{ uri: featuredPhoto.uri }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        recyclingKey={`lat-sharp-${featuredPhoto.id}`}
+                      />
+                    </Animated.View>
+                    <Animated.View
+                      style={[StyleSheet.absoluteFill, { backgroundColor: colors.void }, veilStyle]}
+                    />
+                  </>
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.sheetBg }]} />
+                )}
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    styles.latticePhotoRing,
+                    { borderColor: accent },
+                    ringStyle,
+                  ]}
+                />
+              </Animated.View>
             </View>
-
-            {/* Iridescent progress ring centered over the photo */}
-            <View style={styles.ringOverlay} pointerEvents="none">
-              <View style={styles.ringInner}>
-                <Svg
-                  width={PROGRESS_RING_SIZE}
-                  height={PROGRESS_RING_SIZE}
-                  style={StyleSheet.absoluteFill}
-                >
-                  <Defs>
-                    <SvgLinearGradient
-                      id={PROGRESS_RING_GRADIENT_ID}
-                      x1="0%"
-                      y1="0%"
-                      x2="100%"
-                      y2="100%"
-                    >
-                      <Stop offset="0%" stopColor="#22D3EE" stopOpacity={0.95} />
-                      <Stop offset="40%" stopColor="#F0F0F0" stopOpacity={1} />
-                      <Stop offset="70%" stopColor="#BBCA3A" stopOpacity={0.95} />
-                      <Stop offset="100%" stopColor="#A78BFA" stopOpacity={0.95} />
-                    </SvgLinearGradient>
-                  </Defs>
-                  <Circle
-                    cx={PROGRESS_RING_SIZE / 2}
-                    cy={PROGRESS_RING_SIZE / 2}
-                    r={PROGRESS_RING_RADIUS}
-                    stroke={colors.frostBorderStrong}
-                    strokeWidth={PROGRESS_RING_STROKE}
-                    fill="transparent"
-                  />
-                  <AnimatedCircle
-                    cx={PROGRESS_RING_SIZE / 2}
-                    cy={PROGRESS_RING_SIZE / 2}
-                    r={PROGRESS_RING_RADIUS}
-                    stroke={`url(#${PROGRESS_RING_GRADIENT_ID})`}
-                    strokeWidth={PROGRESS_RING_STROKE}
-                    fill="transparent"
-                    strokeLinecap="round"
-                    strokeDasharray={PROGRESS_RING_CIRCUM}
-                    animatedProps={ringProps}
-                    transform={`rotate(-90 ${PROGRESS_RING_SIZE / 2} ${PROGRESS_RING_SIZE / 2})`}
-                  />
-                </Svg>
-                <View style={styles.ringTextWrap}>
-                  <Text style={[styles.ringText, { color: colors.textPrimary }]}>
-                    {percentText}
-                  </Text>
-                  <Text style={[styles.ringKicker, { color: colors.textPrimary }]}>
-                    ANALYZING
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </HolographicFrame>
+          </>
+        ) : null}
       </View>
 
-      {/* Description block */}
-      <View style={styles.descBlock}>
-        <Text style={[styles.descTitle, { color: colors.textPrimary }]}>
-          Translating Collectible
-        </Text>
-        <Text style={[styles.descBody, { color: colors.textSecondary }]}>
-          Looking Glass is actively analyzing your collectible to understand its details and condition.
-        </Text>
-      </View>
-
-      <View style={styles.checklist}>
-        {CHECKLIST_ITEMS.map((item, i) => {
-          const status: ChecklistRowStatus =
-            i < completedSteps ? 'complete' : i === completedSteps ? 'processing' : 'queued';
-          return (
-            <ChecklistRow
-              key={item.label}
-              label={item.label}
-              status={status}
-              cascadeIndex={i}
-            />
-          );
-        })}
+      <View style={styles.latticeStatus}>
+        <Animated.Text
+          key={statusKey}
+          entering={FadeIn.duration(320)}
+          numberOfLines={2}
+          style={[styles.latticeStatusText, { color: done ? accent : colors.textPrimary }]}
+        >
+          {statusText}
+        </Animated.Text>
+        <Text style={[styles.latticeStatusSub, { color: colors.textTertiary }]}>{verdictSub}</Text>
       </View>
     </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ChecklistRow — single line of the Looking Glass checklist.
-// ---------------------------------------------------------------------------
-
-type ChecklistRowStatus = 'complete' | 'processing' | 'queued';
-
-function ChecklistRow({
-  label,
-  status,
-  cascadeIndex,
-}: {
-  label: string;
-  status: ChecklistRowStatus;
-  cascadeIndex: number;
-}) {
-  const { colors } = useTheme();
-
-  const spin = useSharedValue(0);
-  useEffect(() => {
-    if (status === 'processing') {
-      spin.value = 0;
-      spin.value = withRepeat(
-        withTiming(360, { duration: 1500, easing: Easing.linear }),
-        -1,
-        false,
-      );
-    } else {
-      spin.value = 0;
-    }
-  }, [status, spin]);
-  const spinStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
-  }));
-
-  let indicator: React.ReactNode;
-  let statusLabel = '';
-  let statusColor = colors.textTertiary;
-  let labelColor = colors.textTertiary;
-
-  if (status === 'complete') {
-    indicator = (
-      <View
-        style={[
-          styles.checklistIndicator,
-          { backgroundColor: colors.brandVolt, borderColor: colors.brandVolt },
-        ]}
-      >
-        <Check size={8} color={colors.textInverse} strokeWidth={3} />
-      </View>
-    );
-    statusLabel = 'Complete';
-    statusColor = colors.brandVolt;
-    labelColor = colors.brandVolt;
-  } else if (status === 'processing') {
-    indicator = (
-      <Animated.View
-        style={[
-          styles.checklistIndicator,
-          styles.checklistIndicatorDashed,
-          { borderColor: colors.brandVolt },
-          spinStyle,
-        ]}
-      />
-    );
-    statusLabel = 'Processing';
-    statusColor = colors.brandVolt;
-    labelColor = colors.textPrimary;
-  } else {
-    indicator = (
-      <View
-        style={[
-          styles.checklistIndicator,
-          { borderColor: colors.frostBorder },
-        ]}
-      />
-    );
-    statusLabel = 'Queued';
-    statusColor = colors.textTertiary;
-  }
-
-  return (
-    <Animated.View
-      key={`row-${status}`}
-      entering={FadeIn.duration(200).delay(cascadeIndex * 80)}
-      style={styles.checklistRow}
-    >
-      {indicator}
-      <Text style={[styles.checklistLabel, { color: labelColor }]}>{label}</Text>
-      <Text style={[styles.checklistStatus, { color: statusColor }]}>{statusLabel}</Text>
-    </Animated.View>
   );
 }
 
@@ -1435,13 +2340,18 @@ function ChecklistRow({
 // ---------------------------------------------------------------------------
 
 function FailedStep({
+  failureCode,
+  onRetry,
   onStartOver,
   onGetSupport,
 }: {
+  failureCode: string | null;
+  onRetry?: () => void;
   onStartOver: () => void;
   onGetSupport: () => void;
 }) {
   const { colors } = useTheme();
+  const copy = (failureCode && FAILURE_COPY[failureCode]) || FAILURE_FALLBACK_COPY;
   return (
     <View style={styles.failedWrap}>
       <View style={[styles.failedIconWrap, { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder }]}>
@@ -1451,12 +2361,60 @@ function FailedStep({
         We couldn&apos;t analyze this item
       </Text>
       <Text style={[styles.failedCopy, { color: colors.textSecondary }]}>
-        Something went wrong during extraction. This can happen with unusual items or temporary service issues.
+        {copy}
       </Text>
-      <Button label="Start Over" fullWidth onPress={onStartOver} style={{ marginTop: SPACING.xl }} />
-      <Pressable onPress={onGetSupport} style={styles.failedSupportLink} accessibilityRole="button">
-        <Headphones size={16} color={colors.textTertiary} />
-        <Text style={[styles.failedSupportText, { color: colors.textTertiary }]}>Get Support</Text>
+      {onRetry ? (
+        <Button label="Try Again" fullWidth onPress={onRetry} style={{ marginTop: SPACING.xl }} />
+      ) : (
+        <Button label="Start Over" fullWidth onPress={onStartOver} style={{ marginTop: SPACING.xl }} />
+      )}
+      {onRetry ? (
+        <Pressable onPress={onStartOver} style={styles.failedSupportLink} accessibilityRole="button">
+          <RotateCcw size={16} color={colors.textTertiary} />
+          <Text style={[styles.failedSupportText, { color: colors.textTertiary }]}>Start Over</Text>
+        </Pressable>
+      ) : (
+        <Pressable onPress={onGetSupport} style={styles.failedSupportLink} accessibilityRole="button">
+          <Headphones size={16} color={colors.textTertiary} />
+          <Text style={[styles.failedSupportText, { color: colors.textTertiary }]}>Get Support</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rejected Step — the engine recognized the input but rejected it (not a
+// collectible / multiple items / unreadable). Distinct from a failure: there's
+// nothing to retry blindly, so we guide the user to retake or bail out.
+// ---------------------------------------------------------------------------
+
+function RejectedStep({
+  rejectionReason,
+  onRetake,
+  onCancel,
+}: {
+  rejectionReason: string | null;
+  onRetake: () => void;
+  onCancel: () => void;
+}) {
+  const { colors } = useTheme();
+  const copy = (rejectionReason && REJECTION_COPY[rejectionReason]) || REJECTION_FALLBACK_COPY;
+  return (
+    <View style={styles.failedWrap}>
+      <View style={[styles.failedIconWrap, { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder }]}>
+        <Eye size={44} color={colors.textSecondary} strokeWidth={1.3} />
+      </View>
+      <Text style={[styles.failedTitle, { color: colors.textPrimary }]}>
+        We couldn&apos;t recognize this
+      </Text>
+      <Text style={[styles.failedCopy, { color: colors.textSecondary }]}>
+        {copy}
+      </Text>
+      <Button label="Retake Photos" fullWidth onPress={onRetake} style={{ marginTop: SPACING.xl }} />
+      <Pressable onPress={onCancel} style={styles.failedSupportLink} accessibilityRole="button">
+        <X size={16} color={colors.textTertiary} />
+        <Text style={[styles.failedSupportText, { color: colors.textTertiary }]}>Cancel</Text>
       </Pressable>
     </View>
   );
@@ -1582,7 +2540,7 @@ interface FieldEdits {
 const EMPTY_EDITS: FieldEdits = { ai: {}, trait: {} };
 
 /**
- * Overlay pending edits onto the base extraction so review + finalize can
+ * Overlay pending edits onto the base extraction so review renders the
  * render the live, user-corrected values without mutating the seed.
  */
 function applyEdits(extraction: ExtractionResult, edits: FieldEdits): ExtractionResult {
@@ -2054,239 +3012,7 @@ function InlineEditableField({
 }
 
 // ---------------------------------------------------------------------------
-// Step 4 — Finalize
-// ---------------------------------------------------------------------------
-
-function FinalizeStep({
-  extraction: _extraction,
-  status,
-  value,
-  visibility,
-  selectedShowcases,
-  tags,
-  bottomInset,
-  valueRequired,
-  valueMissing,
-  onStatusChange,
-  onValueChange,
-  onVisibilityChange,
-  onOpenShowcasePicker,
-  onRemoveShowcase,
-  onOpenTagDialog,
-  onRemoveTag,
-}: {
-  extraction: ExtractionResult;
-  status: ListingStatus;
-  value: string;
-  visibility: 'public' | 'private';
-  selectedShowcases: { id: string; title: string }[];
-  tags: string[];
-  bottomInset: number;
-  valueRequired: boolean;
-  valueMissing: boolean;
-  onStatusChange: (s: ListingStatus) => void;
-  onValueChange: (v: string) => void;
-  onVisibilityChange: (v: 'public' | 'private') => void;
-  onOpenShowcasePicker: () => void;
-  onRemoveShowcase: (id: string) => void;
-  onOpenTagDialog: () => void;
-  onRemoveTag: (tag: string) => void;
-}) {
-  const { colors } = useTheme();
-  return (
-    <ScrollView
-      style={styles.body}
-      contentContainerStyle={[
-        styles.finalizeContent,
-        { paddingBottom: ActionDock.reservedHeight(bottomInset) + SPACING.zoneIntra },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.finalizeHero}>
-        <Text style={[styles.finalizeHeroEyebrow, { color: colors.textTertiary }]}>OWNER PREFERENCES</Text>
-        <Text style={[styles.finalizeHeroTitle, { color: colors.textPrimary }]}>Choose how this item enters your Vault.</Text>
-      </View>
-
-      {/* Listing status — chrome cards (mirrors profile status grid) */}
-      <View style={styles.finalizeSection}>
-        <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>LISTING STATUS</Text>
-        <View style={styles.statusGrid}>
-          {STATUS_OPTIONS.map((option) => {
-            const chrome = STATUS_CONFIG[option.key];
-            const selected = status === option.key;
-            return (
-              <Pressable
-                key={option.key}
-                onPress={() => onStatusChange(option.key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.statusCard,
-                  {
-                    backgroundColor: chrome.fill,
-                    borderColor: selected ? chrome.border : colors.frostDivider,
-                    opacity: selected ? 1 : 0.7,
-                  },
-                ]}
-              >
-                <View style={styles.statusCardHeader}>
-                  <Text style={[styles.statusCardTitle, { color: chrome.text }]}>
-                    {option.title.toUpperCase()}
-                  </Text>
-                  {selected ? (
-                    <Check size={14} color={chrome.text} strokeWidth={2.5} />
-                  ) : null}
-                </View>
-                <Text style={[styles.statusCardSubtitle, { color: colors.textSecondary }]}>{option.subtitle}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Estimated value — required when the listing is for sale or trade.
-          The kicker flips from neutral "REQUIRED" to a warning-tinted
-          "REQUIRED" once the field is both demanded and empty, mirroring
-          the form-error patterns used across the rest of the app. */}
-      <View style={styles.finalizeSection}>
-        <View style={styles.kickerRow}>
-          <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>ESTIMATED VALUE</Text>
-          {valueRequired ? (
-            <Text
-              style={[
-                styles.requiredHint,
-                { color: colors.textTertiary },
-                valueMissing && { color: colors.semanticRed },
-              ]}
-            >
-              REQUIRED
-            </Text>
-          ) : null}
-        </View>
-        <View style={styles.valueFieldRow}>
-          <Text
-            style={[
-              styles.valueCurrency,
-              { color: colors.textTertiary },
-              valueMissing && { color: colors.semanticRed },
-            ]}
-          >
-            $
-          </Text>
-          <TextInput
-            value={value}
-            onChangeText={onValueChange}
-            style={[styles.valueInput, { color: colors.textPrimary }]}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            placeholderTextColor={valueMissing ? colors.semanticRed : colors.textTertiary}
-          />
-        </View>
-      </View>
-
-      {/* Visibility — full-width paired pills (mirrors profile's Follow/Share
-          duo so the two-option choice reads with the same rhythm as the
-          rest of the app). */}
-      <View style={styles.finalizeSection}>
-        <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>VISIBILITY</Text>
-        <View style={styles.visibilityRow}>
-          {(['public', 'private'] as const).map((option) => {
-            const active = visibility === option;
-            const Icon = option === 'public' ? Eye : Lock;
-            return (
-              <Pressable
-                key={option}
-                onPress={() => onVisibilityChange(option)}
-                style={[
-                  styles.visibilityBtn,
-                  { borderColor: colors.frostBorderStrong, backgroundColor: colors.sheetBg },
-                  active && { borderColor: colors.brandVoltBorder, backgroundColor: colors.brandVoltFill },
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Icon
-                  size={13}
-                  color={active ? colors.textPrimary : colors.textSecondary}
-                  strokeWidth={1.8}
-                />
-                <Text
-                  style={[
-                    styles.visibilityBtnText,
-                    { color: colors.textSecondary },
-                    active && { color: colors.textPrimary },
-                  ]}
-                >
-                  {option.toUpperCase()}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Showcases — multi-select, removable chip row.
-          Each selected showcase renders as a chip the user can tap to
-          remove (matching the tag UX). A trailing "+ SHOWCASE" pill
-          reopens the picker for additions. Critical for collectors with
-          many showcases: surfaces the current selection at a glance and
-          gives a one-tap removal path without re-entering the picker. */}
-      <View style={styles.finalizeSection}>
-        <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>SHOWCASES</Text>
-        <View style={styles.tagRow}>
-          {selectedShowcases.map((s) => (
-            <Pressable
-              key={s.id}
-              onPress={() => onRemoveShowcase(s.id)}
-              style={[
-                styles.showcaseChip,
-                { backgroundColor: colors.semanticSilverFill, borderColor: colors.frostBorder },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={`Remove from ${s.title}`}
-              accessibilityHint="Double-tap to remove this showcase from the upload"
-            >
-              <Text
-                style={[styles.showcaseChipText, { color: colors.textPrimary }]}
-                numberOfLines={1}
-              >
-                {s.title}
-              </Text>
-              <X size={12} color={colors.textTertiary} strokeWidth={2} />
-            </Pressable>
-          ))}
-          <Pressable
-            onPress={onOpenShowcasePicker}
-            style={[styles.tagChipAdd, { borderColor: colors.brandVoltBorder }]}
-            accessibilityRole="button"
-            accessibilityLabel="Add to a showcase"
-          >
-            <Text style={[styles.tagText, { color: colors.brandVolt }]}>+ SHOWCASE</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Tags */}
-      <View style={styles.finalizeSection}>
-        <Text style={[styles.finalizeKicker, { color: colors.textSecondary }]}>TAGS</Text>
-        <View style={styles.tagRow}>
-          {tags.map((tag) => (
-            <Pressable key={tag} onPress={() => onRemoveTag(tag)} style={[styles.tagChip, { backgroundColor: colors.semanticSilverFill, borderColor: colors.frostBorder }]}>
-              <Text style={[styles.tagText, { color: colors.textPrimary }]}>#{tag}</Text>
-            </Pressable>
-          ))}
-          <Pressable onPress={onOpenTagDialog} style={[styles.tagChipAdd, { borderColor: colors.brandVoltBorder }]}>
-            <Text style={[styles.tagText, { color: colors.brandVolt }]}>+ TAG</Text>
-          </Pressable>
-        </View>
-      </View>
-
-    </ScrollView>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Step 5 — Success
+// Step 4 — Success
 // ---------------------------------------------------------------------------
 
 function SuccessStep({
@@ -2322,12 +3048,6 @@ function SuccessStep({
 }
 
 // ---------------------------------------------------------------------------
-// Layout constants
-// ---------------------------------------------------------------------------
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-
-// ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
@@ -2336,7 +3056,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    minHeight: 62,
+    minHeight: 56,
+    paddingVertical: SPACING.zoneIntra / 2,
     paddingHorizontal: SPACING.gutter,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2344,24 +3065,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonGhost: {
-    width: 40,
+    width: 44,
   },
   headerCenter: {
     alignItems: 'center',
-    gap: 3,
-  },
-  kicker: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 10,
-    letterSpacing: 1.8,
   },
   headerTitle: {
     fontFamily: TYPE.groteskBold,
@@ -2377,12 +3092,6 @@ const styles = StyleSheet.create({
     gap: 20,
   },
 
-  heroBlock: { gap: 10 },
-  heroEyebrow: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 10,
-    letterSpacing: 1.8,
-  },
   heroTitle: {
     fontFamily: TYPE.heroDisplay,
     fontSize: 28,
@@ -2395,174 +3104,183 @@ const styles = StyleSheet.create({
   },
   scanScroll: { flex: 1 },
   scanScrollContent: {
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: SPACING.zoneIntra,
+    paddingBottom: SPACING.zoneIntra,
+    gap: SPACING.sectionGap,
   },
-  scanTitleBlock: { gap: 4 },
-  scanTitle: {
-    fontFamily: TYPE.heroDisplay,
-    fontSize: 28,
+  identifySection: {
+    gap: SPACING.zoneIntra,
   },
-  scanSubtitle: {
-    fontFamily: TYPE.inter,
+  identifySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: SPACING.zoneIntra,
+  },
+  identifySectionTitle: {
+    fontFamily: TYPE.groteskBold,
     fontSize: 13,
   },
-  scanSubtitleMuted: {},
-  // Wrapper for the <PhotoReorderGrid /> primitive. The primitive owns
-  // all the tile / lift / COVER / remove-X styling; this wrapper just
-  // supplies the top margin that anchors the grid below the title.
-  photoGrid: {
-    marginTop: 16,
+  identifySectionHint: {
+    fontFamily: TYPE.inter,
+    fontSize: 12,
+    flexShrink: 1,
+    textAlign: 'right',
   },
-  contextBlock: { gap: 8, marginTop: 16 },
+  identifySectionBody: {
+    gap: SPACING.sectionGap,
+  },
+  identifySectionBlock: {
+    gap: SPACING.zoneIntra,
+  },
+  identifyFieldLabel: {
+    fontFamily: TYPE.groteskSemiBold,
+    fontSize: 12,
+  },
+  identifyFieldHeader: {
+    gap: SPACING.zoneIntra / 2,
+  },
+  identifyFieldHint: {
+    fontFamily: TYPE.inter,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  identifyStatusScroll: {
+    marginHorizontal: -SPACING.gutter,
+    flexGrow: 0,
+  },
+  identifyStatusScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.zoneIntra / 2,
+    paddingHorizontal: SPACING.gutter,
+    paddingVertical: 2,
+  },
+  statusChipOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  statusChipMuted: {
+    opacity: 0.34,
+  },
+  keyboardAccessory: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'flex-end',
+  },
+  keyboardAccessoryBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  keyboardAccessoryDone: {
+    fontFamily: TYPE.groteskSemiBold,
+    fontSize: 16,
+  },
+  valueFieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingVertical: SPACING.zoneIntra / 2,
+  },
+  valueCurrencyInline: {
+    fontFamily: TYPE.monoMedium,
+    fontSize: 17,
+  },
+  valueInputInline: {
+    flex: 1,
+    fontFamily: TYPE.monoMedium,
+    fontSize: 17,
+    padding: 0,
+    minHeight: 24,
+  },
   contextLabel: { fontFamily: TYPE.groteskBold, fontSize: 13 },
   contextOptional: { fontFamily: TYPE.inter, fontSize: 13 },
   contextFieldWrap: {
     borderRadius: RADII.medium,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.rowPadX,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: SPACING.zoneIntra / 2,
   },
   contextInput: {
     fontFamily: TYPE.inter,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
     padding: 0,
-    minHeight: 44,
+    height: 22,
   },
-  contextCounter: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 10,
-    textAlign: 'right',
-    marginTop: 6,
-  },
-  // --- Theater (Looking Glass HUD) ---
+  // The Lattice — a full-bleed void stage. The reasoning graph + core photo
+  // fill the center; a whisper-thin wordmark floats above and the verdict /
+  // status anchors the bottom. No frame, no chrome — the machine is the show.
   theaterWrap: {
     flex: 1,
-    paddingHorizontal: SPACING.gutter,
-    paddingTop: 12,
-    paddingBottom: SPACING.gutter,
-    gap: 16,
   },
-  theaterHeader: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerKicker: {
-    fontFamily: TYPE.groteskSemiBold,
-    fontSize: 11,
-    letterSpacing: 1.6,
-  },
-  systemOnlineRow: {
+  latticeTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 7,
+    paddingTop: 14,
   },
-  onlineDot: {
+  liveDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
   },
-  systemOnline: {
-    fontFamily: TYPE.groteskSemiBold,
-    fontSize: 9,
-    letterSpacing: 1.4,
+  latticeWordmark: {
+    fontFamily: TYPE.monoMedium,
+    fontSize: 10,
+    letterSpacing: 3,
   },
-  // Theater hero — holographic frame around a matte-padded photo with the
-  // ring overlaid in the center. The frame's iridescent border + sweeping
-  // sheen come from `HolographicFrame`; we just give the photo a small
-  // void inset so the chrome feels intentional rather than crushed.
-  heroBlock: {
+  latticeStage: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroFrame: {
-    width: '78%',
-  },
-  heroInner: {
-    aspectRatio: 4 / 5,
-    width: '100%',
-    padding: 10,
-    position: 'relative',
-  },
-  heroPhotoContainer: {
-    flex: 1,
-    overflow: 'hidden',
-    borderRadius: RADII.small,
-  },
-  ringOverlay: {
+  latticePhotoCenter: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringInner: {
-    width: PROGRESS_RING_SIZE,
-    height: PROGRESS_RING_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringTextWrap: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  ringText: {
-    fontFamily: TYPE.heroDisplay,
-    fontSize: 32,
-    letterSpacing: 0.4,
-  },
-  ringKicker: {
-    fontFamily: TYPE.groteskSemiBold,
-    fontSize: 10,
-    letterSpacing: 1.6,
-  },
-  descBlock: {
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: SPACING.gutter,
-  },
-  descTitle: {
-    fontFamily: TYPE.heroDisplay,
-    fontSize: 22,
-    textAlign: 'center',
-    letterSpacing: 0.4,
-  },
-  descBody: {
-    fontFamily: TYPE.inter,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  checklist: {
-    gap: 10,
-    marginTop: 4,
-  },
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checklistIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  latticePhoto: {
+    borderRadius: RADII.medium,
+    overflow: 'hidden',
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  checklistIndicatorDashed: {
-    borderStyle: 'dashed',
+  latticePhotoRing: {
+    borderRadius: RADII.medium,
     borderWidth: 1.5,
   },
-  checklistLabel: {
-    flex: 1,
-    fontFamily: TYPE.inter,
-    fontSize: 13,
+  latticeStatus: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: SPACING.gutter,
+    paddingBottom: 28,
   },
-  checklistStatus: {
-    fontFamily: TYPE.groteskSemiBold,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    textAlign: 'right',
+  latticeStatusText: {
+    fontFamily: TYPE.heroDisplay,
+    fontSize: 23,
+    letterSpacing: 0.4,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  latticeStatusSub: {
+    fontFamily: TYPE.monoMedium,
+    fontSize: 9.5,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
 
   reviewShell: {
@@ -2763,24 +3481,23 @@ const styles = StyleSheet.create({
   },
   visibilityRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: SPACING.zoneIntra / 2,
   },
   visibilityBtn: {
     flex: 1,
-    height: 38,
+    minHeight: 44,
     borderRadius: RADII.pill,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    paddingHorizontal: 12,
   },
   visibilityBtnActive: {},
   visibilityBtnText: {
-    fontFamily: TYPE.heroDisplay,
-    fontSize: 11,
-    fontWeight: 'bold',
-    letterSpacing: 4,
+    fontFamily: TYPE.groteskSemiBold,
+    fontSize: 13,
   },
   visibilityBtnTextActive: {},
 
@@ -2822,52 +3539,7 @@ const styles = StyleSheet.create({
   },
   requiredHint: {
     fontFamily: TYPE.groteskSemiBold,
-    fontSize: 9,
-    letterSpacing: 1.4,
-  },
-  requiredHintError: {},
-  valueCurrencyError: {},
-  statusGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  statusCard: {
-    width: (SCREEN_WIDTH - SPACING.gutter * 2 - 10) / 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 12,
-    gap: 4,
-  },
-  statusCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statusCardTitle: {
-    fontFamily: TYPE.groteskBold,
     fontSize: 11,
-    letterSpacing: 1.35,
-  },
-  statusCardSubtitle: {
-    fontFamily: TYPE.inter,
-    fontSize: 12,
-  },
-  valueFieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  valueCurrency: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 22,
-  },
-  valueInput: {
-    flex: 1,
-    height: 40,
-    paddingHorizontal: 0,
-    fontFamily: TYPE.monoMedium,
-    fontSize: 22,
   },
   pickerRow: {
     flexDirection: 'row',
@@ -2891,24 +3563,41 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22,
   },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  showcasePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    borderRadius: RADII.medium,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.rowPadX,
+    paddingVertical: SPACING.zoneIntra / 2,
+    gap: SPACING.zoneIntra,
+  },
+  showcasePickerRowLabel: {
+    flex: 1,
+    fontFamily: TYPE.inter,
+    fontSize: 15,
+  },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.zoneIntra / 2 },
   tagChip: {
     borderRadius: RADII.pill,
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   tagChipAdd: {
     borderRadius: RADII.pill,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   tagText: {
-    fontFamily: TYPE.monoMedium,
-    fontSize: 10,
-    letterSpacing: 0.8,
+    fontFamily: TYPE.interMedium,
+    fontSize: 13,
   },
 
   // Showcase chip variant: slightly larger and pairs the title with an
@@ -2924,7 +3613,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingLeft: 12,
     paddingRight: 10,
-    paddingVertical: 7,
+    minHeight: 44,
     maxWidth: '100%',
   },
   showcaseChipText: {

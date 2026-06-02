@@ -215,6 +215,7 @@ export const getSubcategoryByCode = (...args: Parameters<CategoriesApi['getSubca
 export const enqueueExtraction = (...args: Parameters<ExtractionApi['enqueueExtraction']>) => s().extraction.enqueueExtraction(...args);
 export const subscribeToCollectibleRow = (...args: Parameters<ExtractionApi['subscribeToCollectibleRow']>) => s().extraction.subscribeToCollectibleRow(...args);
 export const pollJobStatus = (...args: Parameters<ExtractionApi['pollJobStatus']>) => s().extraction.pollJobStatus(...args);
+export const pollEngineJobStatus = (...args: Parameters<ExtractionApi['pollEngineJobStatus']>) => s().extraction.pollEngineJobStatus(...args);
 export const raceForCompletion = (...args: Parameters<ExtractionApi['raceForCompletion']>) => s().extraction.raceForCompletion(...args);
 
 // explore
@@ -323,6 +324,7 @@ export type {
   ExtractionStatus,
   ExtractionStatusUpdate,
   ExtractionEnv,
+  EngineJobStatus,
 } from './modules/extraction';
 export type {
   HotItem,

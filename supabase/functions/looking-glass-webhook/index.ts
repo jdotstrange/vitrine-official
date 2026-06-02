@@ -12,6 +12,11 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  mapEngineResponseToColumns,
+  mapFailureCodeToReason,
+  TERMINAL_STATES,
+} from "../_shared/engine-mapping.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,80 +61,6 @@ async function verifySignature(
 }
 
 // ---------------------------------------------------------------------------
-// Engine response → collectibles columns
-// ---------------------------------------------------------------------------
-
-function mapEngineResponseToColumns(
-  results: Record<string, unknown>,
-): Record<string, unknown> {
-  const cls = results.classification as {
-    rejected?: string | null;
-    collectible_type?: string | null;
-    type_code?: string | null;
-    category_code?: string | null;
-    sub_type?: string | null;
-    domain?: string | null;
-  } | null;
-
-  const isRejected = cls?.rejected != null;
-
-  let classification: string;
-  if (!cls) {
-    classification = "unknown";
-  } else if (isRejected) {
-    classification = cls.collectible_type ?? "unknown";
-  } else if (cls.collectible_type === "memorabilia") {
-    classification = [cls.collectible_type, cls.type_code, cls.category_code]
-      .filter(Boolean)
-      .join(".");
-  } else {
-    classification = [cls.collectible_type, cls.sub_type, cls.domain]
-      .filter(Boolean)
-      .join(".");
-  }
-
-  const rawTraits = results.traits as Record<string, boolean> | null;
-  const traits = rawTraits
-    ? Object.entries(rawTraits)
-        .filter(([_, v]) => v === true)
-        .map(([k]) => k)
-    : [];
-
-  const schemaMeta = results.schema_meta as {
-    field_schema?: unknown;
-    mode?: string;
-  } | null;
-
-  const verification = results.verification as {
-    available?: boolean;
-    url?: string;
-  } | null;
-
-  // Derive category/subcategory from classification path
-  const classificationParts = classification.split(".");
-  const category = classificationParts[1] ?? null;
-  const subcategory = classificationParts[2] ?? null;
-
-  return {
-    collectible_type: cls?.collectible_type ?? null,
-    classification,
-    category,
-    subcategory,
-    confidence: (results.confidence as string) ?? null,
-    traits,
-    ai_metadata: results.ai_metadata ?? null,
-    trait_metadata: results.trait_metadata ?? null,
-    filter_traits: results.filter_traits ?? null,
-    listing_title: (results.listing_title as string) ?? null,
-    listing_description: (results.listing_description as string) ?? null,
-    field_schema: schemaMeta?.field_schema ?? null,
-    schema_mode: schemaMeta?.mode ?? null,
-    verification_url:
-      verification?.available === true ? verification.url ?? null : null,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -168,6 +99,9 @@ Deno.serve(async (req) => {
     status?: string;
     results?: Record<string, unknown>;
     error?: string;
+    outcome?: "extracted" | "rejected";
+    rejection_reason?: string | null;
+    failure_code?: string;
   };
   try {
     payload = JSON.parse(rawBody);
@@ -213,10 +147,9 @@ Deno.serve(async (req) => {
   }
 
   // Idempotency: never overwrite a terminal state
-  const terminalStates = ["complete", "failed", "extracted"];
   if (
     row.extraction_status &&
-    terminalStates.includes(row.extraction_status)
+    (TERMINAL_STATES as readonly string[]).includes(row.extraction_status)
   ) {
     return new Response(
       JSON.stringify({ ignored: true, reason: "already_terminal" }),
@@ -226,17 +159,40 @@ Deno.serve(async (req) => {
 
   const now = new Date().toISOString();
 
+  // Guard string excludes ALL terminal states so a late webhook never clobbers
+  // a row the user has already acted on (or the reconciler already resolved).
+  const nonTerminalGuard = `(${TERMINAL_STATES.join(",")})`;
+
   if (status === "processing") {
     const { error: upErr } = await admin
       .from("collectibles")
       .update({ extraction_status: "processing", updated_at: now })
       .eq("id", row.id)
-      .not("extraction_status", "in", "(extracted,complete,failed)");
+      .not("extraction_status", "in", nonTerminalGuard);
 
     if (upErr) console.error("[webhook] processing update failed:", upErr.message);
 
     console.log(`[webhook] job=${job_id} → processing`);
+  } else if (status === "complete" && payload.outcome === "rejected") {
+    // Engine recognized the input but rejected it (e.g. not a collectible).
+    // Terminal: store the reason, do NOT map columns or publish.
+    const { error: upErr } = await admin
+      .from("collectibles")
+      .update({
+        extraction_status: "rejected",
+        extraction_failure_reason: payload.rejection_reason ?? "content_unclear",
+        extraction_failed_at: now,
+        updated_at: now,
+      })
+      .eq("id", row.id)
+      .not("extraction_status", "in", nonTerminalGuard);
+
+    if (upErr) console.error("[webhook] rejected update failed:", upErr.message);
+
+    console.log(`[webhook] job=${job_id} → rejected: ${payload.rejection_reason ?? "unknown"}`);
   } else if (status === "complete" && results) {
+    // Successful extraction. Set 'extracted'; the complete_and_publish trigger
+    // promotes single-lane to 'complete' (no publish — client-owned).
     const cols = mapEngineResponseToColumns(results);
 
     const { error: upErr } = await admin
@@ -247,7 +203,7 @@ Deno.serve(async (req) => {
         updated_at: now,
       })
       .eq("id", row.id)
-      .not("extraction_status", "in", "(extracted,complete,failed)");
+      .not("extraction_status", "in", nonTerminalGuard);
 
     if (upErr) console.error("[webhook] extracted update failed:", upErr.message);
 
@@ -255,13 +211,18 @@ Deno.serve(async (req) => {
   } else if (status === "failed") {
     const { error: upErr } = await admin
       .from("collectibles")
-      .update({ extraction_status: "failed", updated_at: now })
+      .update({
+        extraction_status: "failed",
+        extraction_failure_reason: mapFailureCodeToReason(payload.failure_code),
+        extraction_failed_at: now,
+        updated_at: now,
+      })
       .eq("id", row.id)
-      .not("extraction_status", "in", "(extracted,complete,failed)");
+      .not("extraction_status", "in", nonTerminalGuard);
 
     if (upErr) console.error("[webhook] failed update failed:", upErr.message);
 
-    console.log(`[webhook] job=${job_id} → failed: ${payload.error ?? "unknown"}`);
+    console.log(`[webhook] job=${job_id} → failed: ${payload.failure_code ?? payload.error ?? "unknown"}`);
   }
 
   return new Response(

@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { colors } from '@/lib/colors';
-import { getOptimizedUrl, IMAGE_SIZES } from '@/lib/image-utils';
+import { getOptimizedUrl, getOriginalUrl, IMAGE_SIZES } from '@/lib/image-utils';
 
 const AR_DEVIATION_THRESHOLD = 0.25;
 const BLUR_RADIUS = 30;
@@ -29,10 +29,18 @@ export function AdaptiveImage({
   displaySize = 'card',
 }: AdaptiveImageProps) {
   const [needsBlurFill, setNeedsBlurFill] = useState(false);
+  // Fall back to the raw original if the transform fails — never render blank.
+  const [useOriginal, setUseOriginal] = useState(false);
+  useEffect(() => setUseOriginal(false), [uri]);
 
   const transformWidth =
     typeof displaySize === 'number' ? displaySize : IMAGE_SIZES[displaySize];
   const optimizedUri = getOptimizedUrl(uri, transformWidth);
+  const displayUri = useOriginal ? getOriginalUrl(optimizedUri) : optimizedUri;
+
+  const handleError = useCallback(() => {
+    if (!useOriginal && displayUri !== uri) setUseOriginal(true);
+  }, [useOriginal, displayUri, uri]);
 
   const handleLoad = useCallback(
     (event: { source: { width: number; height: number } }) => {
@@ -59,7 +67,7 @@ export function AdaptiveImage({
     <View style={[containerStyle, style]} pointerEvents="none">
       {needsBlurFill && (
         <Image
-          source={{ uri: optimizedUri }}
+          source={{ uri: displayUri }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           blurRadius={BLUR_RADIUS}
@@ -68,11 +76,12 @@ export function AdaptiveImage({
       )}
 
       <Image
-        source={{ uri: optimizedUri }}
+        source={{ uri: displayUri }}
         style={StyleSheet.absoluteFill}
         contentFit={needsBlurFill ? 'contain' : 'cover'}
         transition={200}
         onLoad={handleLoad}
+        onError={handleError}
         recyclingKey={uri}
         accessibilityLabel="Collectible image"
       />

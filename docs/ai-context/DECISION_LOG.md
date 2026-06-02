@@ -1,7 +1,14 @@
 # Decision Log
 
-Last updated: 2026-05-30
-Last verified: 2026-05-30
+Last updated: 2026-06-02
+Last verified: 2026-06-02
+
+## Decision: Native single-lane upload becomes Identify-first (prefs before Analyze, Review ends with Catalog)
+- Reason: Web bulk uploader already collects photos + context + owner preferences on one card before processing. Native's post-AI Finalize step added a full screen at the end of the critical path and encouraged "snap → Analyze" without catalog intent. Merging prefs into Identify (with strict Analyze validation) aligns platforms, pairs with speculative upload overlap, and reframes the product as cataloging — not casual image lookup.
+- Alternatives Considered: (A) Keep Scan + Finalize separate — rejected (extra screen after Review, underuses Identify dwell time); (B) Move prefs to Review — rejected (prefs are owner intent, not AI verification); (C) Identify-first with prefs on draft insert + Catalog on Review — selected.
+- Status: Implemented (2026-06-02).
+- Files Or Areas Affected: `apps/native/components/upload-entry.tsx`, `apps/native/lib/api/collectibles.ts`, future authenticated web single-lane (must follow same pattern — see OPEN_THREADS).
+- Notes: Analyze blocked until photos + valid value (when sale/trade). Showcase links still at Catalog commit. CTA lexicon: **Catalog** = confirm & publish. Tier 1 speculative upload + Theater dwell trim already shipped separately.
 
 ## Decision: Bump `runtimeVersion` to `2` when cutting new preview binary (isolate PhotoReorderGrid native stack)
 - Reason: `PhotoReorderGrid` required native bumps (Reanimated 4.1.7→4.3.1, Worklets 0.5→0.8, `react-native-reanimated-dnd@2`). May 26 preview binary `c69ae9b1` included those natives but still shipped with `runtimeVersion: "1"`, same as May 24 preview `e5113d4a` (without dnd). Expo Updates delivered runtime-`1` JS bundles to both — upload tab crash risk on older installs. Bumping to `"2"` ensures only binaries built after the bump receive new preview OTAs.

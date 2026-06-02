@@ -7,7 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import { uploadWithVariants } from '@/lib/image-utils';
+import { uploadImage } from '@/lib/image-utils';
 import { logger } from '../logger';
 
 // Domain types now live in @vitrine/types so web RSC + future Edge functions
@@ -274,7 +274,7 @@ export async function uploadAvatar(
     const fileExt = filename.split('.').pop() || 'jpg';
     const basePath = `${userId}/${Date.now()}.${fileExt}`;
 
-    const { url: avatarUrl } = await uploadWithVariants(
+    const { url: avatarUrl } = await uploadImage(
       'user-avatars',
       basePath,
       imageUri,

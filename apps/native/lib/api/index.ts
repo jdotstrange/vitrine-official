@@ -8,7 +8,7 @@
  *
  * A handful of modules still live locally because they depend on platform-only
  * APIs that have no web equivalent yet:
- *   - auth, collectibles → uploadWithVariants (expo-image-manipulator)
+ *   - auth, collectibles → uploadImage (expo-image-manipulator)
  *   - tracking            → CollectionItem from @/components
  *   - market              → CollectionItem from @/components
  *   - views               → expo-crypto, AsyncStorage device id
@@ -45,7 +45,7 @@ export * from '@vitrine/api';
 // Base client and configuration (Railway-era helper, used by trading-cards)
 export { ApiException } from './client';
 
-// Collectibles API (depends on uploadWithVariants → expo-image-manipulator)
+// Collectibles API (depends on uploadImage → expo-image-manipulator)
 export {
   createCollectible,
   updateCollectible,
@@ -82,7 +82,7 @@ export {
   type TradingCard,
 } from './trading-cards';
 
-// Auth / User API (depends on uploadWithVariants for avatar uploads)
+// Auth / User API (depends on uploadImage for avatar uploads)
 export {
   getUserById,
   getUserByUsername,

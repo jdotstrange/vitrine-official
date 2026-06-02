@@ -31,7 +31,9 @@ export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com
 // ---------------------------------------------------------------------------
 
 export const IMAGE_UPLOAD = {
-  maxDimension: 1200,
+  // Single stored original. Sized large enough for fullscreen/zoom since all
+  // smaller display sizes are derived on demand by Supabase image transforms.
+  maxDimension: 1600,
   jpegQuality: 0.8,
   storageBucket: 'collectible-images',
 } as const;
