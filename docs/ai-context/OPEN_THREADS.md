@@ -1,7 +1,7 @@
 # Open Threads
 
-Last updated: 2026-05-30
-Last verified: 2026-05-30
+Last updated: 2026-06-02
+Last verified: 2026-06-02
 
 ## Product / Design Threads
 
@@ -65,8 +65,11 @@ The COLLECTION lens on showcase detail defaults to `recent` sort. The right long
 ### Variant retry / backfill after Assembly timeout
 If Assembly hits the 45s timeout (or the app is killed mid-Assembly), the collectible is already committed but some `_200` / `_400` / `_800` variants may be missing — collection grid thumbnails can 404 until variants exist. No client backfill exists yet. Follow-up: background retry on next app launch, admin regen tool, or storage cron. Monitor Sentry `assembly_complete` breadcrumbs for `timedOut: true` rate > 5%.
 
+### Post-Assembly variant generation
+**Status: Open (2026-06-02).** Assembly step removed in Identify-first wave (`assembly-step.tsx` deleted; client `assemblyVariants` path gone). Upload now sends originals via `uploadImage` only. Collection grid thumbnails may rely on originals until a replacement strategy ships. Options: edge `generate-variants` trigger on Catalog commit, background retry on app launch, storage cron, or accept originals-only for single-lane until batch lane needs variants. Decide before scaling uploads.
+
 ### Theater 1 extraction reliability (poll never completes — extraction axis)
-Separate from variant-deferral (2026-05-27) and Theater **cosmetic pacing** fix (2026-05-27: 25s linear to 85% cap — reduces "stuck at 90%" *misread* while waiting, but does not fix poll failure). When polling never sees `extracted`/`complete`, the ring now sits at ~84% until timeout/exit. Remaining levers: Theater hard timeout + failed UX, Supabase Realtime on `collectibles.extraction_status`, webhook retry/reconciliation in `looking-glass-webhook`, wiring `raceForCompletion` into Theater. Track if founder rapid-fire repro persists after Assembly + Theater OTAs.
+**Status: Partially addressed (2026-06-02).** `job-status` proxy + reconciler deployed and live in Supabase; Theater polls engine `stage` via `pollEngineJobStatus`. Webhook idempotency + dropped-webhook reconcile in place. **Worker still required** (`vitrinedb/worker`) — queue stalls if PC worker off. Monitor after Lattice OTA soak on runtime-`2` preview binary. Remaining levers if repro persists: Supabase Realtime on `collectibles.extraction_status`, `raceForCompletion` wiring, Theater hard timeout UX polish.
 
 ### Migrate legacy V1 memorabilia photo grid to `PhotoReorderGrid`
 The legacy V1 memorabilia upload flow (`components/upload/memorabilia-core-form.tsx` → `components/upload/photo-grid.tsx`) still consumes `react-native-draggable-flatlist@4.0.3` and is reachable via `/upload/memorabilia/[type]/[category]` from `memorabilia-type-selector.tsx`. The V3 upload flow (`components/upload-entry.tsx`) migrated to `<PhotoReorderGrid />` on 2026-05-26, but V1 was intentionally NOT touched in that PR to keep the diff focused. **DFL is therefore still in `package.json`.** Migrating V1 to consume `PhotoReorderGrid` is the cleanup that removes the last DFL dependency. Two complications: (1) V1 is a HORIZONTAL carousel, not the 3-column vertical grid V3 uses — needs either an `orientation` prop expansion on `PhotoReorderGrid` (passing `orientation: GridOrientation.Horizontal` + `rows` instead of `columns` into the underlying SortableGrid) OR a sibling `PhotoReorderCarousel` primitive; (2) V1 caps at 7 photos vs V3's 6 — the primitive's `maxPhotos` prop already accommodates. Open question: is the V1 memorabilia route still on the product roadmap, or is it slated for V3 unification eventually? If the latter, this thread becomes dead code cleanup; if the former, the primitive expansion is real work. Discuss with founder before sinking time. Once V1 is migrated, remove `react-native-draggable-flatlist` from `apps/native/package.json` and refresh DO_NOT_BREAK.

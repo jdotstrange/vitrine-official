@@ -3,6 +3,13 @@
 Last updated: 2026-06-02
 Last verified: 2026-06-02
 
+## Decision: Theater becomes The Lattice (stage-choreographed reasoning graph, no fake progress)
+- Reason: Progress ring / HUD read as generic and time-faked. The Lattice visualizes the real engine reasoning process (stage signals from `job-status`) in a time-agnostic way — ambient motion keeps 15s and 90s runs alive without inventing progressive data reveal (atomic at completion).
+- Alternatives Considered: (A) Iterate on HUD (crosshair, hex logs) — rejected (still generic CV aesthetic); (B) Progressive attribute reveal — rejected (engine delivers data atomically); (C) Full-bleed SVG graph choreographed to `STAGE_RANK` — selected.
+- Status: Active. Shipped 2026-06-02 (`feb0c25`, preview OTA `8e9655e9-2eff-44c4-a157-6e3446788fbb`, runtime `2`).
+- Files Or Areas Affected: `apps/native/components/upload-entry.tsx` (`TheaterStep`, `buildLattice`, lattice sub-components), `@vitrine/api` `pollEngineJobStatus`.
+- Notes: **Supersedes Theater 25s linear / 85% cap UX** — old ring OTA still on runtime-`1` channel history; runtime-`2` devices get Lattice after cold restart. Extraction poll/reconcile path unchanged. Monochrome ivory while reasoning; single trait color at verdict.
+
 ## Decision: Native single-lane upload becomes Identify-first (prefs before Analyze, Review ends with Catalog)
 - Reason: Web bulk uploader already collects photos + context + owner preferences on one card before processing. Native's post-AI Finalize step added a full screen at the end of the critical path and encouraged "snap → Analyze" without catalog intent. Merging prefs into Identify (with strict Analyze validation) aligns platforms, pairs with speculative upload overlap, and reframes the product as cataloging — not casual image lookup.
 - Alternatives Considered: (A) Keep Scan + Finalize separate — rejected (extra screen after Review, underuses Identify dwell time); (B) Move prefs to Review — rejected (prefs are owner intent, not AI verification); (C) Identify-first with prefs on draft insert + Catalog on Review — selected.
@@ -27,7 +34,7 @@ Last verified: 2026-06-02
 ## Decision: Theater cosmetic progress uses 25s linear crawl to 85% cap (poll-driven exit unchanged)
 - Reason: 30s `easeInOut(quad)` to 0.97 parked early in the middle and read as "stuck at 90%+" while extraction was still running. Linear 25s to 0.85 keeps steady motion; percent label floors and caps at 84 until `extracted`/`complete`, then existing 250ms sprint to 100% on poll success. Ring/reveal animations wait for `extractionJobId` so upload-to-enqueue time is not counted as fake progress.
 - Alternatives Considered: (A) Keep 30s easeInOut to 97% — rejected (founder pacing feedback); (B) 90s linear — rejected (too slow); (C) 25s linear to 85% + poll sprint — selected.
-- Status: Active. Shipped 2026-05-27 (`f09e891`, preview OTA `7356da1c-9b2c-4a34-b3d3-486c07796c54`). Founder dev-client validated before OTA.
+- Status: **Superseded for UX** by Lattice Theater (2026-06-02). Extraction poll path unchanged. Historical reference for runtime-`1` OTAs only.
 - Files Or Areas Affected: `apps/native/components/upload-entry.tsx` (`THEATER_COSMETIC_MS`, `THEATER_PROGRESS_CAP`, `TheaterStep`, checklist durations).
 - Notes: Does not fix extraction never completing (97% hang when poll stalls) — see OPEN_THREADS "Theater 1 extraction reliability". Checklist total remains 25s (4×4s + 9s).
 

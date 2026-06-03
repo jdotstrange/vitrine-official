@@ -1,7 +1,23 @@
 # Implementation Log
 
-Last updated: 2026-05-30
-Last verified: 2026-05-30
+Last updated: 2026-06-02
+Last verified: 2026-06-02
+
+## 2026-06-02 — Identify-first upload, Lattice Theater, extraction contract alignment
+
+- Summary: Shipped the native single-lane upload overhaul: **Scan + Finalize merged into scrolling Identify** (owner prefs on draft insert, strict Analyze gate, "Activate Looking Glass" CTA, Personal Value + PRICELESS NFST placeholder). **Replaced Theater HUD** (progress ring / holographic frame) with **The Lattice** — stage-choreographed SVG reasoning graph wired to real engine `stage` via `pollEngineJobStatus`. **Review → Catalog** (client-owned `published_at` on commit). Removed **Assembly** step and `assembly-step.tsx`; upload flow is now `identify → theater → review → success`. Simplified `image-utils` to `uploadImage` / `getOptimizedUrl` (no client-side variant assembly in this path). **ActionDock** HIG primary pill (44pt, filled volt enabled / muted disabled). Extraction backend artifacts committed: `job-status` proxy + reconciler, `looking-glass-webhook` rejection/idempotency, shared `engine-mapping.ts`, migration `client_owned_completion_and_rejected`, `docs/EXTRACTION_CONTRACT.md`. **Production Supabase already had migration + edge functions** (audited via MCP — no redeploy needed). **Git `feb0c25`**; **preview OTA** runtime `2` update group `8e9655e9-2eff-44c4-a157-6e3446788fbb`.
+- Files changed:
+  - `apps/native/components/upload-entry.tsx` — Identify-first state machine, Lattice `TheaterStep`, freeze fix (immediate theater transition), engine stage polling + rejection routes.
+  - `apps/native/components/vault/action-dock.tsx` — floating HIG primary pill.
+  - `apps/native/lib/api/collectibles.ts` — prefs on `createDraftCollectible`, client-owned `commitDraftCollectible`.
+  - `packages/api/src/modules/extraction.ts` — `pollEngineJobStatus`, `EngineJobStatus`.
+  - `apps/native/lib/image-utils.ts` — simplified upload/transform helpers (variants deferred/removed from client path).
+  - `apps/native/components/upload/assembly-step.tsx` — **deleted**.
+  - `supabase/functions/job-status/`, `supabase/functions/_shared/engine-mapping.ts`, `supabase/functions/looking-glass-webhook/index.ts`, migration, `docs/EXTRACTION_CONTRACT.md`.
+- Git: `feb0c25` on `main` (local; not pushed to `origin` this session).
+- OTAs: `eas update --channel preview` — group `8e9655e9-2eff-44c4-a157-6e3446788fbb`, runtime `2`, message matches commit.
+- Validation: ESLint clean on `upload-entry.tsx`; `tsc` on native app has pre-existing errors only (no new Lattice-specific failures). Supabase MCP audit confirmed migration + `job-status` v1 + `looking-glass-webhook` v2 ACTIVE. No device soak of Lattice on preview binary this session.
+- Notes: Extraction still requires **vitrinedb worker running** (local PC today). Lattice falls back to cosmetic copy if `job-status` unreachable. Old Theater 25s/85% ring OTA superseded by Lattice for runtime-`2` devices after this OTA cold-starts. **Open:** push `feb0c25` to origin; variant generation strategy post-Assembly removal; preview binary cut still pending if team on runtime-`1`.
 
 ## 2026-05-30 — Preview runtimeVersion 2 + EAS binary audit
 

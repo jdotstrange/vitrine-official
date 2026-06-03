@@ -35,6 +35,7 @@ export { TraitPill } from './trait-pill';
 export { MatchPercent } from './match-percent';
 export { StatCell } from './stat-cell';
 export { SchemaRow } from './schema-row';
+export { CustomFieldsEditor } from './custom-fields-editor';
 export { IconButton } from './icon-button';
 export { Button } from './button';
 export { Avatar } from './avatar';

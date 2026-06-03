@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SchemaRow, StatusPill, TraitPill } from '@/components/vault';
 import { useTheme, SPACING, TYPE, type ListingStatus } from '@/lib/design';
+import type { CollectibleCustomField, MetadataProvenance } from '@/lib/api/collectibles';
 
 import { LensEmpty } from './lens-empty';
 
@@ -155,6 +156,8 @@ export interface SpecsLensProps {
   aiMetadata?: Record<string, unknown> | null;
   /** Raw `trait_metadata` JSONB column from the row. */
   traitMetadata?: Record<string, unknown> | null;
+  metadataProvenance?: MetadataProvenance | null;
+  customFields?: CollectibleCustomField[] | null;
   bottomInset: number;
   dockReservedHeight: number;
 }
@@ -165,6 +168,8 @@ export function SpecsLens({
   traitKeys,
   aiMetadata,
   traitMetadata,
+  metadataProvenance,
+  customFields,
   bottomInset,
   dockReservedHeight,
 }: SpecsLensProps) {
@@ -188,7 +193,26 @@ export function SpecsLens({
   const hasAuthenticitySection =
     (authentications && authentications.length > 0) ||
     authenticityDetailRows.length > 0;
-  const hasAnything = collectibleDetailRows.length > 0 || hasAuthenticitySection;
+  const customFieldRows = useMemo(() => {
+    const rows = (customFields ?? []).filter((f) => f.label.trim() && f.value.trim());
+    return rows.map((f) => ({
+      key: f.id,
+      label: f.label,
+      kind: 'text' as const,
+      value: f.value,
+    }));
+  }, [customFields]);
+
+  const isUserEdited = useCallback(
+    (provenanceKey: string) =>
+      metadataProvenance?.[provenanceKey]?.source === 'user',
+    [metadataProvenance],
+  );
+
+  const hasAnything =
+    collectibleDetailRows.length > 0 ||
+    hasAuthenticitySection ||
+    customFieldRows.length > 0;
 
   return (
     <ScrollView
@@ -221,6 +245,7 @@ export function SpecsLens({
                     value={row.value}
                     mono={row.kind === 'mono'}
                     isLast={i === collectibleDetailRows.length - 1}
+                    userEdited={isUserEdited(`ai.${row.key}`)}
                   />
                 ))}
               </SpecCard>
@@ -244,10 +269,26 @@ export function SpecsLens({
                       value={row.value}
                       mono={row.kind === 'mono'}
                       isLast={i === authenticityDetailRows.length - 1}
+                      userEdited={isUserEdited(`trait.${row.key}`)}
                     />
                   ))}
                 </SpecCard>
               ) : null}
+            </Section>
+          ) : null}
+
+          {customFieldRows.length > 0 ? (
+            <Section kicker="ADDITIONAL DETAILS">
+              <SpecCard>
+                {customFieldRows.map((row, i) => (
+                  <SchemaRow
+                    key={row.key}
+                    label={row.label}
+                    value={row.value}
+                    isLast={i === customFieldRows.length - 1}
+                  />
+                ))}
+              </SpecCard>
             </Section>
           ) : null}
         </>

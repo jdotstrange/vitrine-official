@@ -61,6 +61,7 @@ import {
   PhotoReorderGrid,
   RapidFireEdit,
   SchemaRow,
+  CustomFieldsEditor,
   ShowcaseSelectorSheet,
   StatusPill,
   TraitPill,
@@ -73,7 +74,25 @@ import { PushPrePrompt } from '@/components/push-pre-prompt';
 import { useTheme, RADII, SPACING, STATUS_CONFIG, TYPE, type ListingStatus } from '@/lib/design';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { getUserShowcases } from '@/lib/api/showcases';
-import { createDraftCollectible, updateExtractionJobId, commitDraftCollectible, deleteCollectible } from '@/lib/api/collectibles';
+import {
+  createDraftCollectible,
+  createReExtractionDraft,
+  updateExtractionJobId,
+  commitDraftCollectible,
+  commitMetadataUpdate,
+  commitReExtraction,
+  deleteCollectible,
+  getCollectible,
+  getCollectibleShowcaseIds,
+  type CollectibleCustomField,
+  type MetadataProvenance,
+} from '@/lib/api/collectibles';
+import {
+  listingStatusFromRow,
+  photoMultisetChanged,
+  photosFromUrls,
+  isRemotePhotoUri,
+} from '@/lib/edit-collectible-helpers';
 import {
   enqueueExtraction,
   pollJobStatus,
@@ -285,11 +304,36 @@ function buildExtractionFromRow(
   };
 }
 
+export type UploadEntryProps = {
+  mode?: 'create' | 'edit';
+  editCollectibleId?: string;
+};
+
+type EditSessionSnapshot = {
+  photos: PhotoAsset[];
+  listingTitle: string;
+  listingDescription: string;
+  customFields: CollectibleCustomField[];
+  metadataProvenance: MetadataProvenance;
+  provenanceBaseline: {
+    aiMetadata: Record<string, unknown>;
+    traitMetadata: Record<string, unknown>;
+    listingTitle: string | null;
+    listingDescription: string | null;
+  };
+  extractionSeed: ExtractionResult;
+};
+
 // ---------------------------------------------------------------------------
 // Root
 // ---------------------------------------------------------------------------
 
-export function UploadEntry() {
+export function UploadEntry({
+  mode = 'create',
+  editCollectibleId,
+}: UploadEntryProps = {}) {
+  const isEditMode = mode === 'edit' && !!editCollectibleId;
+  const editOriginalId = isEditMode ? editCollectibleId! : null;
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -305,6 +349,13 @@ export function UploadEntry() {
   // Persists the just-saved row id past the draft→committed transition so the
   // success screen can deep-link straight to its detail view.
   const [committedCollectibleId, setCommittedCollectibleId] = useState<string | null>(null);
+  const [editLoadState, setEditLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>(
+    isEditMode ? 'loading' : 'idle',
+  );
+  const s0Ref = useRef<EditSessionSnapshot | null>(null);
+  const engineBaselineRef = useRef<EditSessionSnapshot['provenanceBaseline'] | null>(null);
+  const [rescanAcknowledged, setRescanAcknowledged] = useState(false);
+  const [customFields, setCustomFields] = useState<CollectibleCustomField[]>([]);
   const [extractionJobId, setExtractionJobId] = useState<string | null>(null);
   const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus | null>(null);
   const [queuePosition, setQueuePosition] = useState<number>(0);
@@ -386,6 +437,10 @@ export function UploadEntry() {
     async (photoList: PhotoAsset[], userId: string): Promise<string[]> => {
       const urls: string[] = [];
       for (const photo of photoList) {
+        if (isRemotePhotoUri(photo.uri)) {
+          urls.push(photo.uri);
+          continue;
+        }
         let entry = speculativeUploadsRef.current.get(photo.id);
         if (!entry) {
           ensureSpeculativeUpload(photo, userId);
@@ -397,6 +452,144 @@ export function UploadEntry() {
     },
     [ensureSpeculativeUpload],
   );
+
+  useEffect(() => {
+    if (!isEditMode || !editOriginalId || !user?.id) return;
+
+    let cancelled = false;
+    setEditLoadState('loading');
+
+    (async () => {
+      try {
+        const row = await getCollectible(editOriginalId);
+        if (cancelled || !row) {
+          if (!cancelled) setEditLoadState('error');
+          return;
+        }
+
+        const photoAssets = photosFromUrls(row.photos ?? []);
+        const listingTitle = row.listingTitle?.trim() || row.title?.trim() || '';
+        const listingDescription = row.listingDescription?.trim() || '';
+        const extractionSeed = buildExtractionFromRow(
+          {
+            id: row.id,
+            listing_title: listingTitle,
+            listing_description: listingDescription,
+            classification: row.classification,
+            confidence: row.confidence,
+            collectible_type: row.collectibleType,
+            category: row.category,
+            subcategory: row.subcategory,
+            traits: row.traits,
+            ai_metadata: row.aiMetadata,
+            trait_metadata: row.traitMetadata,
+            field_schema: row.fieldSchema,
+            verification_url: row.verificationUrl,
+            photos: row.photos,
+          },
+          listingTitle,
+        );
+
+        const snapshot: EditSessionSnapshot = {
+          photos: photoAssets,
+          listingTitle,
+          listingDescription,
+          customFields: row.customFields ?? [],
+          metadataProvenance: row.metadataProvenance ?? {},
+          provenanceBaseline: {
+            aiMetadata: { ...(row.aiMetadata ?? {}) },
+            traitMetadata: { ...(row.traitMetadata ?? {}) },
+            listingTitle,
+            listingDescription,
+          },
+          extractionSeed,
+        };
+
+        s0Ref.current = snapshot;
+        setPhotos(photoAssets);
+        setExtraction(extractionSeed);
+        setContext(row.description?.trim() || '');
+        setTags(row.tags ?? []);
+        setStatus(listingStatusFromRow(row));
+        setVisibility((row.privacy === 'private' ? 'private' : 'public') as 'public' | 'private');
+        setEstimatedValue(
+          row.value != null && Number(row.value) > 0 ? String(row.value) : '',
+        );
+        setCustomFields(snapshot.customFields);
+        setListingEdits({ title: listingTitle, description: listingDescription });
+        setRescanAcknowledged(false);
+
+        const showcaseIds = await getCollectibleShowcaseIds(editOriginalId);
+        if (!cancelled) {
+          setSelectedShowcaseIds(showcaseIds);
+          setEditLoadState('ready');
+        }
+      } catch (err) {
+        uploadLog.error('Edit load failed:', err);
+        if (!cancelled) setEditLoadState('error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode, editOriginalId, user?.id]);
+
+  const requiresRerun = useMemo(() => {
+    if (!isEditMode || !s0Ref.current) return false;
+    return photoMultisetChanged(s0Ref.current.photos, photos);
+  }, [isEditMode, photos]);
+
+  const requestPhotoUpdate = useCallback(
+    (nextPhotos: PhotoAsset[]) => {
+      if (!isEditMode || !s0Ref.current) {
+        setPhotos(nextPhotos);
+        return;
+      }
+      if (!photoMultisetChanged(s0Ref.current.photos, nextPhotos)) {
+        setPhotos(nextPhotos);
+        return;
+      }
+      if (rescanAcknowledged) {
+        setPhotos(nextPhotos);
+        return;
+      }
+      Alert.alert(
+        'Modify photos?',
+        'Modifying photos on this collectible will run it through Looking Glass again. Existing spec data may change. Tracking and activity on this listing will stay on this item.',
+        [
+          { text: 'Go Back', style: 'cancel' },
+          {
+            text: 'Confirm',
+            onPress: () => {
+              setRescanAcknowledged(true);
+              setPhotos(nextPhotos);
+              setFieldEdits(EMPTY_EDITS);
+              setEditQueue([]);
+              setListingEdits({
+                title: s0Ref.current!.listingTitle,
+                description: s0Ref.current!.listingDescription,
+              });
+            },
+          },
+        ],
+      );
+    },
+    [isEditMode, rescanAcknowledged],
+  );
+
+  const resetPhotosToS0 = useCallback(() => {
+    if (!s0Ref.current) return;
+    Haptics.selectionAsync();
+    setPhotos([...s0Ref.current.photos]);
+    setRescanAcknowledged(false);
+    setFieldEdits(EMPTY_EDITS);
+    setEditQueue([]);
+    setListingEdits({
+      title: s0Ref.current.listingTitle,
+      description: s0Ref.current.listingDescription,
+    });
+  }, []);
 
   useEffect(() => {
     if (!user?.id || step !== 'identify') return;
@@ -518,19 +711,24 @@ export function UploadEntry() {
     setPhotoSourceSheetOpen(true);
   }, [emptySlotCount]);
 
-  const appendPhotos = useCallback((uris: string[]) => {
-    if (uris.length === 0) return;
-    Haptics.selectionAsync();
-    setPhotos((current) => {
-      const slots = 6 - current.length;
-      if (slots <= 0) return current;
-      const fresh: PhotoAsset[] = uris.slice(0, slots).map((uri, i) => ({
-        id: `photo-${Date.now()}-${i}`,
-        uri,
-      }));
-      return [...current, ...fresh];
-    });
-  }, []);
+  const appendPhotos = useCallback(
+    (uris: string[]) => {
+      if (uris.length === 0) return;
+      Haptics.selectionAsync();
+      setPhotos((current) => {
+        const slots = 6 - current.length;
+        if (slots <= 0) return current;
+        const fresh: PhotoAsset[] = uris.slice(0, slots).map((uri, i) => ({
+          id: `photo-${Date.now()}-${i}`,
+          uri,
+        }));
+        const next = [...current, ...fresh];
+        requestPhotoUpdate(next);
+        return current;
+      });
+    },
+    [requestPhotoUpdate],
+  );
 
   const pickFromCamera = useCallback(async () => {
     if (emptySlotCount <= 0) return;
@@ -594,10 +792,17 @@ export function UploadEntry() {
     }
   }, [emptySlotCount, appendPhotos]);
 
-  const removePhoto = useCallback((id: string) => {
-    Haptics.selectionAsync();
-    setPhotos((current) => current.filter((p) => p.id !== id));
-  }, []);
+  const removePhoto = useCallback(
+    (id: string) => {
+      Haptics.selectionAsync();
+      setPhotos((current) => {
+        const next = current.filter((p) => p.id !== id);
+        requestPhotoUpdate(next);
+        return current;
+      });
+    },
+    [requestPhotoUpdate],
+  );
 
   // Drag-to-reorder commit. DraggableFlatList drives the data array; we
   // just trust whatever it hands back. The first photo in the array is
@@ -610,21 +815,42 @@ export function UploadEntry() {
 
   const canAnalyze = photos.length > 0 && !valueMissing;
 
-  const analyzeDockLabel = valueMissing
+  const identifyDockLabel = valueMissing
     ? 'Set a Value First'
     : photos.length === 0
       ? 'Add Images'
-      : 'Activate Looking Glass';
+      : isEditMode
+        ? requiresRerun
+          ? 'Rerun Looking Glass'
+          : 'Continue'
+        : 'Activate Looking Glass';
 
-  const analyzeDockHint = valueMissing
+  const identifyDockHint = valueMissing
     ? 'Enter a personal value greater than zero when listing for sale or trade'
     : photos.length === 0
       ? 'Add at least one photo first'
-      : 'Starts Looking Glass analysis on your photos';
+      : isEditMode
+        ? requiresRerun
+          ? 'Re-scan with your updated photos'
+          : 'Review and update spec data'
+        : 'Starts Looking Glass analysis on your photos';
+
+  const handleContinueEdit = useCallback(() => {
+    if (!isEditMode || !editOriginalId || !canAnalyze) return;
+    Keyboard.dismiss();
+    if (s0Ref.current) {
+      setExtraction(s0Ref.current.extractionSeed);
+    }
+    setStep('review');
+  }, [isEditMode, editOriginalId, canAnalyze]);
 
   // --- Identify screen: upload + draft + enqueue handler ---
   const handleAnalyze = useCallback(async () => {
     if (!user?.id || !canAnalyze) return;
+    if (isEditMode && !requiresRerun) {
+      handleContinueEdit();
+      return;
+    }
 
     // Transition immediately — prep (upload, draft, enqueue) runs on Theater
     // so Identify never blocks interaction behind pointerEvents while waiting.
@@ -642,9 +868,12 @@ export function UploadEntry() {
         (async () => {
           const uploadedUrls = await resolveSpeculativeUrls(photos, user.id);
 
-          const title = context.trim() || 'New Collectible';
+          const title =
+            (isEditMode && s0Ref.current?.listingTitle) ||
+            context.trim() ||
+            'New Collectible';
           const parsedVal = parseFloat(estimatedValue);
-          const collectibleId = await createDraftCollectible(user.id, {
+          const draftPayload = {
             title,
             photos: uploadedUrls,
             hint: context.trim() || undefined,
@@ -653,7 +882,15 @@ export function UploadEntry() {
             value: parsedVal > 0 ? parsedVal : null,
             visibility,
             tags,
-          });
+          };
+
+          const collectibleId =
+            isEditMode && editOriginalId
+              ? await createReExtractionDraft(user.id, {
+                  ...draftPayload,
+                  originalId: editOriginalId,
+                })
+              : await createDraftCollectible(user.id, draftPayload);
           setDraftCollectibleId(collectibleId);
 
           const enqueueResult = await enqueueExtraction({
@@ -681,7 +918,21 @@ export function UploadEntry() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setStep('failed');
     }
-  }, [user?.id, photos, context, canAnalyze, status, estimatedValue, visibility, tags, resolveSpeculativeUrls]);
+  }, [
+    user?.id,
+    photos,
+    context,
+    canAnalyze,
+    status,
+    estimatedValue,
+    visibility,
+    tags,
+    resolveSpeculativeUrls,
+    isEditMode,
+    requiresRerun,
+    editOriginalId,
+    handleContinueEdit,
+  ]);
 
   // --- Theater: row is the PRIMARY completion signal (review needs row data).
   // Realtime + row poll open review as soon as the webhook/reconciler writes
@@ -721,6 +972,16 @@ export function UploadEntry() {
       stopWatching();
       uploadLog.info('Theater → review', { source, collectibleId, jobId });
       const mapped = buildExtractionFromRow(row, fallbackTitle);
+      if (isEditMode && s0Ref.current) {
+        engineBaselineRef.current = {
+          aiMetadata: { ...(mapped.aiMetadata as Record<string, unknown>) },
+          traitMetadata: { ...(mapped.traitMetadata as Record<string, unknown>) },
+          listingTitle: s0Ref.current.listingTitle,
+          listingDescription: s0Ref.current.listingDescription,
+        };
+        mapped.listingTitle = s0Ref.current.listingTitle;
+        mapped.listingDescription = s0Ref.current.listingDescription;
+      }
       setExtraction(mapped);
       setExtractionStatus('extracted');
       timers.push(
@@ -837,7 +1098,7 @@ export function UploadEntry() {
       stopWatching();
       unsubscribe();
     };
-  }, [step, draftCollectibleId, extractionJobId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, draftCollectibleId, extractionJobId, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clears all local device state so the next piece starts clean. Contained
   // lifecycle: this does NOT delete the draft — an abandoned piece resolves
@@ -862,6 +1123,10 @@ export function UploadEntry() {
     setEditQueue([]);
     setFieldEdits(EMPTY_EDITS);
     setListingEdits({});
+    setCustomFields([]);
+    setRescanAcknowledged(false);
+    s0Ref.current = null;
+    engineBaselineRef.current = null;
     setPulseKeys([]);
     setPulseNonce(0);
     setRapidFireOpen(false);
@@ -917,10 +1182,11 @@ export function UploadEntry() {
   }, [resetFlow]);
   useFocusEffect(
     useCallback(() => {
+      if (isEditMode) return undefined;
       return () => {
         resetFlowRef.current();
       };
-    }, []),
+    }, [isEditMode]),
   );
 
   // Effective extraction = seed + any committed edits. Used by review and
@@ -1001,10 +1267,72 @@ export function UploadEntry() {
     [],
   );
 
+  const sanitizedCustomFields = useMemo(
+    () =>
+      customFields.filter((f) => f.label.trim().length > 0 && f.value.trim().length > 0),
+    [customFields],
+  );
+
   const handleCatalog = useCallback(async () => {
-    if (!draftCollectibleId || !effectiveExtraction || !user?.id) {
+    if (!effectiveExtraction || !user?.id) return;
+
+    if (isEditMode && editOriginalId) {
+      try {
+        const parsedVal = parseFloat(estimatedValue);
+        const finalTitle = (listingEdits.title ?? effectiveExtraction.listingTitle ?? '').trim();
+        const finalDescription = (
+          listingEdits.description ?? effectiveExtraction.listingDescription ?? ''
+        ).trim();
+        const uploadedUrls = await resolveSpeculativeUrls(photos, user.id);
+        const payload = {
+          listingTitle: finalTitle,
+          listingDescription: finalDescription,
+          value: parsedVal > 0 ? parsedVal : 0,
+          availableForSale: status === 'FOR_SALE' || status === 'SELL_TRADE',
+          availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
+          visibility,
+          tags,
+          showcaseIds: selectedShowcaseIds,
+          photos: uploadedUrls,
+          aiMetadata: effectiveExtraction.aiMetadata as Record<string, unknown>,
+          traitMetadata: effectiveExtraction.traitMetadata as Record<string, unknown>,
+          customFields: sanitizedCustomFields,
+          provenanceBaseline:
+            requiresRerun && engineBaselineRef.current
+              ? engineBaselineRef.current
+              : s0Ref.current?.provenanceBaseline,
+        };
+
+        if (requiresRerun && draftCollectibleId) {
+          await commitReExtraction(
+            editOriginalId,
+            draftCollectibleId,
+            user.id,
+            payload,
+            s0Ref.current?.metadataProvenance ?? {},
+          );
+        } else {
+          await commitMetadataUpdate(
+            editOriginalId,
+            user.id,
+            payload,
+            s0Ref.current?.metadataProvenance ?? {},
+          );
+        }
+
+        setCommittedCollectibleId(editOriginalId);
+        setDraftCollectibleId(null);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setStep('success');
+      } catch (err) {
+        uploadLog.error('Update collectible failed:', err);
+        Alert.alert('Error', 'Failed to update collectible. Please try again.');
+      }
       return;
     }
+
+    if (!draftCollectibleId) return;
+
     try {
       const parsedVal = parseFloat(estimatedValue);
       const finalTitle = (listingEdits.title ?? effectiveExtraction.listingTitle ?? '').trim();
@@ -1021,6 +1349,7 @@ export function UploadEntry() {
         showcaseIds: selectedShowcaseIds,
         aiMetadata: effectiveExtraction.aiMetadata,
         traitMetadata: effectiveExtraction.traitMetadata,
+        customFields: sanitizedCustomFields,
       });
       setCommittedCollectibleId(draftCollectibleId);
       setDraftCollectibleId(null);
@@ -1040,26 +1369,37 @@ export function UploadEntry() {
     visibility,
     tags,
     selectedShowcaseIds,
+    isEditMode,
+    editOriginalId,
+    requiresRerun,
+    photos,
+    resolveSpeculativeUrls,
+    sanitizedCustomFields,
   ]);
 
   const hasInProgressWork =
-    step !== 'success' && (photos.length > 0 || context.trim().length > 0 || extraction !== null);
+    step !== 'success' &&
+    (photos.length > 0 || context.trim().length > 0 || extraction !== null || isEditMode);
 
   const handleClose = useCallback(() => {
-    if (!hasInProgressWork) {
+    if (!hasInProgressWork && !isEditMode) {
       router.back();
       return;
     }
     Alert.alert(
-      'Discard this upload?',
-      'You\u2019ll lose the photos, context, and anything the AI already identified. This can\u2019t be undone.',
+      isEditMode ? 'Discard changes?' : 'Discard this upload?',
+      isEditMode
+        ? 'Your edits will not be saved. The collectible stays as it was before you opened Edit.'
+        : 'You\u2019ll lose the photos, context, and anything the AI already identified. This can\u2019t be undone.',
       [
         { text: 'Keep Editing', style: 'cancel' },
         {
           text: 'Discard',
           style: 'destructive',
           onPress: () => {
-            if (draftCollectibleId && user?.id) {
+            if (draftCollectibleId && user?.id && isEditMode) {
+              deleteCollectible(draftCollectibleId, user.id).catch(() => {});
+            } else if (draftCollectibleId && user?.id) {
               deleteCollectible(draftCollectibleId, user.id).catch(() => {});
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -1068,7 +1408,33 @@ export function UploadEntry() {
         },
       ],
     );
-  }, [hasInProgressWork, router, draftCollectibleId, user?.id]);
+  }, [hasInProgressWork, isEditMode, router, draftCollectibleId, user?.id]);
+
+  if (isEditMode && editLoadState === 'loading') {
+    return (
+      <View style={[styles.container, styles.editLoading, { paddingTop: insets.top, backgroundColor: colors.void }]}>
+        <Text style={[styles.editLoadingText, { color: colors.textSecondary }]}>Loading collectible…</Text>
+      </View>
+    );
+  }
+
+  if (isEditMode && editLoadState === 'error') {
+    return (
+      <View style={[styles.container, styles.editLoading, { paddingTop: insets.top, backgroundColor: colors.void }]}>
+        <Text style={[styles.editLoadingText, { color: colors.textSecondary }]}>
+          Could not load this collectible.
+        </Text>
+        <Button label="Go Back" variant="frost" onPress={() => router.back()} />
+      </View>
+    );
+  }
+
+  const reviewCommitLabel =
+    editQueue.length > 0
+      ? `Make Edits (${editQueue.length})`
+      : isEditMode
+        ? 'Update Collectible'
+        : 'Catalog';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.void }]}>
@@ -1077,12 +1443,14 @@ export function UploadEntry() {
           onPress={handleClose}
           style={[styles.closeButton, { borderColor: colors.frostBorder, backgroundColor: colors.sheetBg }]}
           accessibilityRole="button"
-          accessibilityLabel="Close upload"
+          accessibilityLabel={isEditMode ? 'Close edit' : 'Close upload'}
         >
           <X size={18} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{getStepTitle(step)}</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            {getStepTitle(step, isEditMode)}
+          </Text>
         </View>
         <View style={styles.closeButtonGhost} />
       </View>
@@ -1111,13 +1479,15 @@ export function UploadEntry() {
             onRemoveShowcase={handleRemoveShowcase}
             onOpenTagDialog={() => setTagDialogOpen(true)}
             onRemoveTag={(t) => setTags(tags.filter((x) => x !== t))}
+            showResetPhotos={isEditMode && requiresRerun}
+            onResetPhotos={resetPhotosToS0}
           />
           <ActionDock
-            label={analyzeDockLabel}
+            label={identifyDockLabel}
             bottomInset={insets.bottom}
             onPress={handleAnalyze}
             disabled={!canAnalyze}
-            accessibilityHint={analyzeDockHint}
+            accessibilityHint={identifyDockHint}
           />
         </>
       ) : step === 'theater' ? (
@@ -1149,9 +1519,11 @@ export function UploadEntry() {
             pulseNonce={pulseNonce}
             editableFields={editableFields}
             onToggleQueue={toggleQueue}
+            customFields={customFields}
+            onCustomFieldsChange={setCustomFields}
           />
           <ActionDock
-            label={editQueue.length > 0 ? `Make Edits (${editQueue.length})` : 'Catalog'}
+            label={reviewCommitLabel}
             icon={editQueue.length > 0 ? Pencil : Check}
             bottomInset={insets.bottom}
             onPress={() => {
@@ -1161,6 +1533,7 @@ export function UploadEntry() {
                 void handleCatalog();
               }
             }}
+            disabled={isEditMode ? !effectiveExtraction : !draftCollectibleId}
           />
         </>
       ) : step === 'failed' ? (
@@ -1188,7 +1561,8 @@ export function UploadEntry() {
       ) : step === 'success' ? (
         <SuccessStep
           extraction={effectiveExtraction}
-          onAddAnother={resetFlow}
+          isEditMode={isEditMode}
+          onAddAnother={isEditMode ? undefined : resetFlow}
           onViewCollection={() => {
             if (committedCollectibleId) {
               router.push(`/collectible/${committedCollectibleId}` as Href);
@@ -1257,7 +1631,17 @@ export function UploadEntry() {
   );
 }
 
-function getStepTitle(step: UploadStep): string {
+function getStepTitle(step: UploadStep, isEditMode: boolean): string {
+  if (isEditMode) {
+    switch (step) {
+      case 'identify': return 'Edit';
+      case 'theater': return 'Re-scanning';
+      case 'review': return 'Review';
+      case 'failed': return 'Error';
+      case 'rejected': return 'Not Recognized';
+      case 'success': return 'Updated';
+    }
+  }
   switch (step) {
     case 'identify': return 'Identify';
     case 'theater': return 'Processing';
@@ -1349,6 +1733,8 @@ function IdentifyStep({
   onRemoveShowcase,
   onOpenTagDialog,
   onRemoveTag,
+  showResetPhotos,
+  onResetPhotos,
 }: {
   photos: PhotoAsset[];
   context: string;
@@ -1371,6 +1757,8 @@ function IdentifyStep({
   onRemoveShowcase: (id: string) => void;
   onOpenTagDialog: () => void;
   onRemoveTag: (tag: string) => void;
+  showResetPhotos?: boolean;
+  onResetPhotos?: () => void;
 }) {
   const { colors } = useTheme();
   const isNfst = status === 'NFST';
@@ -1393,6 +1781,19 @@ function IdentifyStep({
           onRemove={onRemovePhoto}
           onAddMore={onPickPhotos}
         />
+        {showResetPhotos && onResetPhotos ? (
+          <Pressable
+            onPress={onResetPhotos}
+            style={[styles.resetPhotosBtn, { borderColor: colors.frostBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Reset photos to original"
+          >
+            <RotateCcw size={14} color={colors.textSecondary} />
+            <Text style={[styles.resetPhotosLabel, { color: colors.textSecondary }]}>
+              Reset photos
+            </Text>
+          </Pressable>
+        ) : null}
       </IdentifySection>
 
       <View style={styles.identifySectionBlock}>
@@ -2649,6 +3050,8 @@ function ReviewStep({
   pulseNonce,
   editableFields,
   onToggleQueue,
+  customFields,
+  onCustomFieldsChange,
 }: {
   extraction: ExtractionResult;
   /** All available images for the carousel (remote URLs or local URIs). */
@@ -2663,6 +3066,8 @@ function ReviewStep({
   pulseNonce: number;
   editableFields: EditableField[];
   onToggleQueue: (id: QueueId) => void;
+  customFields: CollectibleCustomField[];
+  onCustomFieldsChange: (fields: CollectibleCustomField[]) => void;
 }) {
   const { colors } = useTheme();
   const [aiExpanded, setAiExpanded] = useState(false);
@@ -2857,6 +3262,10 @@ function ReviewStep({
             />
           </View>
         )}
+
+        <View style={styles.reviewCustomFieldsWrap}>
+          <CustomFieldsEditor fields={customFields} onChange={onCustomFieldsChange} />
+        </View>
       </KeyboardSafeScroll>
   );
 }
@@ -3017,11 +3426,13 @@ function InlineEditableField({
 
 function SuccessStep({
   extraction,
+  isEditMode,
   onAddAnother,
   onViewCollection,
 }: {
   extraction: ExtractionResult | null;
-  onAddAnother: () => void;
+  isEditMode?: boolean;
+  onAddAnother?: () => void;
   onViewCollection: () => void;
 }) {
   const { colors } = useTheme();
@@ -3031,17 +3442,29 @@ function SuccessStep({
         <View style={[styles.successGlow, { backgroundColor: colors.brandVoltFill }]} />
         <Check size={42} color={colors.textInverse} strokeWidth={2.5} />
       </View>
-      <Text style={[styles.successTitle, { color: colors.textPrimary }]}>Saved to Vault</Text>
+      <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
+        {isEditMode ? 'Updates saved' : 'Saved to Vault'}
+      </Text>
       {extraction && (
         <Text style={[styles.successItemTitle, { color: colors.textSecondary }]}>{extraction.listingTitle}</Text>
       )}
       <Text style={[styles.successCopy, { color: colors.textSecondary }]}>
-        AI record created, preferences applied, and the collectible is live in your collection.
+        {isEditMode
+          ? 'Your collectible has been updated.'
+          : 'AI record created, preferences applied, and the collectible is live in your collection.'}
       </Text>
-      <PushPrePrompt context="post_upload" />
+      {!isEditMode ? <PushPrePrompt context="post_upload" /> : null}
       <View style={styles.successActions}>
-        <Button label="Add Another" icon={RotateCcw} variant="frost" fullWidth onPress={onAddAnother} />
-        <Button label="View in Collection" icon={ArrowRight} iconPosition="trailing" fullWidth onPress={onViewCollection} />
+        {onAddAnother ? (
+          <Button label="Add Another" icon={RotateCcw} variant="frost" fullWidth onPress={onAddAnother} />
+        ) : null}
+        <Button
+          label="View in Collection"
+          icon={ArrowRight}
+          iconPosition="trailing"
+          fullWidth
+          onPress={onViewCollection}
+        />
       </View>
     </View>
   );
@@ -3054,6 +3477,37 @@ function SuccessStep({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  editLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.gutter,
+    gap: 16,
+  },
+  editLoadingText: {
+    fontFamily: TYPE.inter,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  resetPhotosBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: RADII.small,
+    borderStyle: 'dashed',
+  },
+  resetPhotosLabel: {
+    fontFamily: TYPE.interMedium,
+    fontSize: 13,
+  },
+  reviewCustomFieldsWrap: {
+    marginTop: SPACING.sectionGap,
+    paddingHorizontal: SPACING.gutter,
   },
   header: {
     minHeight: 56,

@@ -358,13 +358,10 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
   }, [collectible, router]);
 
   const handleEdit = useCallback(() => {
+    if (!collectible?.id) return;
     Haptics.selectionAsync();
-    // V1: routes back to the legacy edit modals — these are still the
-    // production edit surfaces. A dedicated V3 edit flow is a separate
-    // plan. Re-open of the legacy detail screen happens via the route
-    // — for now we just no-op since the legacy `EditInfoModal` /
-    // `KeyDetailsModal` aren't wired here yet.
-  }, []);
+    router.push(`/collectible/${collectible.id}/edit` as never);
+  }, [collectible?.id, router]);
 
   const handleReport = useCallback(() => {
     Haptics.selectionAsync();
@@ -567,6 +564,8 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
           traitKeys={traitKeys}
           aiMetadata={collectible.aiMetadata ?? undefined}
           traitMetadata={collectible.traitMetadata ?? undefined}
+          metadataProvenance={collectible.metadataProvenance ?? undefined}
+          customFields={collectible.customFields ?? undefined}
           bottomInset={insets.bottom}
           dockReservedHeight={dockReservedHeight}
         />

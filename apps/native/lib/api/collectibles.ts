@@ -34,6 +34,44 @@ export interface CreateCollectibleRequest {
   showcaseId?: string;
 }
 
+/** Owner-authored field (not from Looking Glass). */
+export interface CollectibleCustomField {
+  id: string;
+  label: string;
+  value: string;
+  created_at: string;
+}
+
+/** Post-catalog correction provenance for transparency badges. */
+export type MetadataProvenance = Record<
+  string,
+  { source: 'user'; at: string }
+>;
+
+function parseCustomFields(raw: unknown): CollectibleCustomField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CollectibleCustomField[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Record<string, unknown>;
+    const label = typeof e.label === 'string' ? e.label.trim() : '';
+    const value = typeof e.value === 'string' ? e.value : String(e.value ?? '');
+    if (!label) continue;
+    out.push({
+      id: typeof e.id === 'string' ? e.id : `cf-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      label,
+      value,
+      created_at: typeof e.created_at === 'string' ? e.created_at : new Date().toISOString(),
+    });
+  }
+  return out;
+}
+
+function parseMetadataProvenance(raw: unknown): MetadataProvenance {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return raw as MetadataProvenance;
+}
+
 function mapRowToResponse(item: Record<string, any>): CreateCollectibleResponse {
   return {
     id: item.id,
@@ -64,6 +102,11 @@ function mapRowToResponse(item: Record<string, any>): CreateCollectibleResponse 
     verificationUrl: item.verification_url,
     schemaMode: item.schema_mode,
     filterTraits: item.filter_traits ?? null,
+    customFields: parseCustomFields(item.custom_fields),
+    metadataProvenance: parseMetadataProvenance(item.metadata_provenance),
+    reextractionOf: item.reextraction_of ?? null,
+    publishedAt: item.published_at ?? null,
+    extractionStatus: item.extraction_status ?? null,
   };
 }
 
@@ -100,6 +143,11 @@ export interface CreateCollectibleResponse {
   verificationUrl?: string | null;
   schemaMode?: string | null;
   filterTraits?: FilterTraits | null;
+  customFields?: CollectibleCustomField[];
+  metadataProvenance?: MetadataProvenance;
+  reextractionOf?: string | null;
+  publishedAt?: string | null;
+  extractionStatus?: string | null;
 }
 
 export type FilterTraits = {
@@ -1395,6 +1443,7 @@ export async function commitDraftCollectible(
     showcaseIds?: string[];
     aiMetadata?: Record<string, unknown>;
     traitMetadata?: Record<string, unknown>;
+    customFields?: CollectibleCustomField[];
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -1423,6 +1472,7 @@ export async function commitDraftCollectible(
   if (edits.tags !== undefined) updatePayload.tags = edits.tags;
   if (edits.aiMetadata !== undefined) updatePayload.ai_metadata = edits.aiMetadata;
   if (edits.traitMetadata !== undefined) updatePayload.trait_metadata = edits.traitMetadata;
+  if (edits.customFields !== undefined) updatePayload.custom_fields = edits.customFields;
 
   const { error } = await supabase
     .from('collectibles')
@@ -1491,3 +1541,439 @@ export async function commitDraftCollectible(
 // `deleteCollectible` call. Orphaned 'queued'/'processing' rows are caught
 // by the `extraction-watchdog` cron (marks them as failed), and abandoned
 // failures are hard-deleted by `failed-extractions-purge` after 45 days.
+
+// ---------------------------------------------------------------------------
+// Edit collectible (post-catalog)
+// ---------------------------------------------------------------------------
+
+export interface CollectibleEditCommitPayload {
+  listingTitle?: string;
+  listingDescription?: string;
+  value?: number;
+  availableForSale?: boolean;
+  availableForTrade?: boolean;
+  visibility?: string;
+  tags?: string[];
+  showcaseIds?: string[];
+  photos?: string[];
+  aiMetadata?: Record<string, unknown>;
+  traitMetadata?: Record<string, unknown>;
+  customFields?: CollectibleCustomField[];
+  /** Baseline for provenance diff (S0 for metadata-only; draft engine output for rerun). */
+  provenanceBaseline?: {
+    aiMetadata: Record<string, unknown>;
+    traitMetadata: Record<string, unknown>;
+    listingTitle?: string | null;
+    listingDescription?: string | null;
+  };
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function provenanceFieldKeys(
+  prefix: 'ai' | 'trait',
+  baseline: Record<string, unknown>,
+  final: Record<string, unknown>,
+  existing: MetadataProvenance,
+): Set<string> {
+  const keys = new Set<string>([
+    ...Object.keys(baseline),
+    ...Object.keys(final),
+  ]);
+  const provPrefix = `${prefix}.`;
+  for (const provKey of Object.keys(existing)) {
+    if (provKey.startsWith(provPrefix)) {
+      keys.add(provKey.slice(provPrefix.length));
+    }
+  }
+  return keys;
+}
+
+/**
+ * Reconcile user-edit markers against a baseline (S0 at edit open, or fresh LG output on rerun).
+ * Clears stale ai/trait/listing markers when values match the baseline again.
+ */
+export function computeMetadataProvenance(
+  baseline: CollectibleEditCommitPayload['provenanceBaseline'],
+  final: {
+    aiMetadata: Record<string, unknown>;
+    traitMetadata: Record<string, unknown>;
+    listingTitle?: string;
+    listingDescription?: string;
+  },
+  existing: MetadataProvenance,
+): MetadataProvenance {
+  if (!baseline) return existing;
+
+  const now = new Date().toISOString();
+  const out: MetadataProvenance = { ...existing };
+
+  for (const key of provenanceFieldKeys('ai', baseline.aiMetadata, final.aiMetadata, existing)) {
+    const provKey = `ai.${key}`;
+    if (!valuesEqual(final.aiMetadata[key], baseline.aiMetadata[key])) {
+      out[provKey] = { source: 'user', at: now };
+    } else {
+      delete out[provKey];
+    }
+  }
+  for (const key of provenanceFieldKeys(
+    'trait',
+    baseline.traitMetadata,
+    final.traitMetadata,
+    existing,
+  )) {
+    const provKey = `trait.${key}`;
+    if (!valuesEqual(final.traitMetadata[key], baseline.traitMetadata[key])) {
+      out[provKey] = { source: 'user', at: now };
+    } else {
+      delete out[provKey];
+    }
+  }
+  if (final.listingTitle !== undefined) {
+    if (!valuesEqual(final.listingTitle, baseline.listingTitle ?? '')) {
+      out.listing_title = { source: 'user', at: now };
+    } else {
+      delete out.listing_title;
+    }
+  }
+  if (final.listingDescription !== undefined) {
+    if (!valuesEqual(final.listingDescription, baseline.listingDescription ?? '')) {
+      out.listing_description = { source: 'user', at: now };
+    } else {
+      delete out.listing_description;
+    }
+  }
+
+  return out;
+}
+
+export async function getCollectibleShowcaseIds(collectibleId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('showcase_collectibles')
+    .select('showcase_id')
+    .eq('collectible_id', collectibleId);
+
+  if (error) {
+    log.warn('Error fetching showcase memberships:', error);
+    return [];
+  }
+  return (data ?? []).map((r) => r.showcase_id as string);
+}
+
+async function syncShowcaseMembership(
+  collectibleId: string,
+  showcaseIds: string[],
+): Promise<void> {
+  const target = new Set(showcaseIds.filter((id) => !id.startsWith('local-')));
+  const { data: existing } = await supabase
+    .from('showcase_collectibles')
+    .select('showcase_id')
+    .eq('collectible_id', collectibleId);
+
+  const existingIds = new Set((existing ?? []).map((r) => r.showcase_id as string));
+
+  for (const showcaseId of existingIds) {
+    if (!target.has(showcaseId)) {
+      await supabase
+        .from('showcase_collectibles')
+        .delete()
+        .eq('collectible_id', collectibleId)
+        .eq('showcase_id', showcaseId);
+    }
+  }
+
+  for (const showcaseId of target) {
+    if (!existingIds.has(showcaseId)) {
+      try {
+        await supabase.from('showcase_collectibles').insert({
+          id: crypto.randomUUID(),
+          showcase_id: showcaseId,
+          collectible_id: collectibleId,
+          display_order: 0,
+        });
+      } catch {
+        log.warn('Failed to add to showcase:', showcaseId);
+      }
+    }
+  }
+}
+
+async function applyEditCollectibleSideEffects(
+  collectibleId: string,
+  userId: string,
+  prevRow: {
+    available_for_sale: boolean;
+    available_for_trade: boolean;
+    value: number | null;
+    title: string;
+    photos: string[];
+  },
+  updatePayload: Record<string, unknown>,
+): Promise<void> {
+  const { data: collectible, error } = await supabase
+    .from('collectibles')
+    .update(updatePayload)
+    .eq('id', collectibleId)
+    .select('available_for_sale, available_for_trade, value, title, photos, user_id')
+    .single();
+
+  if (error || !collectible) {
+    log.error('Error updating collectible:', error);
+    throw new Error('Failed to update collectible');
+  }
+
+  if (
+    updatePayload.available_for_sale !== undefined ||
+    updatePayload.available_for_trade !== undefined
+  ) {
+    const sameStatus =
+      collectible.available_for_sale === prevRow.available_for_sale &&
+      collectible.available_for_trade === prevRow.available_for_trade;
+    if (!sameStatus) {
+      notifyTrackersOfStatusChange(
+        collectibleId,
+        userId,
+        collectible.title,
+        collectible.photos?.[0] || '',
+        collectible.available_for_sale,
+        collectible.available_for_trade,
+        {
+          for_sale: prevRow.available_for_sale,
+          for_trade: prevRow.available_for_trade,
+        },
+      );
+    }
+  }
+
+  if (updatePayload.value !== undefined) {
+    const newValue =
+      collectible.value !== null && collectible.value !== undefined
+        ? Number(collectible.value)
+        : null;
+    const prevValue =
+      prevRow.value !== null && prevRow.value !== undefined ? Number(prevRow.value) : null;
+    if (newValue !== prevValue) {
+      notifyTrackersOfValueChange(
+        collectibleId,
+        userId,
+        collectible.title,
+        collectible.photos?.[0] || '',
+        prevValue,
+        newValue,
+      );
+    }
+  }
+}
+
+/**
+ * Staging draft for re-extraction (Looking Glass rerun on edited photos).
+ */
+export async function createReExtractionDraft(
+  userId: string,
+  data: CreateDraftCollectibleRequest & { originalId: string },
+): Promise<string> {
+  const now = new Date().toISOString();
+  const collectibleId = `col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const visibility = data.visibility || 'public';
+
+  const { error } = await supabase.from('collectibles').insert({
+    id: collectibleId,
+    user_id: userId,
+    title: data.title,
+    description: data.hint || null,
+    photos: data.photos,
+    category: 'pending',
+    privacy: visibility,
+    visibility,
+    tags: data.tags || [],
+    available_for_sale: data.availableForSale ?? false,
+    available_for_trade: data.availableForTrade ?? false,
+    value: data.value ?? null,
+    collectible_type: 'memorabilia',
+    extraction_status: 'queued',
+    reextraction_of: data.originalId,
+    created_at: now,
+    updated_at: now,
+  });
+
+  if (error) {
+    log.error('Error creating re-extraction draft:', error);
+    throw new Error('Failed to start re-extraction');
+  }
+
+  return collectibleId;
+}
+
+/**
+ * Metadata-only edit path (no photo add/remove). Preserves published_at.
+ */
+export async function commitMetadataUpdate(
+  originalId: string,
+  userId: string,
+  edits: CollectibleEditCommitPayload,
+  existingProvenance: MetadataProvenance,
+): Promise<void> {
+  const { data: prevRow, error: fetchErr } = await supabase
+    .from('collectibles')
+    .select('available_for_sale, available_for_trade, value, title, photos, published_at')
+    .eq('id', originalId)
+    .single();
+
+  if (fetchErr || !prevRow) {
+    throw new Error('Failed to load collectible');
+  }
+
+  const now = new Date().toISOString();
+  const listingTitle = edits.listingTitle?.trim();
+  const provenance = computeMetadataProvenance(
+    edits.provenanceBaseline,
+    {
+      aiMetadata: edits.aiMetadata ?? {},
+      traitMetadata: edits.traitMetadata ?? {},
+      listingTitle,
+      listingDescription: edits.listingDescription,
+    },
+    existingProvenance,
+  );
+
+  const updatePayload: Record<string, unknown> = { updated_at: now };
+
+  if (listingTitle !== undefined) {
+    updatePayload.listing_title = listingTitle;
+    updatePayload.title = listingTitle;
+  }
+  if (edits.listingDescription !== undefined) {
+    updatePayload.listing_description = edits.listingDescription;
+  }
+  if (edits.value !== undefined) updatePayload.value = edits.value;
+  if (edits.availableForSale !== undefined) updatePayload.available_for_sale = edits.availableForSale;
+  if (edits.availableForTrade !== undefined) updatePayload.available_for_trade = edits.availableForTrade;
+  if (edits.visibility !== undefined) {
+    updatePayload.privacy = edits.visibility;
+    updatePayload.visibility = edits.visibility;
+  }
+  if (edits.tags !== undefined) updatePayload.tags = edits.tags;
+  if (edits.photos !== undefined) updatePayload.photos = edits.photos;
+  if (edits.aiMetadata !== undefined) updatePayload.ai_metadata = edits.aiMetadata;
+  if (edits.traitMetadata !== undefined) updatePayload.trait_metadata = edits.traitMetadata;
+  if (edits.customFields !== undefined) updatePayload.custom_fields = edits.customFields;
+  updatePayload.metadata_provenance = provenance;
+
+  await applyEditCollectibleSideEffects(originalId, userId, prevRow, updatePayload);
+
+  if (edits.showcaseIds) {
+    await syncShowcaseMembership(originalId, edits.showcaseIds);
+  }
+
+  log.info('Metadata update committed:', originalId);
+}
+
+/**
+ * Re-extraction edit path: merge staging draft engine output onto the original row.
+ */
+export async function commitReExtraction(
+  originalId: string,
+  draftId: string,
+  userId: string,
+  edits: CollectibleEditCommitPayload,
+  existingProvenance: MetadataProvenance,
+): Promise<void> {
+  const { data: draft, error: draftErr } = await supabase
+    .from('collectibles')
+    .select(
+      'ai_metadata, trait_metadata, filter_traits, field_schema, classification, traits, confidence, schema_mode, verification_url, autograph_assessment, photos, category, subcategory, collectible_type',
+    )
+    .eq('id', draftId)
+    .single();
+
+  if (draftErr || !draft) {
+    throw new Error('Failed to load re-extraction results');
+  }
+
+  const { data: prevRow, error: fetchErr } = await supabase
+    .from('collectibles')
+    .select('available_for_sale, available_for_trade, value, title, photos, published_at')
+    .eq('id', originalId)
+    .single();
+
+  if (fetchErr || !prevRow) {
+    throw new Error('Failed to load collectible');
+  }
+
+  const now = new Date().toISOString();
+  const listingTitle = edits.listingTitle?.trim();
+  const finalAi = (edits.aiMetadata ?? draft.ai_metadata ?? {}) as Record<string, unknown>;
+  const finalTrait = (edits.traitMetadata ?? draft.trait_metadata ?? {}) as Record<string, unknown>;
+
+  const provenanceBaseline =
+    edits.provenanceBaseline ?? {
+      aiMetadata: (draft.ai_metadata as Record<string, unknown>) ?? {},
+      traitMetadata: (draft.trait_metadata as Record<string, unknown>) ?? {},
+      listingTitle: null,
+      listingDescription: null,
+    };
+
+  const provenance = computeMetadataProvenance(
+    provenanceBaseline,
+    {
+      aiMetadata: finalAi,
+      traitMetadata: finalTrait,
+      listingTitle,
+      listingDescription: edits.listingDescription,
+    },
+    existingProvenance,
+  );
+
+  const updatePayload: Record<string, unknown> = {
+    updated_at: now,
+    extraction_status: 'complete',
+    ai_metadata: finalAi,
+    trait_metadata: finalTrait,
+    filter_traits: draft.filter_traits,
+    field_schema: draft.field_schema,
+    classification: draft.classification,
+    traits: draft.traits,
+    confidence: draft.confidence,
+    schema_mode: draft.schema_mode,
+    verification_url: draft.verification_url,
+    autograph_assessment: draft.autograph_assessment,
+    category: draft.category,
+    subcategory: draft.subcategory,
+    collectible_type: draft.collectible_type,
+    photos: edits.photos ?? draft.photos,
+    metadata_provenance: provenance,
+  };
+
+  if (listingTitle !== undefined) {
+    updatePayload.listing_title = listingTitle;
+    updatePayload.title = listingTitle;
+  }
+  if (edits.listingDescription !== undefined) {
+    updatePayload.listing_description = edits.listingDescription;
+  }
+  if (edits.value !== undefined) updatePayload.value = edits.value;
+  if (edits.availableForSale !== undefined) updatePayload.available_for_sale = edits.availableForSale;
+  if (edits.availableForTrade !== undefined) updatePayload.available_for_trade = edits.availableForTrade;
+  if (edits.visibility !== undefined) {
+    updatePayload.privacy = edits.visibility;
+    updatePayload.visibility = edits.visibility;
+  }
+  if (edits.tags !== undefined) updatePayload.tags = edits.tags;
+  if (edits.customFields !== undefined) updatePayload.custom_fields = edits.customFields;
+
+  await applyEditCollectibleSideEffects(originalId, userId, prevRow, updatePayload);
+
+  if (edits.showcaseIds) {
+    await syncShowcaseMembership(originalId, edits.showcaseIds);
+  }
+
+  try {
+    await deleteCollectible(draftId, userId);
+  } catch (e) {
+    log.warn('Failed to delete re-extraction staging draft:', draftId, e);
+  }
+
+  log.info('Re-extraction committed:', originalId, 'from draft', draftId);
+}

@@ -61,6 +61,8 @@ type Props = {
    * to tear the row down and remount it.
    */
   editedNonce?: number;
+  /** Persistent post-catalog correction badge (owners + viewers). */
+  userEdited?: boolean;
 };
 
 export function SchemaRow({
@@ -72,6 +74,7 @@ export function SchemaRow({
   queued = false,
   edited = false,
   editedNonce = 0,
+  userEdited = false,
 }: Props) {
   const { colors } = useTheme();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -89,17 +92,25 @@ export function SchemaRow({
   const content = (
     <View style={styles.inner}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
-      <Text
-        style={[
-          styles.value,
-          { color: colors.textPrimary },
-          mono && styles.valueMono,
-          queued && { color: colors.textPrimary },
-        ]}
-        numberOfLines={2}
-      >
-        {value}
-      </Text>
+      <View style={styles.valueWrap}>
+        <Text
+          style={[
+            styles.value,
+            { color: colors.textPrimary },
+            mono && styles.valueMono,
+            queued && { color: colors.textPrimary },
+            userEdited && styles.valueWithBadge,
+          ]}
+          numberOfLines={2}
+        >
+          {value}
+        </Text>
+        {userEdited ? (
+          <View style={[styles.editedChip, { borderColor: colors.frostBorder, backgroundColor: colors.pressOverlay }]}>
+            <Text style={[styles.editedChipText, { color: colors.textSecondary }]}>Edited</Text>
+          </View>
+        ) : null}
+      </View>
       {onPress ? (
         <Pencil
           size={12}
@@ -190,12 +201,35 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     maxWidth: '45%',
   },
-  value: {
+  valueWrap: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  value: {
     fontFamily: TYPE.inter,
     fontSize: 15,
     textAlign: 'right',
     lineHeight: 21,
+    flexShrink: 1,
+  },
+  valueWithBadge: {
+    maxWidth: '72%',
+  },
+  editedChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADII.small,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  editedChipText: {
+    fontFamily: TYPE.interMedium,
+    fontSize: 10,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   valueMono: {
     fontFamily: TYPE.mono,
