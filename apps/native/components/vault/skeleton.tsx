@@ -1,25 +1,51 @@
-import React, { useEffect, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { useTheme, RADII } from '@/lib/design';
 
 /**
- * Skeleton — loading shimmer primitive.
+ * Skeleton — V3 loading pulse primitives.
  *
- * Two shapes cover the needs we've surfaced:
- *   SkeletonRect   — boxes (cards, rows, bars)
- *   SkeletonCircle — avatars, dots, round medallions
+ *   SkeletonRect    — boxes (cards, rows, bars)
+ *   SkeletonCircle  — avatars, dots, round medallions
+ *   SkeletonGroup   — wraps a screen skeleton with shared pulse + a11y
+ *   SkeletonPulseProvider — optional; one opacity driver for a subtree
  *
- * Animation is a subtle opacity pulse driven by `Animated` with the native
- * driver — no shimmering gradient, no JS-driven loop. Keeps the loading
- * state feeling like the rest of the V3 DNA: quiet, technical, restrained.
+ * Animation is a subtle opacity pulse on the native driver — no gradient
+ * shimmer, no global provider required at the app root.
  */
 
-interface SkeletonBaseProps {
-  style?: ViewStyle;
+const SkeletonPulseContext = createContext<Animated.Value | null>(null);
+
+function usePulseOpacity(): Animated.Value {
+  const shared = useContext(SkeletonPulseContext);
+  const local = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    if (shared) return;
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(local, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(local, {
+          toValue: 0.5,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shared, local]);
+
+  return shared ?? local;
 }
 
-function useShimmerOpacity(): Animated.Value {
+export function SkeletonPulseProvider({ children }: { children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
@@ -35,13 +61,19 @@ function useShimmerOpacity(): Animated.Value {
           duration: 900,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
   }, [opacity]);
 
-  return opacity;
+  return (
+    <SkeletonPulseContext.Provider value={opacity}>{children}</SkeletonPulseContext.Provider>
+  );
+}
+
+interface SkeletonBaseProps {
+  style?: ViewStyle;
 }
 
 export interface SkeletonRectProps extends SkeletonBaseProps {
@@ -57,7 +89,7 @@ export function SkeletonRect({
   style,
 }: SkeletonRectProps) {
   const { colors } = useTheme();
-  const opacity = useShimmerOpacity();
+  const opacity = usePulseOpacity();
 
   return (
     <Animated.View
@@ -83,7 +115,7 @@ export interface SkeletonCircleProps extends SkeletonBaseProps {
 
 export function SkeletonCircle({ size = 40, style }: SkeletonCircleProps) {
   const { colors } = useTheme();
-  const opacity = useShimmerOpacity();
+  const opacity = usePulseOpacity();
 
   return (
     <Animated.View
@@ -108,11 +140,14 @@ export interface SkeletonGroupProps {
   style?: ViewStyle;
 }
 
+/** Screen-level skeleton wrapper — shared pulse + loading a11y. */
 export function SkeletonGroup({ children, style }: SkeletonGroupProps) {
   return (
-    <View style={style} accessibilityRole="progressbar" accessibilityLabel="Loading">
-      {children}
-    </View>
+    <SkeletonPulseProvider>
+      <View style={style} accessibilityRole="progressbar" accessibilityLabel="Loading">
+        {children}
+      </View>
+    </SkeletonPulseProvider>
   );
 }
 

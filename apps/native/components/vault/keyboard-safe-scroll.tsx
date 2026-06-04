@@ -19,8 +19,6 @@
  *   showsVerticalScrollIndicator  false   Brand-quiet default; pass `true`
  *                                          on surfaces that need it.
  *
- * The keyboard accessory toolbar (Prev / Next / Done) is mounted globally
- * in `app/_layout.tsx`, so no per-form wiring is needed for that.
  */
 
 import React from 'react';

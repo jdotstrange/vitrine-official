@@ -1,0 +1,9 @@
+Your Vitrine sign-in code
+
+Enter this code in the app to continue:
+
+{{ .Token }}
+
+This code expires in one hour. If you didn't request a sign-in code, you can safely ignore this email.
+
+— MyVitrine

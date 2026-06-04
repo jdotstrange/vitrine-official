@@ -3,10 +3,12 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import {
   Activity,
   FileText,
+  Layers,
   PenTool,
   type LucideIcon,
 } from 'lucide-react-native';
 
+import { PRO_COMING_SOON_CTA, PRO_SHIP_DARK, type ProFeatureKey } from '@/lib/pro-ship-dark';
 import { useTheme, RADII, SPACING, TYPE } from '@/lib/design';
 
 import { Brackets } from './brackets';
@@ -43,16 +45,13 @@ import { Button } from './button';
  * elements if needed (it usually doesn't — paywall stands alone).
  */
 
-export type LensPaywallKey = 'PULSE' | 'AAR' | 'VAR';
+export type LensPaywallKey = ProFeatureKey;
 
 const ICON_BY_LENS: Record<LensPaywallKey, LucideIcon> = {
-  // Live/heartbeat metaphor — Pulse reads market motion.
   PULSE: Activity,
-  // Signature analysis — penTool overlays nicely on the violet accent.
   AAR: PenTool,
-  // Branded report document — VAR is fundamentally a structured
-  // documentation artifact.
   VAR: FileText,
+  MANAGED: Layers,
 };
 
 export interface LensPaywallCardProps {
@@ -89,7 +88,7 @@ export function LensPaywallCard({
   kicker,
   blurb,
   onUpgrade,
-  ctaLabel = 'UNLOCK PRO',
+  ctaLabel = PRO_SHIP_DARK ? PRO_COMING_SOON_CTA : 'UNLOCK PRO',
   icon,
   style,
 }: LensPaywallCardProps) {

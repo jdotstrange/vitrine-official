@@ -33,7 +33,7 @@ const staticPrimaryItems = [
 // Test links for auth flow
 const testItems = [
   { label: 'Login (TEST)', href: '/login', hasUnread: false },
-  { label: 'Signup (TEST)', href: '/signup', hasUnread: false },
+  { label: 'Auth (TEST)', href: '/login', hasUnread: false },
 ];
 
 // Design lab sandboxes — DEV-only entries for iterating on new visual DNA

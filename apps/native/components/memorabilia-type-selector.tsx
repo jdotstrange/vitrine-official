@@ -15,7 +15,7 @@ import {
   CircleDot,
 } from 'lucide-react-native';
 import { SearchBar } from './search-bar';
-import { Skeleton } from './skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';

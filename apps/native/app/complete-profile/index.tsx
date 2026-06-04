@@ -12,27 +12,25 @@ import {
   Alert,
   ActionSheetIOS,
 } from 'react-native';
-import { KeyboardSafeScroll } from '@/components/vault';
+import { Button, KeyboardSafeScroll } from '@/components/vault';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { Check, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { VitrineButton } from '@/components/ui/vitrine-button';
 import { VitrineLogo } from '@/components/vitrine-logo';
-import { colors } from '@/lib/colors';
+import { RADII, TYPE, useTheme } from '@/lib/design';
+import { SPLASH_BG } from '@/lib/splash-contain-layout';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { checkUsername, checkEmail, uploadAvatar } from '@/lib/api/auth';
 
 type FieldStatus = 'idle' | 'checking' | 'available' | 'unavailable' | 'invalid';
 
-const successColor = colors.success;
-const errorColor = colors.destructive;
-
 type MissingField = 'displayName' | 'username' | 'email';
 type CompleteProfileStep = 'required-fields' | 'finish-profile';
 
 export default function CompleteProfilePage() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { profileStatus, updateProfile, user, logout } = useAuth();
 
   const missingFields = profileStatus?.missing || [];
@@ -284,9 +282,9 @@ export default function CompleteProfilePage() {
 
   const getGlowColor = (): string => {
     const status = getCurrentFieldStatus();
-    if (status === 'available') return successColor;
-    if (status === 'unavailable' || status === 'invalid') return errorColor;
-    return colors.primary;
+    if (status === 'available') return colors.semanticGreen;
+    if (status === 'unavailable' || status === 'invalid') return colors.semanticRed;
+    return colors.brandVolt;
   };
 
   // --- Render required field content ---
@@ -298,16 +296,23 @@ export default function CompleteProfilePage() {
       case 'displayName':
         return (
           <>
-            <Text style={styles.fieldLabel}>What should we call you?</Text>
-            <Text style={styles.fieldHint}>This is how other collectors will see you</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>What should we call you?</Text>
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              This is how other collectors will see you
+            </Text>
             <View style={styles.inputWrapper}>
-              <View style={styles.inputContainer}>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder },
+                ]}
+              >
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   value={displayName}
                   onChangeText={(v) => { setDisplayName(v); setError(''); }}
                   placeholder="Your display name"
-                  placeholderTextColor={colors.mutedForeground + '80'}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   maxLength={50}
@@ -317,7 +322,7 @@ export default function CompleteProfilePage() {
               </View>
             </View>
             {displayName && !isValidDisplayName && (
-              <Text style={styles.errorText}>Must be 2-50 characters</Text>
+              <Text style={[styles.errorText, { color: colors.semanticRed }]}>Must be 2-50 characters</Text>
             )}
           </>
         );
@@ -325,22 +330,33 @@ export default function CompleteProfilePage() {
       case 'username':
         return (
           <>
-            <Text style={styles.fieldLabel}>Choose a username</Text>
-            <Text style={styles.fieldHint}>Lowercase letters, numbers, and underscores only</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Choose a username</Text>
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              Lowercase letters, numbers, and underscores only
+            </Text>
             <View style={styles.inputWrapper}>
               {showGlow && (
                 <RNAnimated.View
-                  style={[styles.glowBorder, { backgroundColor: getGlowColor(), opacity: glowOpacity }]}
+                  style={[
+                    styles.glowBorder,
+                    { backgroundColor: getGlowColor(), opacity: glowOpacity, borderRadius: RADII.medium },
+                  ]}
                 />
               )}
-              <View style={[styles.inputContainer, status === 'unavailable' && styles.inputError]}>
-                <Text style={styles.inputPrefix}>@</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder },
+                  status === 'unavailable' && { borderColor: colors.semanticRed },
+                ]}
+              >
+                <Text style={[styles.inputPrefix, { color: colors.textTertiary }]}>@</Text>
                 <TextInput
-                  style={[styles.input, styles.inputWithPrefix]}
+                  style={[styles.input, styles.inputWithPrefix, { color: colors.textPrimary }]}
                   value={username}
                   onChangeText={handleUsernameChange}
                   placeholder="username"
-                  placeholderTextColor={colors.mutedForeground + '80'}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={20}
@@ -348,17 +364,23 @@ export default function CompleteProfilePage() {
                   accessibilityLabel="Username"
                 />
                 {status === 'checking' && (
-                  <ActivityIndicator size="small" color={colors.primary} style={styles.inputSuffix} />
+                  <ActivityIndicator size="small" color={colors.brandVolt} style={styles.inputSuffix} />
                 )}
                 {status === 'available' && (
-                  <Check size={18} color={successColor} style={styles.inputSuffix} />
+                  <Check size={18} color={colors.semanticGreen} style={styles.inputSuffix} />
                 )}
               </View>
             </View>
-            {status === 'available' && <Text style={styles.successText}>Username is available</Text>}
-            {status === 'unavailable' && <Text style={styles.errorText}>Username is already taken</Text>}
+            {status === 'available' && (
+              <Text style={[styles.successText, { color: colors.semanticGreen }]}>Username is available</Text>
+            )}
+            {status === 'unavailable' && (
+              <Text style={[styles.errorText, { color: colors.semanticRed }]}>Username is already taken</Text>
+            )}
             {status === 'invalid' && username && (
-              <Text style={styles.errorText}>3-20 chars, letters, numbers, underscore only</Text>
+              <Text style={[styles.errorText, { color: colors.semanticRed }]}>
+                3-20 chars, letters, numbers, underscore only
+              </Text>
             )}
           </>
         );
@@ -366,21 +388,32 @@ export default function CompleteProfilePage() {
       case 'email':
         return (
           <>
-            <Text style={styles.fieldLabel}>Your email address</Text>
-            <Text style={styles.fieldHint}>We'll use this to keep your account secure</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textPrimary }]}>Your email address</Text>
+            <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
+              We&apos;ll use this to keep your account secure
+            </Text>
             <View style={styles.inputWrapper}>
               {showGlow && (
                 <RNAnimated.View
-                  style={[styles.glowBorder, { backgroundColor: getGlowColor(), opacity: glowOpacity }]}
+                  style={[
+                    styles.glowBorder,
+                    { backgroundColor: getGlowColor(), opacity: glowOpacity, borderRadius: RADII.medium },
+                  ]}
                 />
               )}
-              <View style={[styles.inputContainer, emailStatus === 'unavailable' && styles.inputError]}>
+              <View
+                style={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder },
+                  emailStatus === 'unavailable' && { borderColor: colors.semanticRed },
+                ]}
+              >
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: colors.textPrimary }]}
                   value={email}
                   onChangeText={handleEmailChange}
                   placeholder="you@example.com"
-                  placeholderTextColor={colors.mutedForeground + '80'}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -388,17 +421,23 @@ export default function CompleteProfilePage() {
                   accessibilityLabel="Email address"
                 />
                 {emailStatus === 'checking' && (
-                  <ActivityIndicator size="small" color={colors.primary} style={styles.inputSuffix} />
+                  <ActivityIndicator size="small" color={colors.brandVolt} style={styles.inputSuffix} />
                 )}
                 {emailStatus === 'available' && (
-                  <Check size={18} color={successColor} style={styles.inputSuffix} />
+                  <Check size={18} color={colors.semanticGreen} style={styles.inputSuffix} />
                 )}
               </View>
             </View>
-            {emailStatus === 'available' && <Text style={styles.successText}>Email is available</Text>}
-            {emailStatus === 'unavailable' && <Text style={styles.errorText}>Email is already registered</Text>}
+            {emailStatus === 'available' && (
+              <Text style={[styles.successText, { color: colors.semanticGreen }]}>Email is available</Text>
+            )}
+            {emailStatus === 'unavailable' && (
+              <Text style={[styles.errorText, { color: colors.semanticRed }]}>Email is already registered</Text>
+            )}
             {emailStatus === 'invalid' && email && (
-              <Text style={styles.errorText}>Please enter a valid email address</Text>
+              <Text style={[styles.errorText, { color: colors.semanticRed }]}>
+                Please enter a valid email address
+              </Text>
             )}
           </>
         );
@@ -414,13 +453,14 @@ export default function CompleteProfilePage() {
       <Animated.View entering={FadeIn} style={styles.viewContainer}>
         <View style={styles.topSection}>
           <View style={styles.logoContainer}>
-            <VitrineLogo width={200} height={60} />
+            <VitrineLogo width={200} height={60} color={colors.textPrimary} />
           </View>
 
-          <Text style={styles.title}>Finish Your Profile</Text>
-          <Text style={styles.subtitleText}>Add a photo and bio so other collectors can find you</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Finish your profile</Text>
+          <Text style={[styles.subtitleText, { color: colors.textSecondary }]}>
+            Add a photo and bio so other collectors can find you
+          </Text>
 
-          {/* Avatar */}
           <TouchableOpacity
             onPress={handleAvatarPress}
             style={styles.avatarContainer}
@@ -429,51 +469,65 @@ export default function CompleteProfilePage() {
             accessibilityLabel="Add profile photo"
           >
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+              <Image
+                source={{ uri: avatarUri }}
+                style={[styles.avatarImage, { borderColor: colors.brandVolt }]}
+              />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Camera size={28} color={colors.mutedForeground} />
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder },
+                ]}
+              >
+                <Camera size={28} color={colors.textTertiary} />
               </View>
             )}
             {isUploadingAvatar && (
-              <View style={styles.avatarUploading}>
-                <ActivityIndicator size="small" color={colors.primary} />
+              <View style={[styles.avatarUploading, { backgroundColor: colors.scrim }]}>
+                <ActivityIndicator size="small" color={colors.brandVolt} />
               </View>
             )}
-            <Text style={styles.avatarLabel}>
+            <Text style={[styles.avatarLabel, { color: colors.brandVolt }]}>
               {avatarUri ? 'Change photo' : 'Add a photo'}
             </Text>
           </TouchableOpacity>
 
-          {/* Bio */}
           <View style={styles.bioContainer}>
-            <Text style={styles.bioLabel}>Bio</Text>
-            <View style={styles.bioInputContainer}>
+            <Text style={[styles.bioLabel, { color: colors.textTertiary }]}>Bio</Text>
+            <View
+              style={[
+                styles.bioInputContainer,
+                { backgroundColor: colors.sheetBg, borderColor: colors.frostBorder },
+              ]}
+            >
               <TextInput
-                style={styles.bioInput}
+                style={[styles.bioInput, { color: colors.textPrimary }]}
                 value={bio}
                 onChangeText={setBio}
                 placeholder="Tell other collectors about yourself..."
-                placeholderTextColor={colors.mutedForeground + '80'}
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 maxLength={160}
                 textAlignVertical="top"
                 accessibilityLabel="Bio"
               />
             </View>
-            <Text style={styles.bioCount}>{bio.length}/160</Text>
+            <Text style={[styles.bioCount, { color: colors.textTertiary }]}>{bio.length}/160</Text>
           </View>
 
-          {error && <Text style={styles.generalError}>{error}</Text>}
+          {error ? (
+            <Text style={[styles.generalError, { color: colors.semanticRed }]}>{error}</Text>
+          ) : null}
 
-          <VitrineButton
-            variant="confirmation"
+          <Button
+            label={isLoading ? 'Saving...' : 'Continue'}
             onPress={handleFinishProfile}
             disabled={isLoading}
+            loading={isLoading}
+            fullWidth
             style={styles.finishButton}
-          >
-            {isLoading ? 'Saving...' : 'Continue'}
-          </VitrineButton>
+          />
 
           <TouchableOpacity
             onPress={handleSkipFinish}
@@ -481,7 +535,7 @@ export default function CompleteProfilePage() {
             accessibilityRole="button"
             accessibilityLabel="Skip for now"
           >
-            <Text style={styles.skipText}>Skip for now</Text>
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip for now</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -493,7 +547,7 @@ export default function CompleteProfilePage() {
   if (step === 'finish-profile') {
     return (
       <KeyboardSafeScroll
-        style={styles.container}
+        style={[styles.container, { backgroundColor: SPLASH_BG }]}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -511,7 +565,7 @@ export default function CompleteProfilePage() {
 
   return (
     <KeyboardSafeScroll
-      style={styles.container}
+      style={[styles.container, { backgroundColor: SPLASH_BG }]}
       contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
     >
       <View style={styles.headerSpacer} />
@@ -520,19 +574,18 @@ export default function CompleteProfilePage() {
         <Animated.View entering={FadeIn} style={styles.viewContainer}>
             <View style={styles.topSection}>
               <View style={styles.logoContainer}>
-                <VitrineLogo width={200} height={60} />
+                <VitrineLogo width={200} height={60} color={colors.textPrimary} />
               </View>
 
-              <Text style={styles.title}>Complete Your Profile</Text>
-              <Text style={styles.subtitleText}>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Complete your profile</Text>
+              <Text style={[styles.subtitleText, { color: colors.textSecondary }]}>
                 Just {totalFieldsRemaining} more {totalFieldsRemaining === 1 ? 'thing' : 'things'} to get started
               </Text>
 
-              {/* Progress indicator */}
               <View style={styles.progressContainer}>
-                <View style={[styles.progressDot, styles.progressDotActive]} />
+                <View style={[styles.progressDot, styles.progressDotActive, { backgroundColor: colors.brandVolt }]} />
                 {Array.from({ length: totalFieldsRemaining - 1 }).map((_, index) => (
-                  <View key={index} style={styles.progressDot} />
+                  <View key={index} style={[styles.progressDot, { backgroundColor: colors.frostDivider }]} />
                 ))}
               </View>
 
@@ -545,20 +598,24 @@ export default function CompleteProfilePage() {
                 {renderFieldContent()}
               </Animated.View>
 
-              {error && <Text style={styles.generalError}>{error}</Text>}
+              {error ? (
+                <Text style={[styles.generalError, { color: colors.semanticRed }]}>{error}</Text>
+              ) : null}
 
-              <VitrineButton
-                variant="confirmation"
+              <Button
+                label={
+                  isLoading
+                    ? 'Saving...'
+                    : totalFieldsRemaining === 1
+                      ? 'Finish'
+                      : 'Continue'
+                }
                 onPress={handleContinue}
                 disabled={isLoading || !isCurrentFieldValid()}
+                loading={isLoading}
+                fullWidth
                 style={styles.continueButton}
-              >
-                {isLoading
-                  ? 'Saving...'
-                  : totalFieldsRemaining === 1
-                  ? 'Finish'
-                  : 'Continue'}
-              </VitrineButton>
+              />
 
               <TouchableOpacity
                 onPress={logout}
@@ -566,7 +623,9 @@ export default function CompleteProfilePage() {
                 accessibilityRole="button"
                 accessibilityLabel="Use a different account"
               >
-                <Text style={styles.signOutText}>Use a different account</Text>
+                <Text style={[styles.signOutText, { color: colors.textTertiary }]}>
+                  Use a different account
+                </Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -578,7 +637,6 @@ export default function CompleteProfilePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -609,18 +667,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 12,
+    fontFamily: TYPE.groteskBold,
+    fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    color: colors.foreground,
+    letterSpacing: 1.6,
     marginBottom: 8,
   },
   subtitleText: {
-    fontSize: 12,
-    color: colors.mutedForeground,
+    fontFamily: TYPE.inter,
+    fontSize: 14,
     marginBottom: 24,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -631,10 +689,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.border,
   },
   progressDotActive: {
-    backgroundColor: colors.primary,
     width: 24,
   },
   fieldContainer: {
@@ -642,17 +698,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fieldLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.foreground,
+    fontFamily: TYPE.groteskSemiBold,
+    fontSize: 20,
     marginBottom: 8,
     textAlign: 'center',
   },
   fieldHint: {
-    fontSize: 12,
-    color: colors.mutedForeground,
+    fontFamily: TYPE.inter,
+    fontSize: 13,
     marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 18,
   },
   inputWrapper: {
     width: '100%',
@@ -670,26 +726,21 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: '100%',
-    borderRadius: 12,
-    backgroundColor: colors.card,
+    borderRadius: RADII.medium,
     borderWidth: 1,
-    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  inputError: {
-    borderColor: colors.destructive + '80',
-  },
   inputPrefix: {
-    paddingLeft: 12,
-    color: colors.mutedForeground,
+    paddingLeft: 14,
+    fontFamily: TYPE.inter,
     fontSize: 16,
   },
   input: {
     flex: 1,
-    padding: 12,
-    color: colors.foreground,
+    padding: 14,
+    fontFamily: TYPE.inter,
     fontSize: 16,
   },
   inputWithPrefix: {
@@ -699,20 +750,20 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   errorText: {
+    fontFamily: TYPE.inter,
     fontSize: 12,
-    color: colors.destructive,
     marginTop: 4,
     textAlign: 'center',
   },
   successText: {
+    fontFamily: TYPE.inter,
     fontSize: 12,
-    color: colors.success,
     marginTop: 4,
     textAlign: 'center',
   },
   generalError: {
+    fontFamily: TYPE.inter,
     fontSize: 12,
-    color: colors.destructive,
     marginTop: 16,
     textAlign: 'center',
   },
@@ -724,8 +775,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   signOutText: {
+    fontFamily: TYPE.inter,
     fontSize: 12,
-    color: colors.mutedForeground,
     textAlign: 'center',
   },
   // Finish profile styles
@@ -737,9 +788,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.card,
     borderWidth: 2,
-    borderColor: colors.border,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -749,7 +798,6 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 48,
     borderWidth: 2,
-    borderColor: colors.primary + '4D',
   },
   avatarUploading: {
     position: 'absolute',
@@ -758,13 +806,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.background + 'CC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarLabel: {
+    fontFamily: TYPE.groteskMedium,
     fontSize: 12,
-    color: colors.primary,
     marginTop: 8,
   },
   bioContainer: {
@@ -772,29 +819,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   bioLabel: {
+    fontFamily: TYPE.groteskBold,
     fontSize: 10,
-    color: colors.mutedForeground,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 6,
   },
   bioInputContainer: {
-    borderRadius: 12,
-    backgroundColor: colors.card,
+    borderRadius: RADII.medium,
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: 'hidden',
   },
   bioInput: {
-    padding: 12,
-    color: colors.foreground,
+    padding: 14,
+    fontFamily: TYPE.inter,
     fontSize: 14,
     minHeight: 80,
     lineHeight: 20,
   },
   bioCount: {
+    fontFamily: TYPE.inter,
     fontSize: 10,
-    color: colors.mutedForeground,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -806,8 +851,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   skipText: {
+    fontFamily: TYPE.inter,
     fontSize: 12,
-    color: colors.mutedForeground,
     textAlign: 'center',
   },
 });

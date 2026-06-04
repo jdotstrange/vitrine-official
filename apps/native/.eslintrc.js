@@ -34,8 +34,7 @@ const LEGACY_COLOR_CONSUMERS = [
   'app/index.tsx',
 
   // Legacy single-file components in components/ root
-  'components/signup-page.tsx',
-  'components/login-page.tsx',
+  'components/auth-screen.tsx',
   'components/nav-menu.tsx',
   'components/vitrine-logo.tsx',
   'components/vitrine-boot-sequence.tsx',
@@ -66,9 +65,7 @@ const LEGACY_COLOR_CONSUMERS = [
   'components/key-details-success.tsx',
   'components/key-details/**',
   'components/settings-export.tsx',
-  'components/skeleton.tsx',
-  'components/skeleton-community.tsx',
-  'components/skeleton-messaging.tsx',
+  'components/skeleton/**',
   'components/settings-support.tsx', // legacy palette wrapper; needs dedicated V3 pass
   'components/settings-bug-report.tsx', // legacy palette wrapper; needs dedicated V3 pass
 

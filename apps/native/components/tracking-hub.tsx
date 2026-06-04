@@ -237,6 +237,7 @@ export function TrackingHub({ initialLens, onScrollDirectionChange }: TrackingHu
           isRefreshing={isRefreshing}
           onRefresh={handleRefresh}
           bottomPadding={bottomPadding}
+          isHubLoading={isLoading}
         />
         <TrackingActivityLens
           isRefreshing={isRefreshing}

@@ -4,6 +4,7 @@ import {
   Alert,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -71,6 +72,14 @@ import {
 } from '@/components/collectibles';
 import { ShowcaseSurface } from '@/components/showcases';
 import {
+  getProfileCacheEntry,
+  isProfileCacheFresh,
+  setProfileCacheEntry,
+  subscribeProfileHub,
+  type ProfileCacheEntry,
+} from '@/lib/profile-hub-cache';
+import { ProfileHubSkeleton } from '@/components/skeleton';
+import {
   ActivityLens,
   NetworkLens,
 } from '@/components/profile-lenses';
@@ -92,22 +101,6 @@ import { getVerbConfig } from '@/lib/design/activity-verbs';
 // detail surfaces consume them. Anything below this banner is profile-
 // specific composition (Vault ID Card, Crown Jewel, Featured Showcase, the
 // `User's Showcases` lens, etc.).
-
-type ProfileCacheEntry = {
-  timestamp: number;
-  followCounts: { followersCount: number; followingCount: number };
-  collectionValue: number;
-  collectionSize: number;
-  collectionItems: CollectionItem[];
-  trackingIds: Set<string>;
-  featuredShowcase: HomeShowcaseDetail | null;
-  showcases: UserShowcase[];
-  assetMatrix: { label: string; count: number; pct: number }[];
-  statusBreakdown: { key: string; count: number; pct: number }[];
-};
-
-const PROFILE_CACHE_TTL_MS = 45_000;
-const profileCache = new Map<string, ProfileCacheEntry>();
 
 function formatCatalogDate(value: string): string {
   const date = new Date(value);
@@ -343,6 +336,8 @@ function ProfileSurface({
   onOpenShowcase,
   onOpenNetworkTab,
   onNavigateToActivity,
+  refreshing,
+  onRefresh,
 }: {
   isOwnProfile: boolean;
   isFollowing: boolean;
@@ -370,6 +365,8 @@ function ProfileSurface({
   onOpenShowcase: (id: string) => void;
   onOpenNetworkTab: (tab: 'followers' | 'following') => void;
   onNavigateToActivity?: () => void;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
   const { colors } = useTheme();
   const [qrVisible, setQrVisible] = useState(false);
@@ -380,6 +377,13 @@ function ProfileSurface({
       style={[pS.scroll, { backgroundColor: colors.void }]}
       contentContainerStyle={pS.scrollContent}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.textPrimary}
+        />
+      }
     >
       {/* ── Vault ID Card ─────────────────────────── */}
       <DossierCard watermark="GRAIL">
@@ -1130,6 +1134,8 @@ export function CollectorProfile({
   const [assetMatrix, setAssetMatrix] = useState<{ label: string; count: number; pct: number }[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<{ key: string; count: number; pct: number }[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  /** Hub bundle ready — blocks lens pager until identity + catalog fetch complete. */
+  const [isHubReady, setIsHubReady] = useState(false);
 
   const displayUser = isOwnProfile ? viewer : profileUser;
 
@@ -1146,13 +1152,19 @@ export function CollectorProfile({
   }, []);
 
   const loadProfileData = useCallback(async (forceRefresh = false) => {
-    if (!profileUserId) return;
+    if (!profileUserId) {
+      setIsHubReady(false);
+      return;
+    }
 
-    const cached = profileCache.get(profileUserId);
-    const isFresh = cached && Date.now() - cached.timestamp < PROFILE_CACHE_TTL_MS;
+    const cached = getProfileCacheEntry(profileUserId);
+    const isFresh = isProfileCacheFresh(profileUserId);
     if (cached && !forceRefresh) {
       applyProfileCacheEntry(cached);
+      setIsHubReady(true);
       if (isFresh) return;
+    } else if (!forceRefresh && !cached) {
+      setIsHubReady(false);
     }
 
     if (forceRefresh) setIsRefreshing(true);
@@ -1160,6 +1172,10 @@ export function CollectorProfile({
       if (!isOwnProfile) {
         const otherUser = await getUserById(profileUserId).catch(() => null);
         setProfileUser(otherUser);
+        if (!otherUser) {
+          setIsHubReady(false);
+          return;
+        }
       }
 
       const [
@@ -1236,8 +1252,13 @@ export function CollectorProfile({
         assetMatrix: nextAssetMatrix,
         statusBreakdown: nextStatusBreakdown,
       };
-      profileCache.set(profileUserId, entry);
+      setProfileCacheEntry(profileUserId, entry);
       applyProfileCacheEntry(entry);
+      setIsHubReady(true);
+    } catch {
+      if (!getProfileCacheEntry(profileUserId)) {
+        setIsHubReady(false);
+      }
     } finally {
       if (forceRefresh) setIsRefreshing(false);
     }
@@ -1246,6 +1267,14 @@ export function CollectorProfile({
   useEffect(() => {
     loadProfileData(false);
   }, [loadProfileData]);
+
+  useEffect(() => {
+    if (!profileUserId) return;
+    return subscribeProfileHub((invalidatedUserId) => {
+      if (invalidatedUserId !== profileUserId) return;
+      void loadProfileData(true);
+    });
+  }, [profileUserId, loadProfileData]);
 
   const handleRefresh = useCallback(() => {
     loadProfileData(true);
@@ -1286,7 +1315,6 @@ export function CollectorProfile({
 
   const handleTrackFromSpatialCard = useCallback((collectibleId: string) => {
     if (!viewer?.id || trackingIds.has(collectibleId)) return;
-    if (profileUserId) profileCache.delete(profileUserId);
 
     setTrackingIds((current) => {
       const next = new Set(current);
@@ -1320,7 +1348,6 @@ export function CollectorProfile({
 
   const handleToggleTrackFromSpatialCard = useCallback((collectibleId: string) => {
     if (!viewer?.id) return;
-    if (profileUserId) profileCache.delete(profileUserId);
 
     const wasTracked = trackingIds.has(collectibleId);
 
@@ -1508,25 +1535,33 @@ export function CollectorProfile({
 
   const handleLensIndexChange = useCallback(
     (index: number) => {
+      if (!isHubReady) return;
       const nextLens = profileLenses[index];
       if (nextLens) setActiveLens(nextLens.key);
     },
-    [profileLenses],
+    [isHubReady, profileLenses],
+  );
+
+  const handleLensChange = useCallback(
+    (key: LensKey) => {
+      if (!isHubReady) return;
+      setActiveLens(key);
+    },
+    [isHubReady],
   );
 
   return (
     <SafeAreaView style={[mainS.container, { backgroundColor: colors.void }]} edges={['top']}>
       <LensSelector
         items={profileLenses}
-        activeKey={activeLens}
-        onChange={setActiveLens}
+        activeKey={isHubReady ? activeLens : 'PROFILE'}
+        onChange={handleLensChange}
         variant="display"
       />
 
-      {/* Lazy mount only for the 5-lens hub. The 4-lens public profile
-          mounts everything eagerly (negligible cost; matches existing
-          behavior). On the hub, lazy mounting + sticky-visited keeps
-          first-paint cheap while preserving state across lens hops. */}
+      {!isHubReady ? (
+        <ProfileHubSkeleton isOwnProfile={isOwnProfile} />
+      ) : (
       <LensPager
         index={activeLensIndex}
         onIndexChange={handleLensIndexChange}
@@ -1559,6 +1594,8 @@ export function CollectorProfile({
           onOpenShowcase={handleOpenShowcase}
           onOpenNetworkTab={handleOpenNetworkTab}
           onNavigateToActivity={handleNavigateToActivity}
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
         />
         <CollectionSurface
           items={collectionItems}
@@ -1588,6 +1625,8 @@ export function CollectorProfile({
           onOpenShowcase={handleOpenShowcase}
           isOwner={isOwnProfile}
           onCreateShowcase={handleCreateShowcase}
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
         />
         {/* Owner-only lenses. Order here mirrors ME_PROFILE_LENSES exactly:
             ACTIVITY before NETWORK. Returning `null` for the visitor
@@ -1617,6 +1656,7 @@ export function CollectorProfile({
           <View style={[mainS.container, { backgroundColor: colors.void }]} />
         )}
       </LensPager>
+      )}
     </SafeAreaView>
   );
 }

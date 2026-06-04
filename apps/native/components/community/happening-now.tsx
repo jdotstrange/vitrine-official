@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Users } from 'lucide-react-native';
 import { OptimizedImage } from '@/components/optimized-image';
 import { JoinButton } from './join-button';
-import { HappeningNowSkeleton } from '@/components/skeleton-community';
+import { HappeningNowSkeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import type { Group } from '@/lib/api/messaging';
 

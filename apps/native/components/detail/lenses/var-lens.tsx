@@ -2,28 +2,10 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { LensPaywallCard } from '@/components/vault';
+import { PRO_FEATURE_COPY, PRO_SHIP_DARK } from '@/lib/pro-ship-dark';
 import { useTheme, SPACING } from '@/lib/design';
 
 import { LensComingSoon } from './lens-coming-soon';
-
-/**
- * VAR lens — Vitrine Analysis Report.
- *
- * Read-only by design — VAR is a definitive cataloging artifact, so
- * there are no inline CTAs or actions inside the lens body.
- * Regeneration / reissue lives in the bottom action dock's overflow
- * sheet, not on this surface.
- *
- * V1 ships:
- *   - Non-Pro: `LensPaywallCard` selling VAR (cyan accent — analytical
- *              / graded vibe).
- *   - Pro:     `LensComingSoon` placeholder until the analysis pipeline
- *              ships its first generated reports.
- *
- * The VAR universal-vs-conditional question is deferred — for V1 we
- * always render this lens regardless of trait state, and revisit
- * conditionality when the AI report runs against test fixtures.
- */
 
 export interface VarLensProps {
   isPro: boolean;
@@ -39,6 +21,7 @@ export function VarLens({
   dockReservedHeight,
 }: VarLensProps) {
   const { colors } = useTheme();
+  const copy = PRO_FEATURE_COPY.VAR;
 
   return (
     <ScrollView
@@ -50,19 +33,19 @@ export function VarLens({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.body}>
-        {isPro ? (
-          <LensComingSoon
-            lensKey="VAR"
-            message="Visual pattern matching, defect detection, population data, and comparable sales context — assembled into a definitive analytical record. Reports drop in as the pipeline finishes processing each item."
-          />
-        ) : (
+        {PRO_SHIP_DARK || !isPro ? (
           <LensPaywallCard
             lensKey="VAR"
             accent={colors.traitCyan}
             kicker="VITRINE PRO"
-            title="Vitrine Analysis Report"
-            blurb="Deep-dive authentication and condition analysis powered by Vitrine AI — visual pattern matching, defect detection, population data, and comparable-sales context, packaged as a definitive cataloging record."
+            title={copy.title}
+            blurb={copy.blurb}
             onUpgrade={onUpgrade}
+          />
+        ) : (
+          <LensComingSoon
+            lensKey="VAR"
+            message="Visual pattern matching, defect detection, population data, and comparable sales context — assembled into a definitive analytical record. Reports drop in as the pipeline finishes processing each item."
           />
         )}
       </View>

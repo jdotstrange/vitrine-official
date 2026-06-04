@@ -49,6 +49,7 @@ import {
   SPACING,
   TYPE,
 } from '@/lib/design';
+import { ShowcaseDetailSkeleton } from '@/components/skeleton';
 import {
   ActionSheet,
   AssetMatrixCard,
@@ -411,11 +412,7 @@ export default function ShowcaseDetailV3({ showcaseId, currentUserId }: Showcase
 
   // ── Loading + error states ──────────────────────────────────────
   if (isLoading) {
-    return (
-      <View style={[styles.pageLoadingState, { backgroundColor: colors.void }]}>
-        <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>LOADING SHOWCASE…</Text>
-      </View>
-    );
+    return <ShowcaseDetailSkeleton />;
   }
   if (loadError || !showcase) {
     return (

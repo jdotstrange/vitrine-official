@@ -1,5 +1,6 @@
-import { SignupPage } from '@/components/signup-page';
+import { Redirect } from 'expo-router';
 
-export default function SignupPageRoute() {
-  return <SignupPage />;
+/** Legacy route — unified OTP auth lives at `/login`. */
+export default function SignupRedirect() {
+  return <Redirect href="/login" />;
 }

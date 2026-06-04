@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { OptimizedImage } from '@/components/optimized-image';
-import { ActivityHeartbeatSkeleton } from '@/components/skeleton-community';
+import { ActivityHeartbeatSkeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import type { ActivityItem } from '@/lib/mock-messaging';
 

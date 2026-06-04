@@ -18,7 +18,7 @@ import {
   type FieldValue,
 } from './key-details/field-renderers';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { Skeleton } from './skeleton';
+import { Skeleton } from '@/components/skeleton';
 import { logger } from '@/lib/logger';
 
 const log = logger.create('KeyDetails');

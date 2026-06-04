@@ -28,6 +28,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import {
+  SearchRefetchOverlay,
+  SearchResultsAllSkeleton,
+  SearchResultsCollectiblesSkeleton,
+  SearchResultsListRowsSkeleton,
+} from '@/components/skeleton';
 import { Chip, CollectibleGridCard } from '@/components/vault';
 import {
   browseMarket,
@@ -201,10 +207,13 @@ function AllView({
   const [showcases, setShowcases]       = useState<ShowcaseSearchResult[]>([]);
   const [collectors, setCollectors]     = useState<CollectorSearchResult[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [refetching, setRefetching]     = useState(false);
+  const hadResultsRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (hadResultsRef.current) setRefetching(true);
+    else setLoading(true);
 
     Promise.allSettled([
       browseMarket(browseFilters, 5, 0, currentUserId),
@@ -213,15 +222,28 @@ function AllView({
     ])
       .then(([cRes, sRes, colRes]) => {
         if (cancelled) return;
-        if (cRes.status   === 'fulfilled') setCollectibles(cRes.value);
-        else { setCollectibles([]); console.warn('[AllView] collectibles', cRes.reason); }
-        if (sRes.status   === 'fulfilled') setShowcases(sRes.value);
-        else { setShowcases([]);    console.warn('[AllView] showcases',    sRes.reason); }
-        if (colRes.status === 'fulfilled') setCollectors(colRes.value);
-        else { setCollectors([]);   console.warn('[AllView] collectors',   colRes.reason); }
+        const nextCollectibles =
+          cRes.status === 'fulfilled' ? cRes.value : [];
+        const nextShowcases =
+          sRes.status === 'fulfilled' ? sRes.value : [];
+        const nextCollectors =
+          colRes.status === 'fulfilled' ? colRes.value : [];
+        if (cRes.status !== 'fulfilled') console.warn('[AllView] collectibles', cRes.reason);
+        if (sRes.status !== 'fulfilled') console.warn('[AllView] showcases', sRes.reason);
+        if (colRes.status !== 'fulfilled') console.warn('[AllView] collectors', colRes.reason);
+        setCollectibles(nextCollectibles);
+        setShowcases(nextShowcases);
+        setCollectors(nextCollectors);
+        hadResultsRef.current =
+          nextCollectibles.length > 0 ||
+          nextShowcases.length > 0 ||
+          nextCollectors.length > 0;
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setRefetching(false);
+        }
       });
 
     return () => {
@@ -229,16 +251,12 @@ function AllView({
     };
   }, [query, browseFilters, chipFilters, currentUserId]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.brandVolt} />
-      </View>
-    );
-  }
-
   const hasAny =
     collectibles.length > 0 || showcases.length > 0 || collectors.length > 0;
+
+  if (loading && !hasAny) {
+    return <SearchResultsAllSkeleton />;
+  }
 
   if (!hasAny) {
     return (
@@ -252,6 +270,7 @@ function AllView({
   }
 
   return (
+    <View style={styles.bodyWrap}>
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.allContent}
@@ -294,6 +313,8 @@ function AllView({
         </View>
       )}
     </ScrollView>
+    {refetching ? <SearchRefetchOverlay /> : null}
+    </View>
   );
 }
 
@@ -331,10 +352,12 @@ function CollectiblesView({
   const router = useRouter();
   const [items, setItems]               = useState<MarketItem[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [refetching, setRefetching]     = useState(false);
   const [loadingMore, setLoadingMore]   = useState(false);
   const [hasMore, setHasMore]           = useState(true);
   const pageRef       = useRef(0);
   const isFetchingRef = useRef(false);
+  const itemsRef      = useRef<MarketItem[]>([]);
 
   const loadPage = useCallback(
     async (page: number, replace: boolean) => {
@@ -355,18 +378,22 @@ function CollectiblesView({
       } finally {
         isFetchingRef.current = false;
         setLoading(false);
+        setRefetching(false);
         setLoadingMore(false);
       }
     },
     [browseFilters, currentUserId],
   );
 
+  itemsRef.current = items;
+
   useEffect(() => {
     pageRef.current = 0;
-    setLoading(true);
+    if (itemsRef.current.length > 0) setRefetching(true);
+    else setLoading(true);
     setHasMore(true);
     loadPage(0, true);
-  }, [loadPage]);
+  }, [browseFilters, currentUserId, loadPage]);
 
   const handleEndReached = useCallback(() => {
     if (!hasMore || loadingMore || loading) return;
@@ -376,12 +403,8 @@ function CollectiblesView({
     loadPage(next, false);
   }, [hasMore, loadingMore, loading, loadPage]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.brandVolt} />
-      </View>
-    );
+  if (loading && items.length === 0) {
+    return <SearchResultsCollectiblesSkeleton />;
   }
 
   if (items.length === 0) {
@@ -393,6 +416,7 @@ function CollectiblesView({
   }
 
   return (
+    <View style={styles.bodyWrap}>
     <FlatList
       data={items}
       keyExtractor={(item) => item.id}
@@ -417,6 +441,8 @@ function CollectiblesView({
         />
       )}
     />
+    {refetching ? <SearchRefetchOverlay /> : null}
+    </View>
   );
 }
 
@@ -436,23 +462,31 @@ function ShowcasesView({
   const { colors } = useTheme();
   const [items, setItems]     = useState<ShowcaseSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
+  const hadResultsRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (hadResultsRef.current) setRefetching(true);
+    else setLoading(true);
     searchShowcasesTiered(query, chipFilters, PAGE_SIZE, currentUserId)
-      .then((d) => { if (!cancelled) setItems(d); })
+      .then((d) => {
+        if (cancelled) return;
+        setItems(d);
+        hadResultsRef.current = d.length > 0;
+      })
       .catch((err) => console.warn('[ShowcasesView] error', err))
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setRefetching(false);
+        }
+      });
     return () => { cancelled = true; };
   }, [query, chipFilters, currentUserId]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.brandVolt} />
-      </View>
-    );
+  if (loading && items.length === 0) {
+    return <SearchResultsListRowsSkeleton rows={6} variant="showcase" />;
   }
 
   if (items.length === 0) {
@@ -464,6 +498,7 @@ function ShowcasesView({
   }
 
   return (
+    <View style={styles.bodyWrap}>
     <FlatList
       data={items}
       keyExtractor={(item) => item.showcaseId}
@@ -471,6 +506,8 @@ function ShowcasesView({
       contentContainerStyle={styles.pillList}
       renderItem={({ item }) => <ShowcaseResultRow result={item} />}
     />
+    {refetching ? <SearchRefetchOverlay /> : null}
+    </View>
   );
 }
 
@@ -490,23 +527,31 @@ function CollectorsView({
   const { colors } = useTheme();
   const [items, setItems]     = useState<CollectorSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
+  const hadResultsRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (hadResultsRef.current) setRefetching(true);
+    else setLoading(true);
     searchCollectorsTiered(query, chipFilters, PAGE_SIZE, currentUserId)
-      .then((d) => { if (!cancelled) setItems(d); })
+      .then((d) => {
+        if (cancelled) return;
+        setItems(d);
+        hadResultsRef.current = d.length > 0;
+      })
       .catch((err) => console.warn('[CollectorsView] error', err))
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setRefetching(false);
+        }
+      });
     return () => { cancelled = true; };
   }, [query, chipFilters, currentUserId]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.brandVolt} />
-      </View>
-    );
+  if (loading && items.length === 0) {
+    return <SearchResultsListRowsSkeleton rows={6} variant="collector" />;
   }
 
   if (items.length === 0) {
@@ -518,6 +563,7 @@ function CollectorsView({
   }
 
   return (
+    <View style={styles.bodyWrap}>
     <FlatList
       data={items}
       keyExtractor={(item) => item.userId}
@@ -527,11 +573,16 @@ function CollectorsView({
         <CollectorResultRow result={item} currentUserId={currentUserId} />
       )}
     />
+    {refetching ? <SearchRefetchOverlay /> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  bodyWrap: {
     flex: 1,
   },
   pillRailScroll: {

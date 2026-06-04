@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { MarketMosaicSkeleton, SearchRefetchOverlay } from '@/components/skeleton';
 import { CollectibleGridCard } from '@/components/vault';
 import type { MarketFilters, MarketItem, MarketSortKey } from '@/lib/api/market';
 import { browseMarket } from '@/lib/api/market';
@@ -49,7 +50,9 @@ export function MosaicGrid({
   const router = useRouter();
   const [items, setItems] = useState<MarketItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const itemsRef = useRef<MarketItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pageRef = useRef(0);
@@ -116,18 +119,22 @@ export function MosaicGrid({
       } finally {
         isFetchingRef.current = false;
         setLoading(false);
+        setRefetching(false);
         setLoadingMore(false);
       }
     },
     [browseFilters, currentUserId],
   );
 
+  itemsRef.current = items;
+
   useEffect(() => {
     pageRef.current = 0;
-    setLoading(true);
+    if (itemsRef.current.length > 0) setRefetching(true);
+    else setLoading(true);
     setHasMore(true);
     loadPage(0, true);
-  }, [loadPage]);
+  }, [browseFilters, sortKey, selectedType, selectedTrait, currentUserId, loadPage]);
 
   const handleEndReached = useCallback(() => {
     if (!hasMore || loadingMore || loading) return;
@@ -139,17 +146,14 @@ export function MosaicGrid({
 
   const handleRefresh = useCallback(() => {
     pageRef.current = 0;
-    setLoading(true);
+    if (items.length > 0) setRefetching(true);
+    else setLoading(true);
     setHasMore(true);
     loadPage(0, true);
-  }, [loadPage]);
+  }, [items.length, loadPage]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.brandVolt} />
-      </View>
-    );
+  if (loading && items.length === 0) {
+    return <MarketMosaicSkeleton />;
   }
 
   if (error) {
@@ -170,6 +174,7 @@ export function MosaicGrid({
   }
 
   return (
+    <View style={styles.listWrap}>
     <FlatList
       data={items}
       keyExtractor={(item) => item.id}
@@ -196,10 +201,15 @@ export function MosaicGrid({
         />
       )}
     />
+    {refetching ? <SearchRefetchOverlay /> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  listWrap: {
+    flex: 1,
+  },
   list: {
     padding: EDGE_PADDING,
     paddingBottom: 120,

@@ -10,7 +10,8 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "clean": "git clean -xdf node_modules .next .expo dist .turbo"
+    "clean": "git clean -xdf node_modules .next .expo dist .turbo",
+    "upload:auth-email-icon": "pnpm --filter @vitrine/web exec node ../../supabase/scripts/upload-auth-email-icon.mjs"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

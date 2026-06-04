@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Dimensions,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -182,6 +183,8 @@ export interface ShowcaseSurfaceProps {
   searchPlaceholder?: string;
   contentPaddingBottom?: number;
   contentPaddingTop?: number;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export function ShowcaseSurface({
@@ -198,6 +201,8 @@ export function ShowcaseSurface({
   searchPlaceholder = 'Search showcases…',
   contentPaddingBottom = 100,
   contentPaddingTop = 24,
+  refreshing = false,
+  onRefresh,
 }: ShowcaseSurfaceProps) {
   const { colors } = useTheme();
   const searched = searchQuery
@@ -211,6 +216,15 @@ export function ShowcaseSurface({
       style={{ flex: 1, backgroundColor: colors.void }}
       contentContainerStyle={{ paddingTop: contentPaddingTop, paddingBottom: contentPaddingBottom }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.textPrimary}
+          />
+        ) : undefined
+      }
     >
       <View style={toolbarStyles.outer}>
         <SearchBar

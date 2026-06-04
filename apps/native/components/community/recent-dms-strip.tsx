@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { useRouter, type Href } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { OptimizedImage } from '@/components/optimized-image';
-import { RecentDMsSkeleton } from '@/components/skeleton-community';
+import { RecentDMsSkeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import type { Conversation } from '@/lib/api/messaging';
 

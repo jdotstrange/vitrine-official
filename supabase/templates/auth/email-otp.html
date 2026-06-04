@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Your Vitrine sign-in code</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    :root { color-scheme: light; supported-color-schemes: light; }
+    body, table, td, p, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #f7f5f2; }
+    @media (prefers-color-scheme: dark) {
+      .email-bg { background-color: #f7f5f2 !important; }
+      .card-bg { background-color: #ffffff !important; }
+      .text-primary { color: #1a1a1a !important; }
+      .text-secondary { color: #6b6b6b !important; }
+      .code-bg { background-color: #f0ede8 !important; }
+      .code-text { color: #111111 !important; }
+    }
+  </style>
+</head>
+<body class="email-bg" style="margin:0;padding:0;background-color:#f7f5f2;">
+  <!-- Preheader (hidden preview text) -->
+  <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+    Your sign-in code is {{ .Token }}. It expires in one hour.
+  </div>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f7f5f2;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:520px;">
+
+          <!-- Logo: solid black square icon (survives Outlook dark-mode inversion) -->
+          <tr>
+            <td align="center" style="padding-bottom:28px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center" style="background-color:#111111;border-radius:16px;padding:14px;">
+                    <img
+                      src="https://fxmiongkckkrllgyfwyw.supabase.co/storage/v1/object/public/brand-assets/logos/icon.png"
+                      width="56"
+                      height="56"
+                      alt="Vitrine"
+                      style="width:56px;height:56px;display:block;"
+                    />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td class="card-bg" style="background-color:#ffffff;border:1px solid #e8e4de;border-radius:16px;padding:36px 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+
+                <tr>
+                  <td class="text-primary" align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;line-height:30px;font-weight:600;color:#1a1a1a;letter-spacing:-0.3px;padding-bottom:12px;">
+                    Check your email
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="text-secondary" align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#6b6b6b;padding-bottom:28px;">
+                    Enter this 6-digit sign-in code in the app to continue.
+                  </td>
+                </tr>
+
+                <!-- OTP code (iOS / Android autofill reads prominent numeric codes) -->
+                <tr>
+                  <td align="center" style="padding-bottom:8px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td class="code-bg" align="center" style="background-color:#f0ede8;border:1px solid #e8e4de;border-radius:12px;padding:20px 24px;">
+                          <span class="code-text" style="font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:36px;line-height:42px;font-weight:600;letter-spacing:0.28em;color:#111111;">
+                            {{ .Token }}
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="text-secondary" align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6b6b6b;padding-bottom:24px;">
+                    This code expires in one hour.
+                  </td>
+                </tr>
+
+                <tr>
+                  <td class="text-secondary" align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#8a8a8a;border-top:1px solid #ece8e2;padding-top:20px;">
+                    If you didn&rsquo;t request this code, you can safely ignore this email.
+                    <br /><br />
+                    Sent to <span style="color:#6b6b6b;">{{ .Email }}</span>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;color:#a0a0a0;padding-top:24px;">
+              &copy; MyVitrine &middot; <a href="https://myvitrine.app" style="color:#7a7168;text-decoration:underline;">myvitrine.app</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

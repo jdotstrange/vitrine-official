@@ -7,7 +7,7 @@ import { colors } from '@/lib/colors';
 import { getFeedCollectibles, type FeedCollectible } from '@/lib/api/collectibles';
 import type { ListingStatus } from '@/lib/status-utils';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { FeedSkeleton, SpatialCardSkeleton } from './skeleton';
+import { FeedSkeleton, SpatialCardSkeleton } from '@/components/skeleton';
 import { logger } from '@/lib/logger';
 
 const log = logger.create('Feed');

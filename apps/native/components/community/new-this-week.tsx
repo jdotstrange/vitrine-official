@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { OptimizedImage } from '@/components/optimized-image';
 import { JoinButton } from './join-button';
-import { NewThisWeekSkeleton } from '@/components/skeleton-community';
+import { NewThisWeekSkeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import { getCategoryAccent } from '@/lib/category-identity';
 import type { Group } from '@/lib/api/messaging';

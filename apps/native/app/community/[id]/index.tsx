@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { ConversationThread } from '@/components/conversation-thread';
 import { useAuth } from '@/lib/contexts/auth-context';
 import * as MessagingAPI from '@/lib/api/messaging';
-import { SkeletonProvider } from '@/components/skeleton';
 import { GroupPageSkeleton } from '@/components/skeletons/group-page';
 import { colors } from '@/lib/colors';
 import { logger } from '@/lib/logger';
@@ -38,9 +37,7 @@ export default function CommunityDetailPage() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <SkeletonProvider>
-          <GroupPageSkeleton />
-        </SkeletonProvider>
+        <GroupPageSkeleton />
       </View>
     );
   }

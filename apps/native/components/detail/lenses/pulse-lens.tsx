@@ -2,23 +2,10 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { LensPaywallCard } from '@/components/vault';
+import { PRO_FEATURE_COPY, PRO_SHIP_DARK } from '@/lib/pro-ship-dark';
 import { useTheme, SPACING } from '@/lib/design';
 
 import { LensComingSoon } from './lens-coming-soon';
-
-/**
- * PULSE lens — market intelligence surface.
- *
- * V1 ships with two states:
- *   - Non-Pro:  `LensPaywallCard` selling "Market Pulse" with the
- *               semantic-green accent (live/active feel).
- *   - Pro:      `LensComingSoon` placeholder until the pulse pipeline
- *               ships its first reports.
- *
- * When the pipeline lands, the body switches from `LensComingSoon` to
- * the real report — chrome, paywall card, and lens architecture all
- * stay stable.
- */
 
 export interface PulseLensProps {
   isPro: boolean;
@@ -34,6 +21,7 @@ export function PulseLens({
   dockReservedHeight,
 }: PulseLensProps) {
   const { colors } = useTheme();
+  const copy = PRO_FEATURE_COPY.PULSE;
 
   return (
     <ScrollView
@@ -45,19 +33,19 @@ export function PulseLens({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.body}>
-        {isPro ? (
-          <LensComingSoon
-            lensKey="PULSE"
-            message="Live demand signals, price velocity, and population scarcity for this exact piece — rolling out as the analytics pipeline finishes processing."
-          />
-        ) : (
+        {PRO_SHIP_DARK || !isPro ? (
           <LensPaywallCard
             lensKey="PULSE"
             accent={colors.semanticGreen}
             kicker="VITRINE PRO"
-            title="Market Pulse"
-            blurb="Live market intelligence for this specific piece — demand signals, price velocity, population scarcity, and alerts the moment something moves."
+            title={copy.title}
+            blurb={copy.blurb}
             onUpgrade={onUpgrade}
+          />
+        ) : (
+          <LensComingSoon
+            lensKey="PULSE"
+            message="Live demand signals, price velocity, and population scarcity for this exact piece — rolling out as the analytics pipeline finishes processing."
           />
         )}
       </View>

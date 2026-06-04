@@ -73,7 +73,7 @@ import { FramedHero } from '@/components/detail/framed-hero';
 import { PushPrePrompt } from '@/components/push-pre-prompt';
 import { useTheme, RADII, SPACING, STATUS_CONFIG, TYPE, type ListingStatus } from '@/lib/design';
 import { useAuth } from '@/lib/contexts/auth-context';
-import { getUserShowcases } from '@/lib/api/showcases';
+import { createShowcase, getUserShowcases } from '@/lib/api/showcases';
 import {
   createDraftCollectible,
   createReExtractionDraft,
@@ -84,6 +84,7 @@ import {
   deleteCollectible,
   getCollectible,
   getCollectibleShowcaseIds,
+  resolveShowcaseIdsForCommit,
   type CollectibleCustomField,
   type MetadataProvenance,
 } from '@/lib/api/collectibles';
@@ -380,11 +381,8 @@ export function UploadEntry({
   const [selectedShowcaseIds, setSelectedShowcaseIds] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
 
-  // Showcase picker — remote list + locally-created (unpersisted) additions.
-  // Merged at render time so a freshly-minted showcase appears in the picker
-  // immediately without waiting on a DB round-trip.
+  // Showcase picker — loaded from Supabase; inline creates persist immediately.
   const [remoteShowcases, setRemoteShowcases] = useState<ShowcaseSelectorOption[]>([]);
-  const [localShowcases, setLocalShowcases] = useState<ShowcaseSelectorOption[]>([]);
   const [showcasesLoading, setShowcasesLoading] = useState(false);
   const [showcaseSheetOpen, setShowcaseSheetOpen] = useState(false);
 
@@ -652,8 +650,8 @@ export function UploadEntry({
   );
 
   const allShowcases = useMemo<ShowcaseSelectorOption[]>(
-    () => [...localShowcases, ...remoteShowcases],
-    [localShowcases, remoteShowcases],
+    () => remoteShowcases,
+    [remoteShowcases],
   );
 
   // Resolved showcase objects for the chips on the Identify screen. Filters
@@ -668,11 +666,32 @@ export function UploadEntry({
     [selectedShowcaseIds, allShowcases],
   );
 
-  const handleCreateShowcase = useCallback((title: string) => {
-    const id = `local-${Date.now()}`;
-    setLocalShowcases((current) => [{ id, title, items: 0 }, ...current]);
-    setSelectedShowcaseIds((current) => [...current, id]);
-  }, []);
+  const handleCreateShowcase = useCallback(
+    async (title: string) => {
+      if (!user?.id) return;
+      const trimmed = title.trim();
+      if (!trimmed) return;
+      try {
+        const id = await createShowcase({
+          type: 'manual',
+          userId: user.id,
+          title: trimmed,
+          visibility: 'public',
+          collectibleIds: [],
+        });
+        setRemoteShowcases((current) => [
+          { id, title: trimmed, items: 0 },
+          ...current.filter((s) => s.id !== id),
+        ]);
+        setSelectedShowcaseIds((current) =>
+          current.includes(id) ? current : [...current, id],
+        );
+      } catch {
+        Alert.alert('Could not create showcase', 'Please try again.');
+      }
+    },
+    [user?.id],
+  );
 
   const handleRemoveShowcase = useCallback((id: string) => {
     Haptics.selectionAsync();
@@ -1133,11 +1152,8 @@ export function UploadEntry({
 
     // Identify-screen fields. Without these, a follow-up upload starts with
     // the previous run's showcase selection, tags, status, value, etc. still
-    // pre-filled — and any locally-minted showcase stubs (`local-${ts}` ids)
-    // keep showing up in the picker even though they were already committed
-    // server-side. Reset them all back to the same defaults as initial mount.
+    // pre-filled. Reset them all back to the same defaults as initial mount.
     setSelectedShowcaseIds([]);
-    setLocalShowcases([]);
     setTags([]);
     setStatus('NFST');
     setVisibility('public');
@@ -1276,6 +1292,19 @@ export function UploadEntry({
   const handleCatalog = useCallback(async () => {
     if (!effectiveExtraction || !user?.id) return;
 
+    let resolvedShowcaseIds: string[];
+    try {
+      resolvedShowcaseIds = await resolveShowcaseIdsForCommit(
+        user.id,
+        selectedShowcaseIds,
+        [],
+      );
+    } catch (err) {
+      uploadLog.error('Showcase resolution failed:', err);
+      Alert.alert('Error', 'Could not save showcase assignments. Please try again.');
+      return;
+    }
+
     if (isEditMode && editOriginalId) {
       try {
         const parsedVal = parseFloat(estimatedValue);
@@ -1292,7 +1321,7 @@ export function UploadEntry({
           availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
           visibility,
           tags,
-          showcaseIds: selectedShowcaseIds,
+          showcaseIds: resolvedShowcaseIds,
           photos: uploadedUrls,
           aiMetadata: effectiveExtraction.aiMetadata as Record<string, unknown>,
           traitMetadata: effectiveExtraction.traitMetadata as Record<string, unknown>,
@@ -1346,7 +1375,7 @@ export function UploadEntry({
         availableForTrade: status === 'FOR_TRADE' || status === 'SELL_TRADE',
         visibility,
         tags,
-        showcaseIds: selectedShowcaseIds,
+        showcaseIds: resolvedShowcaseIds,
         aiMetadata: effectiveExtraction.aiMetadata,
         traitMetadata: effectiveExtraction.traitMetadata,
         customFields: sanitizedCustomFields,
@@ -1564,11 +1593,8 @@ export function UploadEntry({
           isEditMode={isEditMode}
           onAddAnother={isEditMode ? undefined : resetFlow}
           onViewCollection={() => {
-            if (committedCollectibleId) {
-              router.push(`/collectible/${committedCollectibleId}` as Href);
-            } else {
-              router.push('/(tabs)' as Href);
-            }
+            resetFlow();
+            router.replace('/(tabs)?lens=COLLECTION' as Href);
           }}
         />
       ) : null}

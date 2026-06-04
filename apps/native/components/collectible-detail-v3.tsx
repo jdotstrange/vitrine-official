@@ -41,11 +41,13 @@ import {
   deriveStatus,
   isTraitKey,
 } from '@/lib/design';
+import { CollectibleDetailSkeleton } from '@/components/skeleton';
 import {
   ActionSheet,
   DetailActionDock,
   LensPager,
   LensSelector,
+  VitrineProComingSoonSheet,
   type DetailActionDockAction,
   type LensPagerHandle,
 } from '@/components/vault';
@@ -153,6 +155,7 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
   // ── Modals / sheets ───────────────────────────────────────────────
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [proSheetOpen, setProSheetOpen] = useState(false);
 
   // ── Pro state ─────────────────────────────────────────────────────
   // V1: production users are non-Pro. When subscription wiring lands
@@ -373,13 +376,7 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
 
   const handleUpgrade = useCallback(() => {
     Haptics.selectionAsync();
-    // V1 stub: subscription flow doesn't exist yet. When it lands this
-    // routes to the upgrade sheet (or its own screen). For now we open
-    // a friendly explanatory alert so the CTA is never a dead end.
-    Alert.alert(
-      'Vitrine Pro',
-      'Pro membership unlocks Pulse, AAR, and VAR analytics. Coming soon.',
-    );
+    setProSheetOpen(true);
   }, []);
 
   const handleCollectorPress = useCallback(() => {
@@ -410,11 +407,7 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
 
   // ── Loading / not-found ──────────────────────────────────────────
   if (loading) {
-    return (
-      <View style={[styles.fullPageState, { backgroundColor: colors.void }]}>
-        <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>LOADING COLLECTIBLE…</Text>
-      </View>
-    );
+    return <CollectibleDetailSkeleton bottomInset={insets.bottom} />;
   }
 
   if (!collectible) {
@@ -623,6 +616,11 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
         title="Share This Collectible"
         subtitle="Scan to view this collectible on Vitrine"
       />
+
+      <VitrineProComingSoonSheet
+        visible={proSheetOpen}
+        onClose={() => setProSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -642,11 +640,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-  },
-  placeholderText: {
-    fontFamily: TYPE.groteskBold,
-    fontSize: 11,
-    letterSpacing: 1.6,
   },
   errorBack: {
     position: 'absolute',

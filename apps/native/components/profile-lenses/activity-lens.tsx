@@ -361,26 +361,26 @@ export function ActivityLens({ bottomOffset = 0 }: ActivityLensProps) {
         ) : null}
       </View>
 
-      {isLoading && filtered.length === 0 ? (
-        <LoadingState />
-      ) : buckets.length === 0 ? (
-        <EmptyState chip={chip} />
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: bottomOffset + 32 },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.textSecondary}
-            />
-          }
-        >
-          {buckets.map((b) => (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomOffset + 32, flexGrow: 1 },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.textSecondary}
+          />
+        }
+      >
+        {isLoading && filtered.length === 0 ? (
+          <LoadingState />
+        ) : buckets.length === 0 ? (
+          <EmptyState chip={chip} />
+        ) : (
+          buckets.map((b) => (
             <View key={b.key}>
               <TimeBucketHeader label={b.label} />
               {b.items.map((item) => {
@@ -413,7 +413,6 @@ export function ActivityLens({ bottomOffset = 0 }: ActivityLensProps) {
                     />
                   );
                 }
-                // kind === 'journal'
                 return (
                   <JournalRow
                     key={item.entry.id}
@@ -425,9 +424,9 @@ export function ActivityLens({ bottomOffset = 0 }: ActivityLensProps) {
                 );
               })}
             </View>
-          ))}
-        </ScrollView>
-      )}
+          ))
+        )}
+      </ScrollView>
     </View>
   );
 }

@@ -41,7 +41,7 @@ export { Button } from './button';
 export { Avatar } from './avatar';
 export { Chip } from './chip';
 export { Brackets } from './brackets';
-export { SkeletonRect, SkeletonCircle, SkeletonGroup } from './skeleton';
+export { SkeletonRect, SkeletonCircle, SkeletonGroup, SkeletonPulseProvider } from './skeleton';
 export { ViewCountBadge } from './view-count-badge';
 
 // Shells --------------------------------------------------------------
@@ -76,6 +76,7 @@ export { EmptyState } from './empty-state';
 export { ActionDock } from './action-dock';
 export { DetailActionDock } from './detail-action-dock';
 export { LensPaywallCard } from './lens-paywall-card';
+export { VitrineProComingSoonSheet } from './vitrine-pro-coming-soon-sheet';
 export { InputDialog } from './input-dialog';
 export { ShowcaseSelectorSheet } from './showcase-selector-sheet';
 export { FieldEditor } from './field-editor';
@@ -127,6 +128,7 @@ export type { EmptyStateProps } from './empty-state';
 export type { ActionDockProps } from './action-dock';
 export type { DetailActionDockProps, DetailActionDockAction } from './detail-action-dock';
 export type { LensPaywallCardProps, LensPaywallKey } from './lens-paywall-card';
+export type { VitrineProComingSoonSheetProps } from './vitrine-pro-coming-soon-sheet';
 export type { InputDialogProps } from './input-dialog';
 export type {
   ShowcaseSelectorSheetProps,

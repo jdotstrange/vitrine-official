@@ -1,32 +1,16 @@
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors } from '@/lib/colors';
+import { VitrineBootScreen } from '@/components/vitrine-boot-screen';
 import { useAuth } from '@/lib/contexts/auth-context';
 
+/**
+ * Entry route while auth hydrates. AuthContext owns routing once ready;
+ * this screen only provides the void-continuous boot surface (Option A).
+ */
 export default function Index() {
   const { isLoading } = useAuth();
 
-  // Auth context handles all routing - this is just a loading screen
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <VitrineBootScreen />;
   }
 
-  // Auth context will redirect appropriately
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.primary} />
-    </View>
-  );
+  return null;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

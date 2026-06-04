@@ -5,12 +5,20 @@
  * Now uses direct Supabase queries instead of Railway backend
  */
 
+import * as Crypto from 'expo-crypto';
+
 import { supabase } from '@/lib/supabase';
 import { uploadImage as uploadStorageImage } from '@/lib/image-utils';
 import { logger } from '../logger';
 import { sendNotification } from './notifications';
+import { invalidateProfileHub } from '@/lib/profile-hub-cache';
+import { createShowcase } from './showcases';
 
 const log = logger.create('API');
+
+function generateId(): string {
+  return Crypto.randomUUID();
+}
 
 // Domain enums live in @vitrine/types. Re-exported so existing
 // `import { type ListingStatus } from '@/lib/api/collectibles'` keeps working.
@@ -891,6 +899,8 @@ export async function deleteCollectible(collectibleId: string, userId: string): 
       }
     }
   }
+
+  invalidateProfileHub(userId);
 }
 
 /**
@@ -1514,24 +1524,12 @@ export async function commitDraftCollectible(
     // Best-effort
   }
 
-  // Add to showcases if any selected
   if (edits.showcaseIds && edits.showcaseIds.length > 0) {
-    for (const showcaseId of edits.showcaseIds) {
-      if (showcaseId.startsWith('local-')) continue;
-      try {
-        await supabase.from('showcase_collectibles').insert({
-          id: crypto.randomUUID(),
-          showcase_id: showcaseId,
-          collectible_id: collectibleId,
-          display_order: 0,
-        });
-      } catch {
-        log.warn('Failed to add to showcase:', showcaseId);
-      }
-    }
+    await linkCollectibleToShowcases(collectibleId, edits.showcaseIds);
   }
 
   log.info('Draft committed to collection:', collectibleId);
+  invalidateProfileHub(userId);
 }
 
 // NOTE: Draft cleanup helpers (deleteDraftCollectible, sweepStaleStagingRows)
@@ -1649,6 +1647,68 @@ export function computeMetadataProvenance(
   return out;
 }
 
+export interface LocalShowcaseStub {
+  id: string;
+  title: string;
+}
+
+/**
+ * Mint any inline-created showcase stubs (`local-*` ids) before catalog/edit
+ * commit. Real ids are returned; unknown local stubs are dropped with a warn.
+ */
+export async function resolveShowcaseIdsForCommit(
+  userId: string,
+  showcaseIds: string[],
+  localStubs: LocalShowcaseStub[],
+): Promise<string[]> {
+  const stubById = new Map(localStubs.map((s) => [s.id, s]));
+  const resolved: string[] = [];
+
+  for (const id of showcaseIds) {
+    if (!id.startsWith('local-')) {
+      resolved.push(id);
+      continue;
+    }
+    const stub = stubById.get(id);
+    if (!stub?.title.trim()) {
+      log.warn('Skipping unresolved local showcase id:', id);
+      continue;
+    }
+    const realId = await createShowcase({
+      type: 'manual',
+      userId,
+      title: stub.title.trim(),
+      visibility: 'public',
+      collectibleIds: [],
+    });
+    resolved.push(realId);
+  }
+
+  return [...new Set(resolved)];
+}
+
+async function linkCollectibleToShowcases(
+  collectibleId: string,
+  showcaseIds: string[],
+): Promise<void> {
+  const ids = showcaseIds.filter((id) => !id.startsWith('local-'));
+  if (ids.length === 0) return;
+
+  for (const showcaseId of ids) {
+    const { error } = await supabase.from('showcase_collectibles').insert({
+      id: generateId(),
+      showcase_id: showcaseId,
+      collectible_id: collectibleId,
+      display_order: 0,
+    });
+    if (error) {
+      if (error.code === '23505') continue;
+      log.error('Failed to add to showcase:', showcaseId, error.message, error.code);
+      throw new Error('Failed to add collectible to showcase');
+    }
+  }
+}
+
 export async function getCollectibleShowcaseIds(collectibleId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('showcase_collectibles')
@@ -1667,36 +1727,35 @@ async function syncShowcaseMembership(
   showcaseIds: string[],
 ): Promise<void> {
   const target = new Set(showcaseIds.filter((id) => !id.startsWith('local-')));
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .from('showcase_collectibles')
     .select('showcase_id')
     .eq('collectible_id', collectibleId);
+
+  if (fetchError) {
+    log.error('Failed to load showcase memberships:', fetchError.message);
+    throw new Error('Failed to update showcase assignments');
+  }
 
   const existingIds = new Set((existing ?? []).map((r) => r.showcase_id as string));
 
   for (const showcaseId of existingIds) {
     if (!target.has(showcaseId)) {
-      await supabase
+      const { error } = await supabase
         .from('showcase_collectibles')
         .delete()
         .eq('collectible_id', collectibleId)
         .eq('showcase_id', showcaseId);
+      if (error) {
+        log.error('Failed to remove from showcase:', showcaseId, error.message);
+        throw new Error('Failed to update showcase assignments');
+      }
     }
   }
 
-  for (const showcaseId of target) {
-    if (!existingIds.has(showcaseId)) {
-      try {
-        await supabase.from('showcase_collectibles').insert({
-          id: crypto.randomUUID(),
-          showcase_id: showcaseId,
-          collectible_id: collectibleId,
-          display_order: 0,
-        });
-      } catch {
-        log.warn('Failed to add to showcase:', showcaseId);
-      }
-    }
+  const toAdd = [...target].filter((id) => !existingIds.has(id));
+  if (toAdd.length > 0) {
+    await linkCollectibleToShowcases(collectibleId, toAdd);
   }
 }
 
@@ -1868,6 +1927,7 @@ export async function commitMetadataUpdate(
   }
 
   log.info('Metadata update committed:', originalId);
+  invalidateProfileHub(userId);
 }
 
 /**
@@ -1976,4 +2036,5 @@ export async function commitReExtraction(
   }
 
   log.info('Re-extraction committed:', originalId, 'from draft', draftId);
+  invalidateProfileHub(userId);
 }

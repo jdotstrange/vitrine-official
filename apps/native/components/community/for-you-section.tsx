@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Users } from 'lucide-react-native';
 import { OptimizedImage } from '@/components/optimized-image';
 import { JoinButton } from './join-button';
-import { ForYouSkeleton } from '@/components/skeleton-community';
+import { ForYouSkeleton } from '@/components/skeleton';
 import { colors } from '@/lib/colors';
 import { getCategoryAccent } from '@/lib/category-identity';
 import type { Group } from '@/lib/api/messaging';

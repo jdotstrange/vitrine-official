@@ -1,5 +1,5 @@
-import { LoginPage } from '@/components/login-page';
+import { AuthScreen } from '@/components/auth-screen';
 
-export default function LoginPageRoute() {
-  return <LoginPage />;
+export default function AuthRoute() {
+  return <AuthScreen />;
 }

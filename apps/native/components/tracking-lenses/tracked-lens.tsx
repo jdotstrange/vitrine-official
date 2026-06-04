@@ -11,9 +11,11 @@
  */
 
 import React, { useCallback, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+import { CollectionGridSkeleton } from '@/components/skeleton';
 import { CollectionSurface } from '@/components/collectibles/collection-surface';
 import {
   type CollectionItem,
@@ -45,6 +47,7 @@ export interface TrackedLensProps {
   isRefreshing: boolean;
   onRefresh: () => void;
   bottomPadding: number;
+  isHubLoading?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +70,7 @@ export function TrackedLens({
   isRefreshing,
   onRefresh,
   bottomPadding,
+  isHubLoading = false,
 }: TrackedLensProps) {
   const router = useRouter();
 
@@ -77,6 +81,14 @@ export function TrackedLens({
     },
     [router],
   );
+
+  if (isHubLoading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <CollectionGridSkeleton count={6} />
+      </View>
+    );
+  }
 
   return (
     <CollectionSurface
@@ -101,3 +113,10 @@ export function TrackedLens({
     />
   );
 }
+
+const styles = StyleSheet.create({
+  loadingWrap: {
+    flex: 1,
+    paddingTop: 8,
+  },
+});

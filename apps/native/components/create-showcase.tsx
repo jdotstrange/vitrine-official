@@ -43,6 +43,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -63,10 +64,13 @@ import {
 } from '@/components/collectibles';
 import {
   LensPager,
+  LensPaywallCard,
   LensSelector,
+  VitrineProComingSoonSheet,
   type LensPagerHandle,
 } from '@/components/vault';
 import { ManagedRuleBuilder } from '@/components/managed-rule-builder';
+import { PRO_FEATURE_COPY, PRO_SHIP_DARK } from '@/lib/pro-ship-dark';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { getUserCollectibles } from '@/lib/api/collectibles';
 import { previewRuleMatches } from '@/lib/api/showcases';
@@ -112,8 +116,10 @@ export function CreateShowcase() {
     match: 'all',
     conditions: [],
   });
+  const [proSheetOpen, setProSheetOpen] = useState(false);
 
-  const hasManagedDraft = managedRules.conditions.length > 0;
+  const hasManagedDraft =
+    !PRO_SHIP_DARK && managedRules.conditions.length > 0;
 
   // ── Mutual-exclusion lock state ─────────────────────────────────
   const hasCuratedDraft = selectedIds.size > 0;
@@ -259,13 +265,17 @@ export function CreateShowcase() {
       router.push(
         `/upload/showcase/review?mode=curated&ids=${encodeURIComponent(idsParam)}` as Href,
       );
-    } else if (hasManagedDraft) {
+    } else if (hasManagedDraft && !PRO_SHIP_DARK) {
       const rulesParam = btoa(JSON.stringify(managedRules));
       router.push(
         `/upload/showcase/review?mode=managed&rules=${encodeURIComponent(rulesParam)}` as Href,
       );
     }
   }, [hasCuratedDraft, hasManagedDraft, managedRules, router, selectedIds]);
+
+  const handleProLearnMore = useCallback(() => {
+    setProSheetOpen(true);
+  }, []);
 
   // Tracking handlers are no-ops while in selection mode — see the
   // CollectionSurface contract: when `selectedIds` is provided, the
@@ -345,13 +355,29 @@ export function CreateShowcase() {
           )}
         </View>
 
-        {/* MANAGED ── rule-based showcase builder */}
+        {/* MANAGED ── Pro teaser while Ship Dark; full builder when Pro ships */}
         <View style={styles.lensBody}>
-          <ManagedRuleBuilder
-            rules={managedRules}
-            onRulesChange={setManagedRules}
-            collectibles={items}
-          />
+          {PRO_SHIP_DARK ? (
+            <ScrollView
+              contentContainerStyle={styles.managedTeaserContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <LensPaywallCard
+                lensKey="MANAGED"
+                accent={colors.brandVolt}
+                kicker="VITRINE PRO"
+                title={PRO_FEATURE_COPY.MANAGED.title}
+                blurb={PRO_FEATURE_COPY.MANAGED.blurb}
+                onUpgrade={handleProLearnMore}
+              />
+            </ScrollView>
+          ) : (
+            <ManagedRuleBuilder
+              rules={managedRules}
+              onRulesChange={setManagedRules}
+              collectibles={items}
+            />
+          )}
         </View>
       </LensPager>
 
@@ -386,6 +412,11 @@ export function CreateShowcase() {
           </View>
         </SafeAreaView>
       ) : null}
+
+      <VitrineProComingSoonSheet
+        visible={proSheetOpen}
+        onClose={() => setProSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -403,6 +434,11 @@ const styles = StyleSheet.create({
   // the LensPager track measures correctly.
   lensBody: {
     flex: 1,
+  },
+  managedTeaserContent: {
+    paddingTop: SPACING.zoneCluster,
+    paddingHorizontal: SPACING.gutter,
+    paddingBottom: 100,
   },
   centered: {
     flex: 1,

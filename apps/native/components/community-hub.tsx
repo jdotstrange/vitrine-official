@@ -22,7 +22,6 @@ import { NewThisWeek } from './community/new-this-week';
 import { OfficialGroupsSection } from './community/official-groups-section';
 import { JoinSuccessModal } from './community/join-success-modal';
 import { colors } from '@/lib/colors';
-import { SkeletonProvider } from './skeleton';
 import { CommunityHubSkeleton } from './skeletons/community-hub';
 import { useScrollDirection } from '@/hooks/use-scroll-direction';
 import { useDiscoverJoin } from '@/hooks/use-discover-join';
@@ -187,9 +186,7 @@ export function CommunityHub({ onScrollDirectionChange }: CommunityHubProps) {
   if (isLoading && !isRefreshing) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 64 }]}>
-        <SkeletonProvider>
-          <CommunityHubSkeleton />
-        </SkeletonProvider>
+        <CommunityHubSkeleton />
       </View>
     );
   }

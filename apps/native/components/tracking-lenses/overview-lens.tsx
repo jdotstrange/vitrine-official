@@ -13,7 +13,6 @@
 
 import React, { useMemo, useCallback, useRef } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -27,6 +26,7 @@ import {
 import { useRouter, type Href } from 'expo-router';
 import { Target, Clock } from 'lucide-react-native';
 
+import { TrackingOverviewSkeleton } from '@/components/skeleton';
 import { useFeeds, type FeedActivity, type NotificationGroup } from '@/lib/contexts/feeds-context';
 import {
   TelemetryCard,
@@ -302,12 +302,7 @@ export function OverviewLens({
   ], [overviewStats, telemetry]);
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator color={colors.textSecondary} />
-        <Text style={[styles.loadingText, { color: colors.textTertiary }]}>LOADING RADAR…</Text>
-      </View>
-    );
+    return <TrackingOverviewSkeleton bottomPadding={bottomPadding} />;
   }
 
   return (
@@ -502,18 +497,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: SPACING.gutter,
     gap: 32,
-  },
-
-  loadingWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontFamily: TYPE.groteskBold,
-    fontSize: 11,
-    letterSpacing: 1.6,
   },
 
   section: {
