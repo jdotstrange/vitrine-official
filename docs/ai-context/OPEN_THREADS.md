@@ -5,6 +5,9 @@ Last verified: 2026-06-02
 
 ## Product / Design Threads
 
+### Edit collectible (owner post-catalog edits, custom fields, provenance badges)
+**Status: Implemented (2026-06-02).** OTA preview `fd922925` + production `db889dfe`; git `e83f6e4`. Provenance false-positive after rerun-only save fixed same wave. Listing-line Edited badges deferred V1. Follow-up: optional data cleanup for rows with orphan provenance keys; founder soak on device after cold restart.
+
 ### Native upload: Identify-first flow (prefs on screen 1, drop Finalize step)
 **Status: Implemented (2026-06-02).**
 
@@ -152,6 +155,9 @@ Down from 137 (pre-Day-2) → 125 (post-Day-2 baseline) → 107 after token rety
 
 ## Release / Ops Threads
 
+### Push `main` to `origin` (ACTIVE — founder action)
+**Status 2026-06-02:** Local `main` is **2 commits ahead** of `origin/main` (`feb0c25` Identify-first/Lattice, `e83f6e4` edit collectible + provenance fix). OTAs already published from local tree. Run `git push origin main` to sync remote.
+
 ### Preview binary runtime 2 distribution (ACTIVE — founder action)
 **Status 2026-05-30:** `runtimeVersion` bumped to `"2"` on `main` (`33ec04f`). Preview IPA **not yet built** this session — founder running manually.
 
@@ -201,6 +207,7 @@ Any external push notification deep-links targeting `/(tabs)/profile?lens=X` nee
 - `getTrackedCollectionItems` performs acceptably for users tracking 200+ items (currently capped at 50 sources in the comps RPC).
 
 ## Resolved Threads (since last update)
+- ~~Edit collectible flow (post-catalog owner edits, LG rerun staging, custom fields, Edited provenance chips)~~ → Resolved 2026-06-02 (`e83f6e4`, OTAs `fd922925` / `db889dfe`). Stale Edited badges after rerun-only save fixed via provenance reconcile in `computeMetadataProvenance`.
 - ~~Collectible detail swipe-back blocked in middle content (LensPager vs stack pop)~~ → Resolved 2026-05-27 (`5d32845`, preview OTA `a3610490-8612-4e9f-858f-ece6e2ca932b`). Root cause: symmetric `activeOffsetX([-12, 12])` on page 0 claimed rightward drags. Fix: asymmetric offset on index 0 only; no back chevron added (display `LensSelector` remains sole top chrome). Founder dev-client validated edge-back from middle of DETAILS + lens swipes intact.
 - ~~Theater cosmetic "stuck at 90%" pacing~~ → Resolved 2026-05-27 (`f09e891`, preview OTA `7356da1c-9b2c-4a34-b3d3-486c07796c54`). 25s linear crawl to 85% cap, ring gated on `extractionJobId`, percent label floored/capped. Poll sprint to 100% unchanged. Does not resolve poll-never-completes extraction hang — see open Theater 1 extraction reliability thread.
 - ~~Upload photo grid drag-reorder polish (Layer 2)~~ → Resolved 2026-05-26, merged to `main` (`c474d7c`–`c69300a`). `PhotoReorderGrid` at `apps/native/components/vault/photo-reorder-grid.tsx`. **Binary rebuild** (Reanimated 4.3.1 + Worklets 0.8) still required for devices on pre-migration preview builds — JS OTAs alone insufficient. DFL retained for V1 memorabilia. See DECISION_LOG + IMPLEMENTATION_LOG.

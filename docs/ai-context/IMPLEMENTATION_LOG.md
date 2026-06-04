@@ -3,6 +3,20 @@
 Last updated: 2026-06-02
 Last verified: 2026-06-02
 
+## 2026-06-02 — Edit collectible flow, provenance reconcile fix, OTA + git
+
+- Summary: Shipped **owner edit collectible** end-to-end: route `app/collectible/[id]/edit.tsx` → `UploadEntry` `mode="edit"` with S0 snapshot, metadata-only vs LG photo-rerun fork (multiset detect, confirm modal, Reset photos), `custom_fields` editor on Review, `metadata_provenance` **Edited** chips on Specs lens, API paths `commitMetadataUpdate` / `commitReExtraction` (staging draft via `reextraction_of`). Migration `20260602120000_edit_collectible_custom_fields_provenance.sql` (`custom_fields`, `metadata_provenance`, `reextraction_of`). **Bugfix:** `computeMetadataProvenance` now **deletes** stale `ai.*` / `trait.*` / listing markers when final values match baseline (fixes false Edited badges after LG rerun with no field edits). **Git `e83f6e4`** on `main`. **OTA** runtime `2`: preview group `fd922925`, production group `db889dfe`. Migration applied to prod project `fxmiongkckkrllgyfwyw` earlier in feature work.
+- Files changed:
+  - `apps/native/app/collectible/[id]/edit.tsx`, `components/upload-entry.tsx`, `components/collectible-detail-v3.tsx`
+  - `components/detail/lenses/specs-lens.tsx`, `components/vault/{custom-fields-editor,schema-row,index}.ts`
+  - `apps/native/lib/{api/collectibles.ts,api/index.ts,edit-collectible-helpers.ts}`
+  - `packages/types/src/database.ts`, `supabase/migrations/20260602120000_edit_collectible_custom_fields_provenance.sql`
+  - `docs/ai-context/*` (memory sync this handoff)
+- Git: `e83f6e4` on `main` (local; **2 commits ahead of `origin/main`** unless founder pushed).
+- OTAs: `eas update --channel preview` → `fd922925`; `eas update --channel production` → `db889dfe`; message `feat: edit collectible flow + provenance reconcile fix`.
+- Validation: ESLint on touched native files; founder device soak of edit + rerun path reported one provenance bug (fixed in same wave). No formal automated test suite for provenance.
+- Notes: **Cold restart** required for OTA pickup. Existing DB rows with stale provenance clear on next save after OTA. Listing-line Edited badges out of V1 scope. `supabase/.temp/*` never commit.
+
 ## 2026-06-02 — Identify-first upload, Lattice Theater, extraction contract alignment
 
 - Summary: Shipped the native single-lane upload overhaul: **Scan + Finalize merged into scrolling Identify** (owner prefs on draft insert, strict Analyze gate, "Activate Looking Glass" CTA, Personal Value + PRICELESS NFST placeholder). **Replaced Theater HUD** (progress ring / holographic frame) with **The Lattice** — stage-choreographed SVG reasoning graph wired to real engine `stage` via `pollEngineJobStatus`. **Review → Catalog** (client-owned `published_at` on commit). Removed **Assembly** step and `assembly-step.tsx`; upload flow is now `identify → theater → review → success`. Simplified `image-utils` to `uploadImage` / `getOptimizedUrl` (no client-side variant assembly in this path). **ActionDock** HIG primary pill (44pt, filled volt enabled / muted disabled). Extraction backend artifacts committed: `job-status` proxy + reconciler, `looking-glass-webhook` rejection/idempotency, shared `engine-mapping.ts`, migration `client_owned_completion_and_rejected`, `docs/EXTRACTION_CONTRACT.md`. **Production Supabase already had migration + edge functions** (audited via MCP — no redeploy needed). **Git `feb0c25`**; **preview OTA** runtime `2` update group `8e9655e9-2eff-44c4-a157-6e3446788fbb`.

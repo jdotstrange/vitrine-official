@@ -8,7 +8,9 @@ Last verified: 2026-06-02
 Active V3 redesign and feature build-out, hosted in a pnpm + Turborepo monorepo with two apps (`@vitrine/native`, `@vitrine/web`) and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). All primary native surfaces are V3. The web marketing site is now a hybrid multi-page site (10-section `/` lander plus deep `/pricing`, `/intelligence`, `/product`, plus `/login` placeholder and draft `/privacy` + `/terms` legal pages). Approaching deployment readiness with a five-lens profile hub, four-lens Tracking Hub, Instagram-style Market Surface, dedicated Messages tab, V3 Settings, Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
 
 ## Current Priority
-**2026-06-02 — Identify-first upload + Lattice Theater (preview OTA shipped).** `feb0c25` on `main`. Flow: Identify → Theater (Lattice, stage-choreographed) → Review → Catalog → Success. Assembly step removed. Preview OTA runtime `2` group `8e9655e9-2eff-44c4-a157-6e3446788fbb`. Extraction backend (`job-status`, webhook, client-owned publish migration) verified live in Supabase. **Founder action:** cold-restart preview app; soak full upload with worker running; `git push origin main`.
+**2026-06-02 — Edit collectible + provenance fix (OTA + git shipped).** `e83f6e4` on `main` (local, **2 commits ahead of `origin`**). Owners edit cataloged items via `UploadEntry` edit mode: metadata-only save vs photo-rerun LG staging (`reextraction_of` draft → merge). `custom_fields`, `metadata_provenance` Edited chips on Specs. Provenance reconcile clears stale markers when values match baseline after rerun. OTAs runtime `2`: preview `fd922925`, production `db889dfe`. Migration `20260602120000_*` on prod Supabase. **Founder action:** cold-restart app; soak edit + photo-rerun provenance; `git push origin main`.
+
+**2026-06-02 — Identify-first upload + Lattice Theater (shipped prior commit).** `feb0c25`. Flow: Identify → Theater (Lattice) → Review → Catalog → Success. Preview OTA group `8e9655e9-2eff-44c4-a157-6e3446788fbb` superseded for edit flow by newer OTAs above.
 
 **2026-05-30 — Preview runtime `2` committed; binary cut still pending** if team on runtime-`1` installs. `eas build --profile preview --platform ios` → team reinstall. No Android preview builds in EAS history.
 
@@ -148,9 +150,18 @@ Shopify smart-collection-inspired auto-updating showcases:
 - **UI**: `ManagedRuleBuilder` component (match mode toggle, condition stack, live preview card), edit-rules route at `app/upload/showcase/[id]/rules.tsx`.
 - **Visibility**: Empty managed showcases hidden from visitors, visible to owners with empty-state body.
 
+### Edit Collectible (V3 — Live, OTA 2026-06-02)
+Owners edit published cataloged items without re-uploading from scratch:
+- **Entry:** Collectible detail owner menu → Edit → `app/collectible/[id]/edit.tsx` wraps `UploadEntry` with `mode="edit"` + `editCollectibleId`.
+- **S0 snapshot:** On load, seeds photos, extraction, listing prefs, tags, showcases, `custom_fields`, `metadata_provenance`, provenance baseline for diffing.
+- **Photo fork:** Multiset compare vs S0 — reorder-only → **Continue** (metadata-only `commitMetadataUpdate`, preserves `published_at`). Add/remove → **Rerun Looking Glass** (`createReExtractionDraft` + staging row `reextraction_of` → `commitReExtraction` merge onto original id, delete draft).
+- **Review:** Same Lattice/Review UX as upload; **Update collectible** CTA; `CustomFieldsEditor` (owner fields never overwritten by LG).
+- **Provenance:** `metadata_provenance` keys `ai.<field>`, `trait.<field>`, `listing_title`, `listing_description` → **Edited** chip on Specs lens (`schema-row` `userEdited`). Baseline = S0 at open (metadata-only) or fresh engine output after rerun; markers **cleared** when final matches baseline.
+- **Key files:** `upload-entry.tsx`, `lib/api/collectibles.ts`, `lib/edit-collectible-helpers.ts`, `components/vault/custom-fields-editor.tsx`, `specs-lens.tsx`, migration `20260602120000_edit_collectible_custom_fields_provenance.sql`.
+
 ### AI Upload Flow (V3 — Live, Polished)
 End-to-end wired in `components/upload-entry.tsx`:
-- **Pipeline:** Identify (photos + context + owner prefs) → **Activate Looking Glass** → Theater (Lattice) → Review → **Catalog** → Success. No Finalize or Assembly steps. Real async extraction via `enqueue-extraction` + Looking Glass engine; engine `stage` polled via `job-status` proxy; row poll + webhook reconciliation as completion backstop. `complete_and_publish` trigger promotes `extracted` → `complete` but **does not publish** single-lane rows — Catalog commit sets `published_at`.
+- **Pipeline:** Identify (photos + context + owner prefs) → **Activate Looking Glass** → Theater (Lattice) → Review → **Catalog** → Success. No Finalize or Assembly steps. Real async extraction via `enqueue-extraction` + Looking Glass engine; engine `stage` polled via `job-status` proxy; row poll + webhook reconciliation as completion backstop. `complete_and_publish` trigger promotes `extracted` → `complete` but **does not publish** single-lane rows — Catalog commit sets `published_at`. **Edit mode** reuses same component with commit fork (see Edit Collectible above).
 - **Identify screen:** Scrolling layout merging former Scan + Finalize. `<PhotoReorderGrid />` for photos (same primitive spec as before). Owner prefs (status, Personal Value with PRICELESS NFST placeholder, visibility, tags, showcases) collected here. Strict Analyze gate: photos + valid value when sale/trade required. Prefs written on `createDraftCollectible` at Analyze time. ActionDock: **Activate Looking Glass** (HIG 44pt floating pill).
 - **State reset on focus:** `resetFlow` clears photos, showcases, tags, status, visibility, value, extraction state. Showcase list refetched via `useFocusEffect`.
 - **Theater (The Lattice):** Full-bleed void stage. SVG reasoning graph choreographed to real engine `stage` (`classifying`, `routing`, `designing_schema`, `extracting`, etc.). Collectible photo is the core node; trait color blooms at verdict. Ambient loops keep 15s and 90s runs equally alive. No progress ring or fake %. Haptic tick on stage advance.
@@ -218,8 +229,15 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 
 ## Active Files Or Areas
 
-### Upload Flow V3 (newest — polish pass)
-- `components/upload-entry.tsx` — full state machine (Scan/Theater/Review/Finalize/Success/Failed). Capture sheet, KAV pattern, listingEdits state, InlineEditableField, theater easing, char caps.
+### Edit Collectible V3 (newest — 2026-06-02)
+- `app/collectible/[id]/edit.tsx` — edit route
+- `components/upload-entry.tsx` — `mode="edit"`, S0, photo fork, commit fork
+- `lib/api/collectibles.ts` — `commitMetadataUpdate`, `commitReExtraction`, `computeMetadataProvenance`
+- `lib/edit-collectible-helpers.ts`, `components/vault/custom-fields-editor.tsx`
+- `supabase/migrations/20260602120000_edit_collectible_custom_fields_provenance.sql`
+
+### Upload Flow V3
+- `components/upload-entry.tsx` — full state machine (Identify/Theater/Review/Success/Failed). Capture sheet, KAV pattern, listingEdits state, InlineEditableField, Lattice theater, char caps.
 - `components/detail/framed-hero.tsx` — shared photo carousel + lightbox. Used by Review step and CollectibleDetail DETAILS lens.
 - `components/detail/lenses/details-lens.tsx` — imports shared FramedHero (no inline copy).
 - `lib/api/extraction.ts` — `enqueueExtraction` (direct fetch), `pollJobStatus` (2s polling).

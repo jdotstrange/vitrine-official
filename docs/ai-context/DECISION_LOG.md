@@ -3,6 +3,20 @@
 Last updated: 2026-06-02
 Last verified: 2026-06-02
 
+## Decision: Edit collectible provenance reconciles against session baseline (clear markers when values match)
+- Reason: `computeMetadataProvenance` only added `ai.*` / `trait.*` keys when final ≠ baseline but never removed them when values matched again. After a prior edit save, a photo-rerun + save with no field changes left stale **Edited** chips (e.g. Grip Tape, Inscribed on Ohtani bat).
+- Alternatives Considered: (A) Strip all spec provenance on every rerun commit — rejected (loses legitimate listing provenance); (B) Reconcile: set marker when different, **delete** when equal, union keys from baseline + final + existing — selected.
+- Status: Active. Shipped 2026-06-02 (`e83f6e4`, OTAs `fd922925` preview / `db889dfe` production, runtime `2`).
+- Files Or Areas Affected: `apps/native/lib/api/collectibles.ts` (`computeMetadataProvenance`, `provenanceFieldKeys`), `upload-entry.tsx` (`provenanceBaseline` from S0 or `engineBaselineRef` on rerun).
+- Notes: Metadata-only edit path uses S0 baseline at open. Rerun path uses fresh LG output as baseline. Existing DB rows may need one post-OTA save to clear orphan markers.
+
+## Decision: Edit collectible uses staging draft for photo rerun (`reextraction_of`), metadata-only path preserves row id
+- Reason: Photo add/remove must re-run Looking Glass without mutating the published collectible in place during extraction. Staging draft holds engine output; `commitReExtraction` merges engine cols + photos onto original id and deletes draft. Reorder-only photo changes skip rerun (`commitMetadataUpdate`).
+- Alternatives Considered: (A) In-place overwrite on original row during extraction — rejected (partial failure leaves published row inconsistent); (B) Staging draft + merge commit — selected.
+- Status: Active. Shipped 2026-06-02 (`e83f6e4`).
+- Files Or Areas Affected: `collectibles.reextraction_of`, `createReExtractionDraft`, `commitReExtraction`, `commitMetadataUpdate`, `upload-entry.tsx` photo multiset detector.
+- Notes: `custom_fields` preserved across rerun; never overwritten by LG. `published_at` preserved on both paths.
+
 ## Decision: Theater becomes The Lattice (stage-choreographed reasoning graph, no fake progress)
 - Reason: Progress ring / HUD read as generic and time-faked. The Lattice visualizes the real engine reasoning process (stage signals from `job-status`) in a time-agnostic way — ambient motion keeps 15s and 90s runs alive without inventing progressive data reveal (atomic at completion).
 - Alternatives Considered: (A) Iterate on HUD (crosshair, hex logs) — rejected (still generic CV aesthetic); (B) Progressive attribute reveal — rejected (engine delivers data atomically); (C) Full-bleed SVG graph choreographed to `STAGE_RANK` — selected.

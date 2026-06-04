@@ -4,70 +4,60 @@ Last updated: 2026-06-02
 Last verified: 2026-06-02
 
 ## Session Summary
-- **Identify-first upload + Lattice Theater** shipped in `upload-entry.tsx`; Assembly step removed; flow is `identify → theater → review → catalog → success`.
-- **Committed `feb0c25`** and **preview OTA** runtime `2` group `8e9655e9-2eff-44c4-a157-6e3446788fbb`. Supabase migration + edge functions **already live** (MCP audit — no redeploy).
+- **Edit collectible flow** shipped: detail Edit → `/collectible/[id]/edit`, `UploadEntry` edit mode, custom fields, provenance Edited chips, metadata-only vs photo-rerun LG staging (`reextraction_of` draft merge).
+- **Provenance bugfix:** `computeMetadataProvenance` clears `ai.*` / `trait.*` markers when values match baseline (fixes stale Edited after rerun-only save).
+- **Deployed:** OTA preview `fd922925` + production `db889dfe` (runtime `2`). **Git `e83f6e4`** committed on `main`.
 
 ## Current State
-- **`main` at `feb0c25`** (local, **1 commit ahead of origin** unless founder pushed separately).
-- **Preview OTA:** Lattice + Identify-first on channel `preview`, runtime `2`. Cold restart required on preview binary.
-- **Extraction worker:** still required on `vitrinedb/worker` (founder's PC today); not a localhost app issue.
+- **`main` at `e83f6e4`** — edit collectible + provenance fix; **2 commits ahead of `origin/main`** (`feb0c25` + `e83f6e4`) unless founder pushed.
+- **OTAs live:** preview + production channels, runtime `2`, edit flow + provenance reconcile.
+- **DB migration** `20260602120000_*` applied on prod Supabase (`fxmiongkckkrllgyfwyw`).
 
 ## Files Changed Recently
-- `apps/native/components/upload-entry.tsx` — Identify merge, Lattice Theater, stage polling, Catalog commit path.
-- `apps/native/components/vault/action-dock.tsx` — HIG 44pt floating primary pill.
-- `apps/native/lib/api/collectibles.ts` — prefs on draft insert; client-owned publish.
-- `apps/native/lib/image-utils.ts` — `uploadImage` simplification; Assembly variants removed from client path.
-- `apps/native/components/upload/assembly-step.tsx` — **deleted**.
-- `packages/api/src/modules/extraction.ts` — `pollEngineJobStatus` / `EngineJobStatus`.
-- `supabase/functions/job-status/`, `_shared/engine-mapping.ts`, `looking-glass-webhook/` — extraction contract (prod already deployed).
-- `supabase/migrations/20260601130000_client_owned_completion_and_rejected.sql` — in repo; applied in prod as `20260601175504`.
-- `docs/EXTRACTION_CONTRACT.md` — cross-system contract doc.
+- `apps/native/components/upload-entry.tsx` — `mode="edit"`, S0 snapshot, photo multiset fork, commit fork.
+- `apps/native/lib/api/collectibles.ts` — `commitMetadataUpdate`, `commitReExtraction`, `computeMetadataProvenance` reconcile.
+- `apps/native/app/collectible/[id]/edit.tsx` — edit route shell.
+- `apps/native/components/vault/custom-fields-editor.tsx` — owner custom fields on Review.
+- `apps/native/components/detail/lenses/specs-lens.tsx` — provenance + custom fields display.
+- `supabase/migrations/20260602120000_edit_collectible_custom_fields_provenance.sql` — new columns.
 
 ## Incomplete Work
-- **`git push origin main`** — `feb0c25` not pushed this session.
-- **Preview runtime-`2` IPA cut** — still pending if team on May 24/26 runtime-`1` installs (`eas build --profile preview --platform ios`).
-- **Lattice soak on preview binary** — OTA shipped; founder device validation not recorded this session.
-- **Worker always-on deployment** — extraction queues without PC worker running.
-- **Variant strategy post-Assembly** — client `assemblyVariants` removed; grid thumbnails may rely on originals / future backfill.
-- Upload Lane B-D, V1 memorabilia → PhotoReorderGrid, native session conflict, Subscription Phase 1 — unchanged.
+- **`git push origin main`** — `feb0c25` + `e83f6e4` not pushed this session.
+- **Founder soak on device** — edit + LG rerun + provenance fix after OTA cold restart not formally recorded post-`e83f6e4` OTA.
+- **Preview runtime-`2` IPA cut** — still pending if team on runtime-`1` installs.
+- **Worker always-on**, variant strategy post-Assembly, Upload Lane B-D, native session conflict, Subscription Phase 1 — unchanged.
 
 ## Validation Performed
-- ESLint: clean on `upload-entry.tsx`.
-- `tsc`: pre-existing native errors only; no new Lattice blockers identified.
-- Supabase MCP: migration + `job-status` + `looking-glass-webhook` verified ACTIVE and matching repo logic.
-- `eas update --channel preview` — succeeded (iOS + Android bundles, runtime `2`).
-- No founder device soak of full upload → Lattice → Review → Catalog this session.
+- `eas update` preview + production — succeeded (runtime `2`).
+- Git commit `e83f6e4` — 17 files.
+- Founder reported provenance false-positive on Ohtani bat; fix landed in `computeMetadataProvenance`.
+- No automated test run this handoff session.
 
 ## Risks And Warnings
-- **OTA without cold restart** — preview users won't see Lattice until force-quit + reopen.
-- **Runtime-`1` devices** — this OTA does not apply; need runtime-`2` IPA reinstall.
-- **Worker off = queued forever** — enqueue works; processing does not.
-- **Client-owned publish** — pieces stay in My Queue until **Catalog**; old auto-publish expectation wrong.
-- **Assembly removed** — DO_NOT_BREAK / CURRENT_STATE still describe old Scan→Finalize→Assembly flow until memory updated.
-- **`ENGINE_SHARED_SECRET` in `.env`** — loaded during OTA export; never commit.
+- **OTA without cold restart** — users won't see edit flow until force-quit + reopen twice (download + apply).
+- **Runtime-`1` binaries** — no edit OTA; need runtime-`2` IPA.
+- **Stale provenance in DB** — pre-fix rows need one save (or rerun + save) to clear orphan Edited markers.
+- **First OTA (`fd922925` / `db889dfe`)** may have shipped from dirty tree at `feb0c25*`; `e83f6e4` matches committed source — optional republish OTA if paranoid.
 
 ## Next Best Task
-**Soak the Lattice on a runtime-`2` preview device:** cold restart after OTA, worker running, one full upload (Identify → Activate Looking Glass → watch stage choreography → Catalog). Then `git push origin main` if soak passes.
+**`git push origin main`** then founder device soak: open Ohtani bat → Edit → change photo → LG rerun → save with no field edits → confirm Grip Tape / Inscribed no longer show Edited.
 
 ## Suggested Starter Prompt For Next Agent
-`/rehydrate-project-memory. Preview OTA 8e9655e9 ships Lattice + Identify-first on runtime 2. Confirm founder soaked upload on preview binary with worker running. If good: push feb0c25 and cut runtime-2 preview IPA if team still on runtime-1. If Lattice stages stuck on cosmetic copy: check job-status logs + worker.`
+`/rehydrate-project-memory. main is e83f6e4 with edit collectible + provenance reconcile. OTAs fd922925 (preview) and db889dfe (production) on runtime 2. Push to origin if not done. Soak edit + photo-rerun provenance on device after cold restart.`
 
 ## Memory Updates Made This Session
-- `IMPLEMENTATION_LOG.md` — 2026-06-02 entry appended.
+- `IMPLEMENTATION_LOG.md` — 2026-06-02 edit collectible entry appended.
 - `HANDOFF.md` — rewritten.
-- `CURRENT_STATE.md` — priority + AI Upload Flow updated (2026-06-02).
-- `DECISION_LOG.md` — Lattice Theater decision added; 25s ring decision superseded.
-- `OPEN_THREADS.md` — extraction reliability partially addressed; Post-Assembly variant thread added.
+- `CURRENT_STATE.md` — edit collectible priority + upload/edit sections updated.
+- `DECISION_LOG.md` — edit provenance reconcile decision added.
+- `OPEN_THREADS.md` — edit collectible resolved; git push thread noted.
 
 ## What Not To Touch
-- Lattice stage choreography / `STAGE_RANK` mapping without reading `docs/EXTRACTION_CONTRACT.md`.
+- `computeMetadataProvenance` baseline contract without understanding metadata-only vs rerun paths.
 - `runtimeVersion` — stay `"2"` until next native bump.
-- `LensPager` page-0 gesture; collectible detail lens chrome.
-- `PhotoReorderGrid` primitive internals.
+- `LensPager` page-0 gesture; Lattice stage mapping without `docs/EXTRACTION_CONTRACT.md`.
 - `supabase/.temp/*` — never commit.
 
 ## Proposed Updates To Watch For
-- CURRENT_STATE upload section — still describes Scan/Finalize/Assembly/25s Theater (stale).
-- DECISION_LOG — add Lattice Theater decision; supersede 25s ring Theater decision for new UX.
-- OPEN_THREADS — mark Theater reliability partially addressed (job-status reconcile); note Assembly removal / variant gap.
-- DO_NOT_BREAK — update upload flow steps if founder confirms Assembly is permanently gone.
+- DO_NOT_BREAK — add edit-collectible flow steps if founder confirms stable.
+- Optional OTA republish from clean `e83f6e4` commit hash on EAS dashboard.
