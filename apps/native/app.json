@@ -20,7 +20,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.vitrine",
-      "buildNumber": "1",
       "associatedDomains": [
         "applinks:myvitrine.app"
       ],
