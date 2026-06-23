@@ -11,6 +11,7 @@ import {
   Session,
 } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import { isReviewAuthEmail } from '@/lib/review-auth';
 
 export interface User {
   id: string;
@@ -223,29 +224,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function sendOtpCode(email: string) {
-    log.info('Sending OTP to:', email);
-    
-    const result = await sendEmailOtp(email);
+    const trimmed = email.trim();
+
+    if (isReviewAuthEmail(trimmed)) {
+      log.info('Review account — skipping Supabase OTP send');
+      return { isDevAccount: true };
+    }
+
+    log.info('Sending OTP to:', trimmed);
+
+    const result = await sendEmailOtp(trimmed);
     if (!result.success) {
       throw new Error(result.error || 'Failed to send code');
     }
-    
+
     return { isDevAccount: false };
   }
 
   async function login(email: string, code: string) {
-    log.info('Verifying OTP for:', email);
-    
-    const result = await verifyEmailOtp(email, code);
-    
+    const trimmed = email.trim();
+    log.info('Verifying OTP for:', trimmed);
+
+    if (isReviewAuthEmail(trimmed)) {
+      // App Review demo login. The app is passwordless for real users, but
+      // Apple needs a working sign-in. This one allowlisted email authenticates
+      // with a fixed password entered in the code field. We use the standard
+      // signInWithPassword primitive (no setSession / token-hash machinery),
+      // which shares the proven session-save path used by normal OTP login.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: trimmed.toLowerCase(),
+        password: code,
+      });
+
+      if (signInError) {
+        log.error('Review sign-in failed:', signInError.message);
+        throw new Error('Invalid review code. Please try again.');
+      }
+
+      log.info('Review account login successful');
+      return;
+    }
+
+    const result = await verifyEmailOtp(trimmed, code);
+
     if (result.error) {
       throw new Error(result.error);
     }
-    
+
     if (!result.session) {
       throw new Error('No session returned');
     }
-    
+
     log.info('Login successful, session set');
   }
 
