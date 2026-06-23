@@ -823,7 +823,7 @@ export function UploadEntry({
     [requestPhotoUpdate],
   );
 
-  // Drag-to-reorder commit. DraggableFlatList drives the data array; we
+  // Drag-to-reorder commit. PhotoReorderGrid drives the data array; we
   // just trust whatever it hands back. The first photo in the array is
   // automatically the cover, so reordering changes the cover as a side
   // effect — which is exactly what we want.
