@@ -1,7 +1,7 @@
 # Quick Reference
 
-Last updated: 2026-05-30
-Last verified: 2026-05-30
+Last updated: 2026-06-22
+Last verified: 2026-06-22
 
 The fast-path memory file. Always loaded at chat start. Kept under 100 lines.
 
@@ -19,7 +19,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 
 ## Current Sprint Focus
 
-**2026-05-30 — preview binary cut (runtime `2`).** `runtimeVersion` bumped so runtime-`1` installs stop receiving incompatible OTAs. Cut `eas build --profile preview` from `apps/native/` — embeds Reanimated 4.3.1 + `PhotoReorderGrid` + Assembly/LensPager/Theater. Prior runtime-`1` OTAs: Assembly (`62d8222`), LensPager (`5d32845`), Theater (`f09e891`). Open: Theater extraction reliability, native session conflict, Upload Lane B-D, V1 memorabilia → `PhotoReorderGrid`.
+**2026-06-22 — boot screen + unified auth V3 + skeleton reset (shipped preview OTA).** `a0bfd8d` on `main` (pushed); preview OTA `668da060` on runtime `2`. Unified `AuthScreen` (email→OTP, deletes login/signup pages), void-continuous boot screen, `components/skeleton/` barrel reset, Pro ship-dark paywall, OTP email templates (Dashboard paste pending). **Founder manual:** paste `email-otp.html` in Supabase Auth templates + upload `icon.png` to Storage `brand-assets/logos`; optionally promote production OTA. **Battery audit done (read-only)** — quick wins queued: dock `BlurView` on dark, AppState pause for Stream Chat + Feeds, delete `live-ticker.tsx`. Open carry-overs: Theater extraction reliability, native session conflict, Upload Lane B-D, V1 memorabilia → `PhotoReorderGrid`.
 
 ## Critical Constraints (must respect)
 
@@ -29,7 +29,10 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - Managed showcase evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep.
 - Do not hardcode secrets — use `EXPO_PUBLIC_*` env vars; keep `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Vault.
 - **Preview `runtimeVersion` is `"2"`** — bump + rebuild after native changes; OTAs on `preview` channel only hit matching binaries. Runtime-`1` preview installs need fresh IPA, not OTA.
-- `upload-entry.tsx` — Scan → Theater → Review → Finalize → **Assembly** → Success. **No variants at Identify.** Theater: 25s linear to 85% cap, ring after `extractionJobId`.
+- `upload-entry.tsx` — **Identify → Theater (The Lattice) → Review → Catalog → Success** (Finalize + Assembly removed 2026-06-02). Lattice is a stage-choreographed SVG graph (no fake progress); Catalog commit sets `published_at`.
+- **Auth:** unified `components/auth-screen.tsx` (email→OTP, login+signup). OTP field is a **single `TextInput`** with `oneTimeCode` for autofill — never six boxes. Boot screen (`vitrine-boot-screen.tsx`) reuses native splash; splash hidden in the boot component, not `_layout.tsx`.
+- **Skeletons:** import from the `components/skeleton/` barrel; legacy `skeleton*.tsx` + dead `skeletons/*` deleted.
+- **Keyboard:** global `<KeyboardToolbar />` removed from `_layout.tsx` (2026-06-22).
 - **Collectible detail:** display `LensSelector` is the top bar — **no back chevron.** Edge-back on DETAILS requires `LensPager` page-0 asymmetric pan — do not revert to symmetric `activeOffsetX` on index 0.
 - `FramedHero`, `CollectionSurface`, `QRCodeModal`, `SearchBar`, **`PhotoReorderGrid`**, `LensPager`, and the three `KeyboardSafe*` wrappers are multi-consumer — breaking prop/gesture contracts cascades.
 - **Keyboard:** `KeyboardSafeScroll` / `KeyboardSafeSheet` / `KeyboardSafeComposer` only — not raw `KeyboardAvoidingView`.
@@ -43,7 +46,8 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - Collectible detail Philosophy B: lens strip = chrome; stack edge-back on page 0 via asymmetric `LensPager` pan.
 - Brand warm ivory (`#E8E0D4`), not neon volt. Light/Dark/Auto via ThemeProvider.
 - **`published_at` publish gate** + `complete_and_publish` trigger for auto-commit.
-- Assembly = dossier seals UI; variants deferred post-Finalize.
+- Upload is Identify-first; Theater = The Lattice (no fake progress). Assembly/Finalize removed; post-Assembly variant strategy is open (see OPEN_THREADS).
+- Passwordless unified auth (`AuthScreen` email→OTP); void-continuous boot screen.
 
 ## Where to Look
 

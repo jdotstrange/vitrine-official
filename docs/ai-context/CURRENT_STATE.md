@@ -1,13 +1,15 @@
 # Current State
 
-Last updated: 2026-06-02
-Last verified: 2026-06-02
+Last updated: 2026-06-22
+Last verified: 2026-06-22
 
 
 ## Current Build Phase
 Active V3 redesign and feature build-out, hosted in a pnpm + Turborepo monorepo with two apps (`@vitrine/native`, `@vitrine/web`) and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). All primary native surfaces are V3. The web marketing site is now a hybrid multi-page site (10-section `/` lander plus deep `/pricing`, `/intelligence`, `/product`, plus `/login` placeholder and draft `/privacy` + `/terms` legal pages). Approaching deployment readiness with a five-lens profile hub, four-lens Tracking Hub, Instagram-style Market Surface, dedicated Messages tab, V3 Settings, Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
 
 ## Current Priority
+**2026-06-22 — Boot screen + unified auth V3 + skeleton reset (OTA + git shipped).** `a0bfd8d` on `main`, **pushed to `origin/main`** (in sync). One commit absorbed ~20 days of working-tree drift (81 files). Shipped: void-continuous **boot screen** (`vitrine-boot-screen.tsx` reuses native splash PNG/bg/contain layout), **unified auth** (`auth-screen.tsx` email→OTP, deletes `login-page`/`signup-page`), dark **complete-profile**, **skeleton system reset** (new `components/skeleton/` barrel + composed skeletons, legacy deleted), `lib/profile-hub-cache.ts`, **Pro ship-dark** paywall (`PRO_SHIP_DARK` on PULSE/VAR/AAR), AAR no-signature variant, global `<KeyboardToolbar />` removed, **Supabase OTP email templates** (`supabase/templates/auth/*`, repo only). **Preview OTA** group `668da060-6c25-4a52-a8c7-1113117db615` (runtime `2`). **Production OTA NOT promoted.** **Founder manual steps:** (1) paste `email-otp.html` into Supabase Auth → Email Templates; (2) upload `icon.png` to Storage `brand-assets/logos/icon.png` (public); (3) cold-restart preview app to pick up OTA; (4) optionally promote production OTA after soak. **Battery audit** done this session (read-only) — see OPEN_THREADS for the optimization backlog.
+
 **2026-06-02 — Edit collectible + provenance fix (OTA + git shipped).** `e83f6e4` on `main` (local, **2 commits ahead of `origin`**). Owners edit cataloged items via `UploadEntry` edit mode: metadata-only save vs photo-rerun LG staging (`reextraction_of` draft → merge). `custom_fields`, `metadata_provenance` Edited chips on Specs. Provenance reconcile clears stale markers when values match baseline after rerun. OTAs runtime `2`: preview `fd922925`, production `db889dfe`. Migration `20260602120000_*` on prod Supabase. **Founder action:** cold-restart app; soak edit + photo-rerun provenance; `git push origin main`.
 
 **2026-06-02 — Identify-first upload + Lattice Theater (shipped prior commit).** `feb0c25`. Flow: Identify → Theater (Lattice) → Review → Catalog → Success. Preview OTA group `8e9655e9-2eff-44c4-a157-6e3446788fbb` superseded for edit flow by newer OTAs above.
@@ -158,6 +160,27 @@ Owners edit published cataloged items without re-uploading from scratch:
 - **Review:** Same Lattice/Review UX as upload; **Update collectible** CTA; `CustomFieldsEditor` (owner fields never overwritten by LG).
 - **Provenance:** `metadata_provenance` keys `ai.<field>`, `trait.<field>`, `listing_title`, `listing_description` → **Edited** chip on Specs lens (`schema-row` `userEdited`). Baseline = S0 at open (metadata-only) or fresh engine output after rerun; markers **cleared** when final matches baseline.
 - **Key files:** `upload-entry.tsx`, `lib/api/collectibles.ts`, `lib/edit-collectible-helpers.ts`, `components/vault/custom-fields-editor.tsx`, `specs-lens.tsx`, migration `20260602120000_edit_collectible_custom_fields_provenance.sql`.
+
+### Boot + Auth Funnel (V3 — Live, OTA 2026-06-22)
+Void-continuous launch + unified passwordless auth, all dark:
+- **Boot screen** (`components/vitrine-boot-screen.tsx`): post-splash loading state that reuses the native splash PNG, `#020202` background, and contain layout (`lib/splash-contain-layout.ts` exports `SPLASH_BG`, `SPLASH_SOURCE`, `getContainRect`) so launch→app never flashes. Hides the native splash on mount; shows only a volt progress hairline. Mounted in `app/index.tsx` while `auth.isLoading`. **Splash hide lives in the boot component, not `app/_layout.tsx`.**
+- **Unified auth** (`components/auth-screen.tsx`): single email → 6-digit OTP flow, no passwords, `signInWithOtp` with `shouldCreateUser: true` for both login and signup. Matter-style email step ("What's your email?", borderless field, vault `Button`); Endel-style OTP step ("Check Your Email", Mail icon in 100px volt ring, single `TextInput` with `textContentType="oneTimeCode"` + `autoComplete` for iOS autofill + auto-submit on 6 digits). `app/login/index.tsx` renders `AuthScreen`; `app/signup/index.tsx` redirects to `/login`. **`login-page.tsx` and `signup-page.tsx` are deleted.**
+- **Complete-profile** (`app/complete-profile/index.tsx`): dark V3 — `useTheme()`, vault `Button`, `SPLASH_BG`, volt accents.
+- **OTP email** (`supabase/templates/auth/`): light-theme HTML (`email-otp.html`, `{{ .Token }}` / `{{ .Email }}`), subject/plain/README. **NOT OTA — Dashboard paste manual.** Logo expects `apps/native/assets/icon.png` at Storage `brand-assets/logos/icon.png` (public). Optional uploader: `supabase/scripts/upload-auth-email-icon.mjs`.
+- Routing unchanged: `AuthProvider` → `/login` if no session → `/complete-profile` if incomplete → `/(tabs)` when complete.
+
+### Skeleton System (V3 — Reset 2026-06-22)
+Consolidated loading-state architecture:
+- **New barrel** `components/skeleton/` — `primitives` (SkeletonRect/Circle/Group + shared pulse), `community`, `feed`, `market`, `messaging`, `stale-overlay`, `collectible-grid-layout`. Shared opacity-pulse driver in `components/vault/skeleton.tsx` (`SkeletonPulseProvider`, native-driver, no gradient shimmer).
+- **Composed screen skeletons** in `components/skeletons/`: `collectible-detail`, `profile-hub`, `showcase-detail`, `tracking-overview` (plus retained `community-hub`, `group-page`).
+- **Deleted:** legacy `components/{skeleton,skeleton-community,skeleton-messaging}.tsx` and dead `components/skeletons/{connections,detail,edit-profile,group-info,inbox,notifications,profile,showcase,thread,tracking,upload}.tsx`. Imports must use the new barrel.
+
+### Pro Ship-Dark Paywall (2026-06-22)
+- `lib/pro-ship-dark.ts` — `PRO_SHIP_DARK` flag + `PRO_FEATURE_COPY`. When set (or user not Pro), PULSE/VAR/AAR collectible-detail lenses render `LensPaywallCard` instead of the "coming soon" body.
+- `components/vault/vitrine-pro-coming-soon-sheet.tsx` — Pro upsell sheet. AAR no-signature variant at `detail/lenses/aar-lens-no-signature.tsx`.
+
+### Profile Hub Cache (2026-06-22)
+- `lib/profile-hub-cache.ts` — module-level `Map` (45s TTL) holding the shared Collection/Showcase/Profile fetch bundle, plus `invalidateProfileHub(userId)` + `subscribeProfileHub(listener)`. `collector-profile.tsx` subscribes and refetches on invalidation after catalog/edit/delete/showcase-membership changes.
 
 ### AI Upload Flow (V3 — Live, Polished)
 End-to-end wired in `components/upload-entry.tsx`:
@@ -328,7 +351,7 @@ Full redesign of the market/explore tab replacing the legacy search screen:
 - `supabase/migrations/`, `supabase/functions/`
 
 ## Important Context For Next Agent
-- The **auth flow** is: Login/Signup (email OTP) → Complete Profile (display name, username, email → optional avatar/bio) → Tabs. There is **no onboarding quiz** — `onboarding_completed_at` is set at the end of profile completion. The column is still used as a "real user" filter in search/explore/suggested RPCs. The quiz tables (`user_usage_intents`, `user_marketplace_preferences`, `user_type_interests`) have been dropped.
+- The **auth flow** is: Boot screen (while `auth.isLoading`) → **unified `AuthScreen`** (one email→6-digit-OTP screen for both login and signup, passwordless, `shouldCreateUser: true`) → Complete Profile (display name, username, email → optional avatar/bio) → Tabs. `app/login` renders `AuthScreen`; `app/signup` redirects to `/login`; `login-page.tsx`/`signup-page.tsx` are deleted. OTP autofill depends on the **single `TextInput`** with `oneTimeCode` — do not split into six boxes. There is **no onboarding quiz** — `onboarding_completed_at` is set at the end of profile completion. The column is still used as a "real user" filter in search/explore/suggested RPCs. The quiz tables (`user_usage_intents`, `user_marketplace_preferences`, `user_type_interests`) have been dropped.
 - The app uses a **profile-as-home** architecture. The profile hub IS the landing surface at `app/(tabs)/index.tsx`. There is no separate home screen.
 - The profile hub has **five lenses**: PROFILE | COLLECTION | SHOWCASE | ACTIVITY | NETWORK. Messages is a separate tab. All new profile surfaces should be lenses, not separate screens.
 - **Messages** is a dedicated tab at `app/(tabs)/messages.tsx`. Navigate to messages via `/(tabs)/messages`, not via a profile lens.

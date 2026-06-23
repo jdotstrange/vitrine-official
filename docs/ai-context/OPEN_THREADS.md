@@ -1,7 +1,19 @@
 # Open Threads
 
-Last updated: 2026-06-02
-Last verified: 2026-06-02
+Last updated: 2026-06-22
+Last verified: 2026-06-22
+
+## Performance / Battery Threads
+
+### Battery drain audit — optimization backlog (2026-06-22)
+**Status: Audited (read-only), nothing implemented.** Founder reports the app drains battery fast while foregrounded. Static audit found no single bug (no GPS, no keep-awake, no background video, no app-wide polling) — it's the **combination** of always-on connectivity + GPU chrome + retained UI + infinite animations. Ranked findings:
+- **Tier 1 (always-on when logged in):** (1) Stream Chat WebSocket connects app-wide via `StreamProvider` at root and `BottomDock` subscribes to 4 client events on every tab — no `AppState` pause when backgrounded. (2) Stream Feeds notification feed `getOrCreate({ watch: true })` is a second realtime connection; each event triggers a **full `loadNotifications()`** refetch, not a delta. (3) `BottomDock` `BlurView` (intensity 28) renders on every main tab over scrolling content — redundant with the existing rgba overlay on dark.
+- **Tier 2 (session accumulation):** Expo Router tabs don't unmount inactive screens (Profile/Market/Tracking/Messages/Upload all stay mounted + keep effects). `LensPager` with `lazy` never unmounts visited lenses (`shouldRenderPage` returns true for any visited index) — touring 5 profile lenses keeps 5 heavy subtrees alive. Several infinite Reanimated/`Animated.loop` loops while on-screen (`HolographicFrame` 7.2s sheen on featured items, `TelemetryCard` `LiveDot`, `typing-indicator`, skeleton pulse).
+- **Tier 2 spike:** Upload "Lattice Theater" runs **3** `withRepeat` loops + **two 2s `setInterval`** polls (`ENGINE_POLL_MS` / `ROW_POLL_MS`) while analyzing — no pause on background.
+- **Dead code:** `components/live-ticker.tsx` has a `setInterval(…, 50)` auto-scroll but is **not imported anywhere** — safe to delete to prevent future accidents.
+- **Recommended quick wins:** (a) drop dock `BlurView` on dark (keep rgba overlay); (b) `AppState` listener → disconnect/throttle Stream Chat + Feeds on background, reconnect on active; (c) debounce/delta `loadNotifications`; (d) delete `live-ticker.tsx`.
+- **Structural:** tab `lazy`/`unmountOnBlur`, cap `LensPager` `visitedIndices` to ±1, pause upload-theater intervals + loops when `AppState !== 'active'`, gate `HolographicFrame` sheen on focus/visibility.
+- **Validate before/after:** compare 15-min foreground battery for (1) Profile-only, (2) all-tabs-toured, (3) Messages idle, (4) Upload theater, (5) backgrounded — via Settings → Battery or Xcode Energy Log. If backgrounded still drains, that implicates the sockets.
 
 ## Product / Design Threads
 
@@ -155,8 +167,14 @@ Down from 137 (pre-Day-2) → 125 (post-Day-2 baseline) → 107 after token rety
 
 ## Release / Ops Threads
 
-### Push `main` to `origin` (ACTIVE — founder action)
-**Status 2026-06-02:** Local `main` is **2 commits ahead** of `origin/main` (`feb0c25` Identify-first/Lattice, `e83f6e4` edit collectible + provenance fix). OTAs already published from local tree. Run `git push origin main` to sync remote.
+### Push `main` to `origin`
+**Status 2026-06-22: Resolved.** `a0bfd8d` pushed (`a56590f..a0bfd8d`); local `main` in sync with `origin/main`. (Prior `feb0c25` + `e83f6e4` also now on origin via the `a56590f` docs commit.)
+
+### Supabase auth email template + logo (ACTIVE — founder manual, NOT OTA)
+**Status 2026-06-22:** `supabase/templates/auth/email-otp.html` (light theme, `{{ .Token }}` / `{{ .Email }}`) is in the repo but **not applied**. Founder must: (1) paste it into Supabase Dashboard → Authentication → Email Templates → Magic Link (OTP); (2) upload `apps/native/assets/icon.png` to Storage bucket `brand-assets` at `logos/icon.png` (public) so the email logo resolves (`https://fxmiongkckkrllgyfwyw.supabase.co/storage/v1/object/public/brand-assets/logos/icon.png`). Optional uploader script: `pnpm upload:auth-email-icon` (`supabase/scripts/upload-auth-email-icon.mjs`). Until done, OTP emails render unstyled / logo-broken. Solid `icon.png` chosen specifically to survive Outlook dark-mode inversion.
+
+### Promote production OTA (2026-06-22)
+**Status:** Boot/auth/skeleton wave shipped to **preview only** (`eas update --channel preview`, group `668da060-6c25-4a52-a8c7-1113117db615`, runtime `2`). Production channel still on the 2026-06-02 edit-collectible OTA. Promote with `eas update --channel production` from `apps/native/` after preview soak (cold restart → boot → login OTP autofill → complete-profile → tabs).
 
 ### Preview binary runtime 2 distribution (ACTIVE — founder action)
 **Status 2026-05-30:** `runtimeVersion` bumped to `"2"` on `main` (`33ec04f`). Preview IPA **not yet built** this session — founder running manually.
@@ -207,6 +225,10 @@ Any external push notification deep-links targeting `/(tabs)/profile?lens=X` nee
 - `getTrackedCollectionItems` performs acceptably for users tracking 200+ items (currently capped at 50 sources in the comps RPC).
 
 ## Resolved Threads (since last update)
+- ~~Separate login/signup pages + password-era auth UI~~ → Resolved 2026-06-22 (`a0bfd8d`, preview OTA `668da060`). Unified into one `components/auth-screen.tsx` (email→6-digit OTP, `shouldCreateUser: true`). `login-page.tsx`/`signup-page.tsx` deleted; `app/signup` redirects `/login`. Single-`TextInput` `oneTimeCode` for autofill. See DECISION_LOG + DO_NOT_BREAK.
+- ~~Launch splash → app flash (stack visible before content ready)~~ → Resolved 2026-06-22 (`a0bfd8d`). Void-continuous `vitrine-boot-screen.tsx` reuses native splash art + `#020202` + contain layout; splash hidden inside the boot component. See DECISION_LOG.
+- ~~Scattered/duplicate skeleton files with per-component animation~~ → Resolved 2026-06-22 (`a0bfd8d`). Consolidated into `components/skeleton/` barrel on a shared pulse provider; composed screen skeletons added; ~13 legacy files deleted. See DECISION_LOG + DO_NOT_BREAK.
+- ~~Pro detail lenses (PULSE/VAR/AAR) showing "coming soon"~~ → Resolved 2026-06-22 (`a0bfd8d`). `PRO_SHIP_DARK` flag renders `LensPaywallCard` upsell instead. Flag-reversible. See DECISION_LOG.
 - ~~Edit collectible flow (post-catalog owner edits, LG rerun staging, custom fields, Edited provenance chips)~~ → Resolved 2026-06-02 (`e83f6e4`, OTAs `fd922925` / `db889dfe`). Stale Edited badges after rerun-only save fixed via provenance reconcile in `computeMetadataProvenance`.
 - ~~Collectible detail swipe-back blocked in middle content (LensPager vs stack pop)~~ → Resolved 2026-05-27 (`5d32845`, preview OTA `a3610490-8612-4e9f-858f-ece6e2ca932b`). Root cause: symmetric `activeOffsetX([-12, 12])` on page 0 claimed rightward drags. Fix: asymmetric offset on index 0 only; no back chevron added (display `LensSelector` remains sole top chrome). Founder dev-client validated edge-back from middle of DETAILS + lens swipes intact.
 - ~~Theater cosmetic "stuck at 90%" pacing~~ → Resolved 2026-05-27 (`f09e891`, preview OTA `7356da1c-9b2c-4a34-b3d3-486c07796c54`). 25s linear crawl to 85% cap, ring gated on `extractionJobId`, percent label floored/capped. Poll sprint to 100% unchanged. Does not resolve poll-never-completes extraction hang — see open Theater 1 extraction reliability thread.

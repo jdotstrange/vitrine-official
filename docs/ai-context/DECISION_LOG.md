@@ -1,7 +1,35 @@
 # Decision Log
 
-Last updated: 2026-06-02
-Last verified: 2026-06-02
+Last updated: 2026-06-22
+Last verified: 2026-06-22
+
+## Decision: Unified passwordless auth — one `AuthScreen` (email→OTP) replaces separate login/signup pages
+- Reason: Two near-identical password-era screens (`login-page.tsx` / `signup-page.tsx`) carried duplicate UI and diverged in styling. A single email→6-digit-OTP flow with `shouldCreateUser: true` serves both new and returning users — the email lookup decides the path server-side, so the client doesn't need a login/signup fork.
+- Alternatives Considered: (A) Keep two screens, share a component — rejected (still two routes, two styling surfaces to drift); (B) Magic-link deep link instead of OTP code — rejected (worse on-device UX, harder autofill); (C) Single `AuthScreen` email→OTP, delete both pages — selected.
+- Status: Active. Shipped 2026-06-22 (`a0bfd8d`, preview OTA `668da060-6c25-4a52-a8c7-1113117db615`, runtime `2`).
+- Files Or Areas Affected: `components/auth-screen.tsx` (new), `app/login/index.tsx` (renders it), `app/signup/index.tsx` (redirects `/login`), deleted `components/{login-page,signup-page}.tsx`, `nav-menu.tsx` test link.
+- Notes: OTP step uses a **single `TextInput`** with `textContentType="oneTimeCode"` + `autoComplete` + auto-submit on 6 digits — this is required for iOS autofill; six separate boxes break it. Dark V3 throughout (Matter-style email step, Endel-style OTP step).
+
+## Decision: Void-continuous boot screen (reuse native splash art; hide splash in the boot component)
+- Reason: The launch handoff flashed the app stack underneath before content was ready. Reusing the exact native splash PNG + `#020202` background + contain math in a JS boot screen makes the transition seamless — only a progress hairline appears; the art never moves or rescales.
+- Alternatives Considered: (A) Hide native splash in `app/_layout.tsx` on font load — rejected (flashes stack before auth resolves); (B) Custom animated logo intro — rejected (breaks splash continuity); (C) Boot screen that mirrors splash layout and hides the native splash itself on mount — selected.
+- Status: Active. Shipped 2026-06-22 (`a0bfd8d`).
+- Files Or Areas Affected: `components/vitrine-boot-screen.tsx`, `lib/splash-contain-layout.ts` (`SPLASH_BG` / `SPLASH_SOURCE` / `getContainRect`), `app/index.tsx` (mounts while `auth.isLoading`), `app/_layout.tsx` (splash-hide deferred out — comment only).
+- Notes: `SPLASH_BG` / `SPLASH_SOURCE` must stay matched to `app.json` splash (`#020202`, `splash-icon.png`, `resizeMode: contain`). If `app.json` splash changes, update `splash-contain-layout.ts` in lockstep.
+
+## Decision: Skeleton system consolidated into one `components/skeleton/` barrel on a shared pulse provider
+- Reason: Skeletons were scattered across `skeleton.tsx`, `skeleton-community.tsx`, `skeleton-messaging.tsx`, and a `skeletons/*` folder with overlapping/dead files, each running its own animation. One barrel + a shared opacity-pulse driver reduces duplication and animation cost.
+- Alternatives Considered: (A) Leave scattered, fix piecemeal — rejected (import sprawl, per-component loops); (B) Single barrel (`primitives` + per-domain modules) with composed screen skeletons, delete legacy — selected.
+- Status: Active. Shipped 2026-06-22 (`a0bfd8d`).
+- Files Or Areas Affected: new `components/skeleton/*`, composed `components/skeletons/{collectible-detail,profile-hub,showcase-detail,tracking-overview}.tsx`, shared pulse in `components/vault/skeleton.tsx`; deleted legacy skeleton files (see IMPLEMENTATION_LOG).
+- Notes: Any import of the old `@/components/skeleton.tsx` / `skeleton-community` / `skeleton-messaging` or deleted `skeletons/*` must move to the new `components/skeleton/` barrel.
+
+## Decision: Pro lenses ship dark behind a paywall now (`PRO_SHIP_DARK`) instead of "coming soon"
+- Reason: PULSE / VAR / AAR detail lenses aren't ready to deliver live analytics, but showing a "coming soon" placeholder undersells the product. A `PRO_SHIP_DARK` flag renders a `LensPaywallCard` upsell instead, framing them as Pro features pending rollout.
+- Alternatives Considered: (A) Keep "coming soon" body — rejected (reads as unfinished); (B) Hide the lenses entirely — rejected (loses the Pro narrative); (C) Flag-gated paywall card with per-feature copy — selected.
+- Status: Active. Shipped 2026-06-22 (`a0bfd8d`).
+- Files Or Areas Affected: `lib/pro-ship-dark.ts` (`PRO_SHIP_DARK`, `PRO_FEATURE_COPY`), `components/vault/lens-paywall-card.tsx`, `components/vault/vitrine-pro-coming-soon-sheet.tsx`, `detail/lenses/{pulse,var,aar}-lens.tsx`, `aar-lens-no-signature.tsx`.
+- Notes: Flag-controlled — flip `PRO_SHIP_DARK` off to restore "coming soon" once real analytics ship.
 
 ## Decision: Edit collectible provenance reconciles against session baseline (clear markers when values match)
 - Reason: `computeMetadataProvenance` only added `ai.*` / `trait.*` keys when final ≠ baseline but never removed them when values matched again. After a prior edit save, a photo-rerun + save with no field changes left stale **Edited** chips (e.g. Grip Tape, Inscribed on Ohtani bat).
