@@ -29,6 +29,23 @@ const nextConfig = {
       { source: '/identity', destination: '/', permanent: true },
     ]
   },
+  /**
+   * Serve the mobile deep-link association files as JSON. The Apple file has
+   * no extension, so Next would otherwise serve it as octet-stream; iOS and
+   * Android both expect `application/json` over HTTPS with no redirects.
+   */
+  async headers() {
+    return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
+    ]
+  },
 }
 
 export default nextConfig

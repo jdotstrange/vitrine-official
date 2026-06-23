@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["3RFDYDWUUV.com.vitrine"],
+        "components": [
+          {
+            "/": "/s/*",
+            "comment": "Vitrine share links: collectibles (/s/c/), profiles (/s/p/), showcases (/s/s/)"
+          }
+        ]
+      }
+    ]
+  }
+}
