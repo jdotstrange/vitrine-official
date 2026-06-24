@@ -8,9 +8,18 @@
 
 import type { CollectionItem } from '@/components/collectibles/collection';
 import type { HomeShowcaseDetail, UserShowcase } from '@/lib/api/showcases';
+import type { User } from '@/lib/api/auth';
 
 export type ProfileCacheEntry = {
   timestamp: number;
+  /**
+   * The viewed collector's public identity (name / username / avatar / crown
+   * jewel / featured showcase). Cached alongside the hub bundle so the fast
+   * cache-hit path can mount the ID card instead of falling back to the
+   * "Collector / @collector" placeholder. Null for the owner's own profile,
+   * where identity comes from the auth context instead.
+   */
+  identity: User | null;
   followCounts: { followersCount: number; followingCount: number };
   collectionValue: number;
   collectionSize: number;

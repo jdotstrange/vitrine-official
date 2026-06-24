@@ -79,6 +79,7 @@ import {
   type ProfileCacheEntry,
 } from '@/lib/profile-hub-cache';
 import { ProfileHubSkeleton } from '@/components/skeleton';
+import { SafeSection } from '@/components/safe-section';
 import {
   ActivityLens,
   NetworkLens,
@@ -538,6 +539,10 @@ function ProfileSurface({
       />
 
       {/* ── Crown Jewel ───────────────────────────── */}
+      {/* Scoped so a single malformed crowned collectible can't blank the whole
+          profile (was crashing ProfileSurface render — see Sentry REACT-NATIVE-Z).
+          The error is still reported via SafeSection → logger → Sentry. */}
+      <SafeSection name="CrownJewel" resetKey={`${crownJewelCollectibleId ?? 'none'}:${collectionItems.length}`}>
       {collectionItems.length > 0 && (() => {
         const jewel = resolveCrownJewel(collectionItems, crownJewelCollectibleId);
         if (!jewel) return null;
@@ -614,8 +619,10 @@ function ProfileSurface({
           </View>
         );
       })()}
+      </SafeSection>
 
       {/* ── Featured Showcase ─────────────────────── */}
+      <SafeSection name="FeaturedShowcase" resetKey={featuredShowcase?.id ?? 'none'}>
       {featuredShowcase && (
         <View style={pS.sectionWrap}>
           <View style={pS.sectionHeader}>
@@ -661,6 +668,7 @@ function ProfileSurface({
           </HolographicFrame>
         </View>
       )}
+      </SafeSection>
 
       {/* ── Collection DNA ────────────────────────── */}
       <View style={pS.sectionWrap}>
@@ -1140,6 +1148,10 @@ export function CollectorProfile({
   const displayUser = isOwnProfile ? viewer : profileUser;
 
   const applyProfileCacheEntry = useCallback((entry: ProfileCacheEntry) => {
+    // Restore the viewed collector's identity so the ID card mounts with real
+    // name/username/avatar on the cache-hit path. Owner profiles cache null
+    // here (identity comes from the auth context), so don't clobber that case.
+    if (!isOwnProfile) setProfileUser(entry.identity);
     setFollowCounts(entry.followCounts);
     setCollectionValue(entry.collectionValue);
     setCollectionSize(entry.collectionSize);
@@ -1149,7 +1161,7 @@ export function CollectorProfile({
     setShowcases(entry.showcases);
     setAssetMatrix(entry.assetMatrix);
     setStatusBreakdown(entry.statusBreakdown);
-  }, []);
+  }, [isOwnProfile]);
 
   const loadProfileData = useCallback(async (forceRefresh = false) => {
     if (!profileUserId) {
@@ -1169,10 +1181,14 @@ export function CollectorProfile({
 
     if (forceRefresh) setIsRefreshing(true);
     try {
+      // Keep the freshly fetched identity in a local. `profileUser` state won't
+      // reflect setProfileUser() within this same run (stale closure), so reads
+      // below (featured showcase id, cache identity) must use this value.
+      let fetchedProfileUser: User | null = null;
       if (!isOwnProfile) {
-        const otherUser = await getUserById(profileUserId).catch(() => null);
-        setProfileUser(otherUser);
-        if (!otherUser) {
+        fetchedProfileUser = await getUserById(profileUserId).catch(() => null);
+        setProfileUser(fetchedProfileUser);
+        if (!fetchedProfileUser) {
           setIsHubReady(false);
           return;
         }
@@ -1198,7 +1214,7 @@ export function CollectorProfile({
 
       const featuredShowcaseId = isOwnProfile
         ? viewer?.featuredShowcaseId
-        : profileUser?.featuredShowcaseId;
+        : fetchedProfileUser?.featuredShowcaseId;
 
       const nextFeaturedShowcase = featuredShowcaseId
         ? await getFeaturedShowcaseDetail(featuredShowcaseId).catch(() => null)
@@ -1242,6 +1258,7 @@ export function CollectorProfile({
 
       const entry: ProfileCacheEntry = {
         timestamp: Date.now(),
+        identity: fetchedProfileUser,
         followCounts: nextFollowCounts,
         collectionValue: nextCollectionValue,
         collectionSize: rows.length,
@@ -1262,7 +1279,7 @@ export function CollectorProfile({
     } finally {
       if (forceRefresh) setIsRefreshing(false);
     }
-  }, [applyProfileCacheEntry, isOwnProfile, profileUser?.featuredShowcaseId, profileUserId, viewer?.featuredShowcaseId, viewer?.id]);
+  }, [applyProfileCacheEntry, isOwnProfile, profileUserId, viewer?.featuredShowcaseId, viewer?.id]);
 
   useEffect(() => {
     loadProfileData(false);
