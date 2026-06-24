@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import {
   supabase,
   getPublicUserProfile,
-  checkProfileStatus,
   ensurePublicUserExists,
   sendEmailOtp,
   verifyEmailOtp,
@@ -12,6 +11,32 @@ import {
 } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import { isReviewAuthEmail } from '@/lib/review-auth';
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Rejects if the wrapped promise doesn't settle within `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+const PROFILE_FETCH_TIMEOUT_MS = 8000;
+const SESSION_REFRESH_TIMEOUT_MS = 8000;
+const MAX_ATTEMPTS = 4;
 
 export interface User {
   id: string;
@@ -70,17 +95,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
 
+  // Coalesces concurrent profile loads (initializeAuth + onAuthStateChange can
+  // both fire on boot, e.g. a TOKEN_REFRESHED during our manual refresh).
+  const profileLoadRef = useRef<Promise<void> | null>(null);
+
   // Initialize auth state and listen for changes
   useEffect(() => {
     log.info('Initializing Supabase Auth...');
     
-    // Safety timeout - if init takes too long, force loading to false
+    // Safety net - if bootstrap somehow stalls past every internal timeout,
+    // stop blocking the boot screen so the user isn't stuck forever.
     const safetyTimeout = setTimeout(() => {
-      if (isLoading) {
-        log.warn('Safety timeout hit - forcing isLoading to false');
-        setIsLoading(false);
-      }
-    }, 15000);
+      setIsLoading((prev) => {
+        if (prev) log.warn('Safety timeout hit - forcing isLoading to false');
+        return false;
+      });
+    }, 20000);
 
     // Get initial session
     initializeAuth().finally(() => {
@@ -95,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setSession(newSession);
           if (newSession) {
-            await loadUserProfile();
+            await loadUserProfile(newSession);
           }
         } else if (event === 'SIGNED_OUT') {
           setSession(null);
@@ -123,7 +153,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const inAuthGroup = segment === 'login' || segment === 'signup';
     const inCompleteProfile = segment === 'complete-profile';
-    const inTabs = segment === '(tabs)';
     const atRoot = segment === '' || segment === 'index';
 
     log.debug('Route | profileStatus:', profileStatus);
@@ -145,10 +174,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.replace('/(tabs)');
       }
     } else if (session && !profileStatus) {
-      log.info('Route | Session exists but no profileStatus, going to tabs');
-      if (!inTabs) {
-        router.replace('/(tabs)');
-      }
+      // Session is present but the profile hasn't resolved yet. Do NOT route into
+      // the tabs profileless — stay on the boot surface (app/index keeps showing
+      // VitrineBootScreen while authenticated && !user) and let the retrying
+      // profile load / auto-refresh fill it in. This is what prevents the
+      // "app loads with no profile mounted" symptom.
+      log.debug('Route | Session present, awaiting profile before routing');
     } else {
       log.debug('Route | No routing action taken, current segment:', segment);
     }
@@ -166,11 +197,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       log.info('Session exists:', !!existingSession);
-      
-      if (existingSession) {
-        setSession(existingSession);
-        await loadUserProfile();
+
+      if (!existingSession) {
+        setIsLoading(false);
+        return;
       }
+
+      // Validate the stored token before trusting it. getSession() returns
+      // whatever is in AsyncStorage, which on a cold start is frequently expired.
+      // Refreshing here (instead of letting the first authenticated request hang
+      // or 401) is the core fix for both the boot hang and the profileless mount.
+      const freshSession = await ensureFreshSession(existingSession);
+      setSession(freshSession);
+      await loadUserProfile(freshSession);
     } catch (error) {
       log.error('Error initializing auth:', error);
     } finally {
@@ -179,47 +218,119 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loadUserProfile() {
+  /**
+   * Returns a non-expired session. If the token is expired/expiring, refreshes
+   * with bounded retries. On exhaustion it returns the original session rather
+   * than signing out — the AppState auto-refresh recovers it on next foreground,
+   * preserving the "reopen fixes it" path instead of bouncing the user to login.
+   */
+  async function ensureFreshSession(current: Session): Promise<Session> {
+    const expiresAt = current.expires_at ?? 0;
+    const now = Math.floor(Date.now() / 1000);
+    if (expiresAt - now > 60) {
+      return current;
+    }
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.auth.refreshSession(),
+          SESSION_REFRESH_TIMEOUT_MS,
+          'refreshSession',
+        );
+        if (!error && data.session) {
+          log.info('Session refreshed on boot');
+          return data.session;
+        }
+        log.warn(`refreshSession attempt ${attempt} failed:`, error?.message);
+      } catch (err) {
+        log.warn(`refreshSession attempt ${attempt} threw:`, err);
+      }
+      if (attempt < MAX_ATTEMPTS) await delay(attempt * 800);
+    }
+
+    log.error('refreshSession exhausted; using existing session');
+    return current;
+  }
+
+  /**
+   * Loads the public profile + completeness status for the given session.
+   * Uses the session's auth id (no extra getUser round-trip), wraps each fetch
+   * in a timeout, retries on transient failure, and coalesces concurrent calls.
+   */
+  async function loadUserProfile(activeSession?: Session): Promise<void> {
+    if (profileLoadRef.current) {
+      return profileLoadRef.current;
+    }
+
+    const promise = (async () => {
+      const sess =
+        activeSession ?? (await supabase.auth.getSession()).data.session ?? undefined;
+      if (!sess) {
+        log.warn('loadUserProfile: no session available');
+        return;
+      }
+      const authId = sess.user.id;
+
+      let lastError: unknown;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          let profile = await withTimeout(
+            getPublicUserProfile(authId),
+            PROFILE_FETCH_TIMEOUT_MS,
+            'getPublicUserProfile',
+          );
+
+          if (!profile) {
+            // Auth user may exist without a public.users row (e.g. created before
+            // the trigger). Ensure the row exists, then read again.
+            await ensurePublicUserExists();
+            profile = await withTimeout(
+              getPublicUserProfile(authId),
+              PROFILE_FETCH_TIMEOUT_MS,
+              'getPublicUserProfile(retry)',
+            );
+          }
+
+          if (!profile) {
+            throw new Error('Profile not found after ensurePublicUserExists');
+          }
+
+          log.info('Profile loaded');
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            phoneNumber: profile.phoneNumber,
+            displayName: profile.displayName,
+            username: profile.username,
+            avatarUrl: profile.avatarUrl,
+            bio: profile.bio,
+            featuredShowcaseId: profile.featuredShowcaseId,
+            crownJewelCollectibleId: profile.crownJewelCollectibleId,
+            onboardingCompletedAt: profile.onboardingCompletedAt,
+          });
+
+          const missing: ('displayName' | 'username' | 'email')[] = [];
+          if (!profile.displayName) missing.push('displayName');
+          if (!profile.username) missing.push('username');
+          if (!profile.email) missing.push('email');
+          setProfileStatus({ isComplete: missing.length === 0, missing });
+          return;
+        } catch (err) {
+          lastError = err;
+          log.warn(`loadUserProfile attempt ${attempt} failed:`, err);
+          if (attempt < MAX_ATTEMPTS) await delay(attempt * 800);
+        }
+      }
+
+      log.error('loadUserProfile failed after retries:', lastError);
+    })();
+
+    profileLoadRef.current = promise;
     try {
-      log.debug('Loading user profile...');
-      
-      // Get public user profile
-      let profile = await getPublicUserProfile();
-      if (!profile) {
-        // Auth user may exist without a public.users row (e.g. created before trigger).
-        // Ensure row exists so messaging/group-join and other APIs find the user.
-        await ensurePublicUserExists();
-        profile = await getPublicUserProfile();
-      }
-      log.info('Profile loaded:', !!profile);
-      
-      if (profile) {
-        setUser({
-          id: profile.id,
-          email: profile.email,
-          phoneNumber: profile.phoneNumber,
-          displayName: profile.displayName,
-          username: profile.username,
-          avatarUrl: profile.avatarUrl,
-          bio: profile.bio,
-          featuredShowcaseId: profile.featuredShowcaseId,
-          crownJewelCollectibleId: profile.crownJewelCollectibleId,
-          onboardingCompletedAt: profile.onboardingCompletedAt,
-        });
-      }
-      
-      // Check profile status
-      const status = await checkProfileStatus();
-      log.debug('Profile status:', status);
-      
-      if (status) {
-        setProfileStatus({
-          isComplete: status.isComplete,
-          missing: status.missing as ('displayName' | 'username' | 'email')[],
-        });
-      }
-    } catch (error) {
-      log.error('Error loading user profile:', error);
+      await promise;
+    } finally {
+      profileLoadRef.current = null;
     }
   }
 

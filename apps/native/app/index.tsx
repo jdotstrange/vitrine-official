@@ -6,9 +6,13 @@ import { useAuth } from '@/lib/contexts/auth-context';
  * this screen only provides the void-continuous boot surface (Option A).
  */
 export default function Index() {
-  const { isLoading } = useAuth();
+  const { isLoading, isAuthenticated, user } = useAuth();
 
-  if (isLoading) {
+  // Keep the boot surface up while auth is hydrating, and also while we have a
+  // session but the profile hasn't mounted yet — this avoids both the hang
+  // (handled by AuthContext's timeouts/retries) and a profileless flash before
+  // routing into the tabs.
+  if (isLoading || (isAuthenticated && !user)) {
     return <VitrineBootScreen />;
   }
 

@@ -6,6 +6,7 @@
  */
 
 import 'react-native-url-polyfill/auto';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, SupabaseClient, Session, User } from '@supabase/supabase-js';
 import { logger } from './logger';
@@ -41,6 +42,22 @@ export const supabase: SupabaseClient = createClient(
     },
   }
 );
+
+// Drive Supabase's token auto-refresh off the app foreground state. Supabase's
+// RN guidance requires this: without it the refresh timer doesn't reliably run
+// across background/foreground, which is the root of the "first cold launch has
+// a stale/expired token, reopening fixes it" boot bug. Active = refresh on;
+// background/inactive = pause so we don't churn while suspended.
+if (AppState.currentState === 'active') {
+  supabase.auth.startAutoRefresh();
+}
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh();
+  } else {
+    supabase.auth.stopAutoRefresh();
+  }
+});
 
 // Export types for convenience
 export type { Session, User };
@@ -226,7 +243,7 @@ function formatPhoneE164(phone: string): string {
  * Get the public user profile from public.users table
  * This is linked via supabase_auth_id
  */
-export async function getPublicUserProfile(): Promise<{
+export async function getPublicUserProfile(authUserId?: string): Promise<{
   id: string;
   email: string | null;
   phoneNumber: string | null;
@@ -238,14 +255,20 @@ export async function getPublicUserProfile(): Promise<{
   crownJewelCollectibleId: string | null;
   onboardingCompletedAt: string | null;
 } | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) return null;
+  // Callers on the boot path pass the auth id from the already-loaded session to
+  // avoid a redundant (and on cold start, refresh-triggering / hang-prone)
+  // network round-trip to auth.getUser().
+  let userId = authUserId;
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    userId = user.id;
+  }
 
   const { data, error } = await supabase
     .from('users')
     .select('id, email, phone_number, display_name, username, avatar, bio, featured_showcase_id, crown_jewel_collectible_id, onboarding_completed_at')
-    .eq('supabase_auth_id', user.id)
+    .eq('supabase_auth_id', userId)
     .single();
   
   if (error) {
