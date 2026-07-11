@@ -166,10 +166,15 @@ const ME_PROFILE_LENSES: ReadonlyArray<ProfileLensItem> = [
   { key: 'NETWORK', label: 'Network' },
 ];
 
-function resolveFeaturedShowcase(showcases: UserShowcase[]): UserShowcase | null {
+/**
+ * Auto-pick a featured showcase when the user hasn't pinned one.
+ * Must return HomeShowcaseDetail — UserShowcase uses `images`/`items`, while
+ * ProfileSurface reads `previewImages`/`itemCount` (REACT-NATIVE-19).
+ */
+function resolveFeaturedShowcase(showcases: UserShowcase[]): HomeShowcaseDetail | null {
   if (showcases.length === 0) return null;
 
-  return [...showcases].sort((a, b) => {
+  const picked = [...showcases].sort((a, b) => {
     const valueDelta = b.totalValue - a.totalValue;
     if (valueDelta !== 0) return valueDelta;
 
@@ -178,6 +183,17 @@ function resolveFeaturedShowcase(showcases: UserShowcase[]): UserShowcase | null
 
     return a.title.localeCompare(b.title);
   })[0];
+
+  if (!picked) return null;
+
+  return {
+    id: picked.id,
+    title: picked.title,
+    description: null,
+    itemCount: picked.items,
+    previewImages: picked.images ?? [],
+    primaryCategory: null,
+  };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -682,9 +698,9 @@ function ProfileSurface({
             >
               <View style={pS.featuredTileRow}>
                 {[
-                  featuredShowcase.previewImages[0] ?? null,
-                  featuredShowcase.previewImages[1] ?? null,
-                  featuredShowcase.previewImages[2] ?? null,
+                  (featuredShowcase.previewImages ?? [])[0] ?? null,
+                  (featuredShowcase.previewImages ?? [])[1] ?? null,
+                  (featuredShowcase.previewImages ?? [])[2] ?? null,
                 ].map((uri, i) => (
                   <View key={i} style={[pS.featuredTile, { borderColor: colors.frostBorder, backgroundColor: colors.void }]}>
                     {uri ? (
