@@ -307,6 +307,109 @@ const abS = StyleSheet.create({
 });
 
 // ════════════════════════════════════════════════════════════════
+// CROWN JEWEL — isolated so SafeSection can catch render throws
+// ════════════════════════════════════════════════════════════════
+
+function CrownJewelSection({
+  collectionItems,
+  crownJewelCollectibleId,
+  trackingIds,
+  username,
+  onOpenCollectible,
+  onTrackToggleItem,
+}: {
+  collectionItems: CollectionItem[];
+  crownJewelCollectibleId?: string | null;
+  trackingIds: Set<string>;
+  username: string;
+  onOpenCollectible: (id: string) => void;
+  onTrackToggleItem: (id: string) => void;
+}) {
+  const { colors } = useTheme();
+  if (collectionItems.length === 0) return null;
+
+  const jewel = resolveCrownJewel(collectionItems, crownJewelCollectibleId);
+  if (!jewel) return null;
+
+  const isTracked = trackingIds.has(jewel.id);
+  const traits = (jewel.traits ?? [])
+    .map(normalizeTraitKey)
+    .filter(Boolean);
+
+  return (
+    <View style={pS.sectionWrap}>
+      <View style={pS.sectionHeader}>
+        <View style={pS.sectionHeaderLeft}>
+          <ShieldCheck size={14} color={colors.brandVolt} />
+          <Text style={[pS.sectionTitle, { color: colors.textPrimary }]}>CROWN JEWEL</Text>
+        </View>
+      </View>
+      <HolographicFrame borderRadius={16} intensity="standard">
+        <TouchableOpacity
+          style={[pS.crownCard, { backgroundColor: colors.sheetBg }]}
+          onPress={() => onOpenCollectible(jewel.id)}
+          activeOpacity={0.86}
+        >
+          <View style={[pS.crownMain, { borderBottomColor: colors.frostDivider }]}>
+            <View style={[pS.crownImageFrame, { borderColor: colors.frostBorderStrong, backgroundColor: colors.void }]}>
+              {jewel.image ? (
+                <Image
+                  source={{ uri: jewel.image }}
+                  style={[pS.crownImage, { backgroundColor: colors.void }]}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[pS.crownImage, { backgroundColor: colors.sheetBg }]} />
+              )}
+            </View>
+            <View style={pS.crownInfo}>
+              <View style={pS.crownMetaTop}>
+                <VaultStatusPill status={jewel.status as ListingStatus} />
+                <Text style={[pS.crownUsername, { color: colors.textSecondary }]} numberOfLines={1}>@{username}</Text>
+              </View>
+              <Text style={[pS.crownTitle, { color: colors.textPrimary }]} numberOfLines={2}>{jewel.title}</Text>
+              {traits.length > 0 ? (
+                <View style={pS.crownTraitRow}>
+                  {traits.map((t) => (
+                    <VaultTraitPill key={t} traitKey={t} />
+                  ))}
+                </View>
+              ) : null}
+              <View style={pS.crownValueRow}>
+                <Text style={[pS.crownPrice, { color: colors.textPrimary }]}>{formatPrice(jewel.value)}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={[pS.crownRail, { backgroundColor: colors.pressOverlay }]}>
+            <View>
+              <Text style={[pS.crownRailLabel, { color: colors.textTertiary }]}>CATALOGED ON</Text>
+              <Text style={[pS.crownRailValue, { color: colors.textSecondary }]}>{formatCatalogDate(jewel.createdAt)}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={(event) => {
+                event.stopPropagation();
+                onTrackToggleItem(jewel.id);
+              }}
+              style={[pS.crownTracking, { borderColor: colors.frostBorder }]}
+              activeOpacity={0.75}
+            >
+              <Target
+                size={16}
+                color={isTracked ? colors.traitOlive : colors.textSecondary}
+                fill={isTracked ? colors.traitOlive : 'none'}
+              />
+              <Text style={[pS.crownTrackingText, { color: colors.textSecondary }, isTracked && { color: colors.traitOlive }]}>
+                {jewel.trackingCount.toLocaleString()} TRACKING
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </HolographicFrame>
+    </View>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // PROFILE SURFACE
 // ════════════════════════════════════════════════════════════════
 
@@ -539,86 +642,18 @@ function ProfileSurface({
       />
 
       {/* ── Crown Jewel ───────────────────────────── */}
-      {/* Scoped so a single malformed crowned collectible can't blank the whole
-          profile (was crashing ProfileSurface render — see Sentry REACT-NATIVE-Z).
-          The error is still reported via SafeSection → logger → Sentry. */}
+      {/* Must be a real child component (not an IIFE-as-children). IIFEs throw
+          during ProfileSurface render *before* SafeSection can catch them —
+          that was blanking cold opens to the root ErrorBoundary (Sentry REACT-NATIVE-Z). */}
       <SafeSection name="CrownJewel" resetKey={`${crownJewelCollectibleId ?? 'none'}:${collectionItems.length}`}>
-      {collectionItems.length > 0 && (() => {
-        const jewel = resolveCrownJewel(collectionItems, crownJewelCollectibleId);
-        if (!jewel) return null;
-        const isTracked = trackingIds.has(jewel.id);
-        return (
-          <View style={pS.sectionWrap}>
-            <View style={pS.sectionHeader}>
-              <View style={pS.sectionHeaderLeft}>
-                <ShieldCheck size={14} color={colors.brandVolt} />
-                <Text style={[pS.sectionTitle, { color: colors.textPrimary }]}>CROWN JEWEL</Text>
-              </View>
-            </View>
-            <HolographicFrame borderRadius={16} intensity="standard">
-              <TouchableOpacity
-                style={[pS.crownCard, { backgroundColor: colors.sheetBg }]}
-                onPress={() => onOpenCollectible(jewel.id)}
-                activeOpacity={0.86}
-              >
-                <View style={[pS.crownMain, { borderBottomColor: colors.frostDivider }]}>
-                  <View style={[pS.crownImageFrame, { borderColor: colors.frostBorderStrong, backgroundColor: colors.void }]}>
-                    {jewel.image ? (
-                      <Image
-                        source={{ uri: jewel.image }}
-                        style={[pS.crownImage, { backgroundColor: colors.void }]}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={[pS.crownImage, { backgroundColor: colors.sheetBg }]} />
-                    )}
-                  </View>
-                  <View style={pS.crownInfo}>
-                    <View style={pS.crownMetaTop}>
-                      <VaultStatusPill status={jewel.status as ListingStatus} />
-                      <Text style={[pS.crownUsername, { color: colors.textSecondary }]} numberOfLines={1}>@{username}</Text>
-                    </View>
-                    <Text style={[pS.crownTitle, { color: colors.textPrimary }]} numberOfLines={2}>{jewel.title}</Text>
-                    {jewel.traits.length > 0 ? (
-                      <View style={pS.crownTraitRow}>
-                        {jewel.traits.map((t) => (
-                          <VaultTraitPill key={t} traitKey={normalizeTraitKey(t)} />
-                        ))}
-                      </View>
-                    ) : null}
-                    <View style={pS.crownValueRow}>
-                      <Text style={[pS.crownPrice, { color: colors.textPrimary }]}>{formatPrice(jewel.value)}</Text>
-                    </View>
-                  </View>
-                </View>
-                <View style={[pS.crownRail, { backgroundColor: colors.pressOverlay }]}>
-                  <View>
-                    <Text style={[pS.crownRailLabel, { color: colors.textTertiary }]}>CATALOGED ON</Text>
-                    <Text style={[pS.crownRailValue, { color: colors.textSecondary }]}>{formatCatalogDate(jewel.createdAt)}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      onTrackToggleItem(jewel.id);
-                    }}
-                    style={[pS.crownTracking, { borderColor: colors.frostBorder }]}
-                    activeOpacity={0.75}
-                  >
-                    <Target
-                      size={16}
-                      color={isTracked ? colors.traitOlive : colors.textSecondary}
-                      fill={isTracked ? colors.traitOlive : 'none'}
-                    />
-                    <Text style={[pS.crownTrackingText, { color: colors.textSecondary }, isTracked && { color: colors.traitOlive }]}>
-                      {jewel.trackingCount.toLocaleString()} TRACKING
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            </HolographicFrame>
-          </View>
-        );
-      })()}
+        <CrownJewelSection
+          collectionItems={collectionItems}
+          crownJewelCollectibleId={crownJewelCollectibleId}
+          trackingIds={trackingIds}
+          username={username}
+          onOpenCollectible={onOpenCollectible}
+          onTrackToggleItem={onTrackToggleItem}
+        />
       </SafeSection>
 
       {/* ── Featured Showcase ─────────────────────── */}
@@ -1584,54 +1619,62 @@ export function CollectorProfile({
         onIndexChange={handleLensIndexChange}
         lazy={isOwnProfile}
       >
-        <ProfileSurface
-          isOwnProfile={isOwnProfile}
-          isFollowing={isFollowing}
-          onFollowToggle={handleFollowToggle}
-          avatarUrl={displayUser?.avatarUrl ?? null}
-          displayName={displayUser?.displayName ?? 'Collector'}
-          username={displayUser?.username ?? 'collector'}
-          followersCount={followCounts.followersCount}
-          followingCount={followCounts.followingCount}
-          shareUrl={profileShareUrl}
-          collectionValue={collectionValue}
-          collectionSize={collectionSize}
-          featuredShowcase={featuredShowcase}
-          assetMatrix={assetMatrix}
-          statusBreakdown={statusBreakdown}
-          collectionItems={collectionItems}
-          trackingIds={trackingIds}
-          onTrackToggleItem={handleToggleTrackFromSpatialCard}
-          crownJewelCollectibleId={crownJewelId}
-          onEditProfile={handleEditProfile}
-          onOpenSettings={handleOpenSettings}
-          onShare={handleShareProfile}
-          onBlockUser={handleBlockUser}
-          onOpenCollectible={handleOpenCollectible}
-          onOpenShowcase={handleOpenShowcase}
-          onOpenNetworkTab={handleOpenNetworkTab}
-          onNavigateToActivity={handleNavigateToActivity}
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-        />
-        <CollectionSurface
-          items={collectionItems}
-          viewMode={collectionViewMode}
-          onViewModeChange={setCollectionViewMode}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          filters={collectionFilters}
-          onFiltersChange={setCollectionFilters}
-          sortKey={collectionSortKey}
-          onSortChange={setCollectionSortKey}
-          crownJewelCollectibleId={crownJewelId}
-          trackingIds={trackingIds}
-          onTrackItem={handleTrackFromSpatialCard}
-          onTrackToggleItem={handleToggleTrackFromSpatialCard}
-          onOpenItem={handleOpenCollectible}
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-        />
+        <SafeSection
+          name="ProfileLens"
+          resetKey={`${profileUserId ?? 'none'}:${collectionItems.length}`}
+          fallback={<ProfileHubSkeleton isOwnProfile={isOwnProfile} />}
+        >
+          <ProfileSurface
+            isOwnProfile={isOwnProfile}
+            isFollowing={isFollowing}
+            onFollowToggle={handleFollowToggle}
+            avatarUrl={displayUser?.avatarUrl ?? null}
+            displayName={displayUser?.displayName ?? 'Collector'}
+            username={displayUser?.username ?? 'collector'}
+            followersCount={followCounts.followersCount}
+            followingCount={followCounts.followingCount}
+            shareUrl={profileShareUrl}
+            collectionValue={collectionValue}
+            collectionSize={collectionSize}
+            featuredShowcase={featuredShowcase}
+            assetMatrix={assetMatrix}
+            statusBreakdown={statusBreakdown}
+            collectionItems={collectionItems}
+            trackingIds={trackingIds}
+            onTrackToggleItem={handleToggleTrackFromSpatialCard}
+            crownJewelCollectibleId={crownJewelId}
+            onEditProfile={handleEditProfile}
+            onOpenSettings={handleOpenSettings}
+            onShare={handleShareProfile}
+            onBlockUser={handleBlockUser}
+            onOpenCollectible={handleOpenCollectible}
+            onOpenShowcase={handleOpenShowcase}
+            onOpenNetworkTab={handleOpenNetworkTab}
+            onNavigateToActivity={handleNavigateToActivity}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        </SafeSection>
+        <SafeSection name="CollectionLens" resetKey={collectionItems.length}>
+          <CollectionSurface
+            items={collectionItems}
+            viewMode={collectionViewMode}
+            onViewModeChange={setCollectionViewMode}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={collectionFilters}
+            onFiltersChange={setCollectionFilters}
+            sortKey={collectionSortKey}
+            onSortChange={setCollectionSortKey}
+            crownJewelCollectibleId={crownJewelId}
+            trackingIds={trackingIds}
+            onTrackItem={handleTrackFromSpatialCard}
+            onTrackToggleItem={handleToggleTrackFromSpatialCard}
+            onOpenItem={handleOpenCollectible}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        </SafeSection>
         <ShowcaseSurface
           showcases={showcases}
           viewMode={showcaseViewMode}

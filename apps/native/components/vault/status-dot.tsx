@@ -30,7 +30,7 @@ type Props = {
 };
 
 export function StatusDot({ status, variant = 'inline' }: Props) {
-  const color = STATUS_CONFIG[status].dot;
+  const color = (STATUS_CONFIG[status] ?? STATUS_CONFIG.NFST).dot;
 
   if (variant === 'overlay') {
     return (

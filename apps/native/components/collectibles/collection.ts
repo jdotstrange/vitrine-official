@@ -112,7 +112,7 @@ export function mapToCollectionItem(
     classification: r.classification || null,
     image: r.photos?.[0] || '',
     status,
-    traits: r.traits || [],
+    traits: Array.isArray(r.traits) ? r.traits.filter((t): t is string => typeof t === 'string') : [],
     value: typeof r.value === 'number' ? r.value : null,
     trackingCount,
     category: r.category || 'Collectible',
@@ -130,6 +130,7 @@ export function mapToCollectionItem(
  * `is_graded`). Unknown strings pass through unchanged.
  */
 export function normalizeTraitKey(trait: string): string {
+  if (typeof trait !== 'string') return '';
   const normalized = trait.trim().toLowerCase().replace(/[\s-]+/g, '_');
   switch (normalized) {
     case 'rookie':
@@ -152,14 +153,17 @@ export function normalizeTraitKey(trait: string): string {
 }
 
 export function toCardData(item: CollectionItem): CollectibleCardData {
+  const status = (item.status as ListingStatus) in STATUS_SUMMARY_COPY
+    ? (item.status as ListingStatus)
+    : 'NFST';
   return {
     id: item.id,
     photoUrl: item.image || null,
     title: item.title,
     subtitle: item.classification || item.category,
     price: item.value != null ? formatPrice(item.value) : null,
-    status: item.status as ListingStatus,
-    traits: item.traits.map(normalizeTraitKey),
+    status,
+    traits: (item.traits ?? []).map(normalizeTraitKey).filter(Boolean),
     trackingCount: item.trackingCount,
     viewCount: item.viewCount,
     ownerAvatar: item.ownerAvatar ?? undefined,

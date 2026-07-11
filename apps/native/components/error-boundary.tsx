@@ -17,17 +17,22 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  /** Consecutive Try Again attempts without a successful remount. */
+  retryCount: number;
 }
 
 const log = logger.create('ErrorBoundary');
 
+/** After this many failed remounts, stop remounting — avoids skeleton→error loops. */
+const MAX_RETRIES = 2;
+
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, retryCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
@@ -36,7 +41,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   handleRestart = () => {
-    this.setState({ hasError: false, error: null });
+    const { retryCount } = this.state;
+    if (retryCount >= MAX_RETRIES) {
+      log.warn('Try Again suppressed after repeated failures — staying on error screen');
+      return;
+    }
+    // Remount children in place. Do NOT router.replace('/') here: for render
+    // crashes that remounts the same tree (boot → tabs → crash) and turns a
+    // single failure into an indefinite skeleton → Try Again loop.
+    this.setState({ hasError: false, error: null, retryCount: retryCount + 1 });
   };
 
   render() {
@@ -45,28 +58,34 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
+      const exhausted = this.state.retryCount >= MAX_RETRIES;
+
       return (
         <View style={styles.container}>
           <View style={styles.content}>
             <Text style={styles.brand}>VITRINE</Text>
             <Text style={styles.title}>Something Went Wrong</Text>
             <Text style={styles.subtitle}>
-              The app encountered an unexpected error. Please try again.
+              {exhausted
+                ? 'The app hit a repeated error. Fully close Vitrine and reopen it. If this keeps happening, contact support.'
+                : 'The app encountered an unexpected error. Please try again.'}
             </Text>
             {__DEV__ && this.state.error && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{this.state.error.message}</Text>
               </View>
             )}
-            <TouchableOpacity
-              style={styles.button}
-              onPress={this.handleRestart}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Try again"
-            >
-              <Text style={styles.buttonText}>Try Again</Text>
-            </TouchableOpacity>
+            {!exhausted && (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={this.handleRestart}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+              >
+                <Text style={styles.buttonText}>Try Again</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       );

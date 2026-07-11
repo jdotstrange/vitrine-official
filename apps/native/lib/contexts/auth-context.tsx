@@ -117,22 +117,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(safetyTimeout);
     });
 
-    // Listen for auth state changes
+    // Sync callback only — awaiting Supabase/PostgREST inside onAuthStateChange
+    // deadlocks the auth exclusive lock (cold-start hang → ErrorBoundary).
+    // Defer profile work off the lock with setTimeout(0).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         log.info('Auth state changed:', event);
-        
+
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setSession(newSession);
           if (newSession) {
-            await loadUserProfile(newSession);
+            // ponytail: setTimeout(0) escapes the auth lock; do not await here
+            setTimeout(() => {
+              void loadUserProfile(newSession);
+            }, 0);
           }
         } else if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
           setProfileStatus(null);
         }
-      }
+      },
     );
 
     return () => {

@@ -32,9 +32,11 @@ const INVERTED_NFST = {
 
 export function StatusPill({ status, inverted = false }: Props) {
   const { resolvedMode } = useTheme();
-  const chrome = STATUS_CONFIG[status];
+  // Unknown / missing status must not blank the profile (Hermes: chrome.fill on undefined).
+  const chrome = STATUS_CONFIG[status] ?? STATUS_CONFIG.NFST;
+  const resolvedStatus = STATUS_CONFIG[status] ? status : 'NFST';
 
-  const useInverted = inverted && status === 'NFST' && resolvedMode === 'light';
+  const useInverted = inverted && resolvedStatus === 'NFST' && resolvedMode === 'light';
 
   return (
     <View
