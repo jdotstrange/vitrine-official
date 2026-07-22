@@ -65,7 +65,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Vitrine" }],
   creator: "Vitrine",
   publisher: "Vitrine",
-  metadataBase: new URL("https://vitrine.app"),
+  metadataBase: new URL("https://myvitrine.app"),
   openGraph: {
     type: "website",
     locale: "en_US",

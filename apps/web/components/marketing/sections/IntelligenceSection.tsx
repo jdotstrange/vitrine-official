@@ -14,6 +14,11 @@ import {
 } from "@/lib/marketing/hooks"
 import { Reveal } from "@/lib/marketing/Reveal"
 import { INTEL_CYCLE_MS, INTEL_STAGES } from "@/lib/marketing/constants"
+import {
+  MOCK_INTEL_SHOWCASE,
+  type LiveIntelShowcase,
+} from "@/lib/marketing/intel-showcase"
+
 function useIntelPhase(): number {
   const reduced = usePrefersReducedMotion()
   useTicker(80)
@@ -21,7 +26,23 @@ function useIntelPhase(): number {
   return (Date.now() % INTEL_CYCLE_MS) / INTEL_CYCLE_MS
 }
 
-export function IntelligenceSection() {
+function useActiveShowcaseIndex(count: number): number {
+  const reduced = usePrefersReducedMotion()
+  useTicker(80)
+  if (count <= 1) return 0
+  if (reduced) return 0
+  return Math.floor(Date.now() / INTEL_CYCLE_MS) % count
+}
+
+interface IntelligenceSectionProps {
+  showcases?: LiveIntelShowcase[]
+}
+
+export function IntelligenceSection({ showcases }: IntelligenceSectionProps) {
+  const pool =
+    showcases && showcases.length > 0 ? showcases : [MOCK_INTEL_SHOWCASE]
+  const activeIndex = useActiveShowcaseIndex(pool.length)
+  const showcase = pool[activeIndex]!
   return (
     <section
       id="intelligence"
@@ -146,66 +167,10 @@ export function IntelligenceSection() {
               alignItems: "stretch",
             }}
           >
-            <TheaterInputPanel />
-            <ExtractionArtifact />
+            <TheaterInputPanel key={showcase.id} showcase={showcase} />
+            <ExtractionArtifact key={showcase.id} showcase={showcase} />
           </div>
         </Reveal>
-
-        <div
-          data-marketing-intel-stat
-          style={{
-            marginTop: 28,
-            padding: "16px 22px",
-            borderTop: `1px solid ${T.frostDiv}`,
-            borderBottom: `1px solid ${T.frostDiv}`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 14,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: T.fontCaslon,
-              fontStyle: "italic",
-              fontSize: 15,
-              color: T.fg2,
-            }}
-          >
-            The hardest thing about cataloging your collection just became the easiest.
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: T.fontMono,
-                fontSize: 10.5,
-                color: T.fg3,
-                letterSpacing: 0.5,
-              }}
-            >
-              AVG EXTRACTION · 30.0s · AVG CONFIDENCE · 94%
-            </span>
-            <a
-              href="/intelligence"
-              style={{
-                fontFamily: T.fontMono,
-                fontSize: 10.5,
-                color: T.volt,
-                letterSpacing: 0.5,
-                textDecoration: "none",
-              }}
-            >
-              Learn more →
-            </a>
-          </div>
-        </div>
 
         <Reveal delay={100} y={16}>
           <div style={{ marginTop: 96, maxWidth: 760 }}>
@@ -341,7 +306,7 @@ export function IntelligenceSection() {
   )
 }
 
-function TheaterInputPanel() {
+function TheaterInputPanel({ showcase }: { showcase: LiveIntelShowcase }) {
   const p = useIntelPhase()
   const stages = [
     { at: INTEL_STAGES.PHOTOS, label: "Photos loaded" },
@@ -458,6 +423,7 @@ function TheaterInputPanel() {
           {[0, 1, 2, 3].map((i) => {
             const appearAt = INTEL_STAGES.PHOTOS + i * 0.03
             const visible = p >= appearAt
+            const photo = showcase.photos[i]
             return (
               <div
                 key={i}
@@ -471,76 +437,38 @@ function TheaterInputPanel() {
                   transform: visible ? "scale(1)" : "scale(0.96)",
                   transition:
                     "opacity 260ms cubic-bezier(.2,.8,.2,1), transform 260ms cubic-bezier(.2,.8,.2,1)",
-                  background:
-                    "radial-gradient(ellipse at 40% 35%, #d4a574 0%, #7a5535 45%, #2a1a10 100%)",
+                  background: photo
+                    ? `center / cover no-repeat url(${photo})`
+                    : "radial-gradient(ellipse at 40% 35%, #d4a574 0%, #7a5535 45%, #2a1a10 100%)",
                 }}
               >
-                <svg
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                  }}
-                >
-                  <defs>
-                    <radialGradient id={`ballGrad-${i}`} cx="0.38" cy="0.32">
-                      <stop offset="0" stopColor="#f8ecd4" />
-                      <stop offset="1" stopColor="#c8a775" />
-                    </radialGradient>
-                  </defs>
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="32"
-                    fill={`url(#ballGrad-${i})`}
-                    stroke="rgba(255,255,255,0.08)"
-                    strokeWidth="0.5"
-                  />
-                  <path
-                    d="M 30 42 Q 50 30, 70 42"
-                    fill="none"
-                    stroke="#a84a2a"
-                    strokeWidth="0.6"
-                  />
-                  <path
-                    d="M 30 58 Q 50 70, 70 58"
-                    fill="none"
-                    stroke="#a84a2a"
-                    strokeWidth="0.6"
-                  />
-                  {[36, 40, 44, 48, 52, 56, 60, 64].map((x) => (
-                    <line
-                      key={`t${x}`}
-                      x1={x - 1}
-                      y1="42"
-                      x2={x + 1}
-                      y2="40"
-                      stroke="#a84a2a"
-                      strokeWidth="0.3"
+                {!photo && (
+                  <svg
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  >
+                    <defs>
+                      <radialGradient id={`ballGrad-${i}`} cx="0.38" cy="0.32">
+                        <stop offset="0" stopColor="#f8ecd4" />
+                        <stop offset="1" stopColor="#c8a775" />
+                      </radialGradient>
+                    </defs>
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="32"
+                      fill={`url(#ballGrad-${i})`}
+                      stroke="rgba(255,255,255,0.08)"
+                      strokeWidth="0.5"
                     />
-                  ))}
-                  {[36, 40, 44, 48, 52, 56, 60, 64].map((x) => (
-                    <line
-                      key={`b${x}`}
-                      x1={x - 1}
-                      y1="58"
-                      x2={x + 1}
-                      y2="60"
-                      stroke="#a84a2a"
-                      strokeWidth="0.3"
-                    />
-                  ))}
-                  <path
-                    d="M 38 54 Q 43 48, 48 53 T 58 52 Q 62 50, 65 55"
-                    fill="none"
-                    stroke="rgba(30,45,80,0.7)"
-                    strokeWidth="0.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                  </svg>
+                )}
                 <div
                   style={{
                     position: "absolute",
@@ -594,20 +522,21 @@ function TheaterInputPanel() {
   )
 }
 
-function ExtractionArtifact() {
+function ExtractionArtifact({ showcase }: { showcase: LiveIntelShowcase }) {
   const p = useIntelPhase()
-  const fields: [string, string, number][] = [
-    ["Subject", "Luis Robert", INTEL_STAGES.FIELDS + 0.0],
-    ["Signer", "Luis Robert Jr.", INTEL_STAGES.FIELDS + 0.015],
-    ["Signature count", "1", INTEL_STAGES.FIELDS + 0.03],
-    ["Ink color", "Blue ballpoint", INTEL_STAGES.FIELDS + 0.045],
-    ["Placement", "Sweet spot", INTEL_STAGES.FIELDS + 0.06],
-    ["Inscription", '"24"', INTEL_STAGES.FIELDS + 0.075],
-    ["Auth company", "PSA/DNA", INTEL_STAGES.FIELDS + 0.09],
-    ["Cert #", "AZ58051", INTEL_STAGES.FIELDS + 0.105],
-    ["Ball type", "Official Carolina League", INTEL_STAGES.FIELDS + 0.12],
-    ["Physical COA", "Yes · visible", INTEL_STAGES.FIELDS + 0.135],
-  ]
+  const fieldCount = showcase.fields.length
+  const fieldSpan = fieldCount > 1 ? (INTEL_STAGES.TITLE - INTEL_STAGES.FIELDS) / fieldCount : 0.015
+  const fields = showcase.fields.map((field, i) => ({
+    ...field,
+    at: INTEL_STAGES.FIELDS + i * fieldSpan,
+  }))
+  const traitSpan =
+    showcase.traits.length > 1
+      ? (INTEL_STAGES.FIELDS - INTEL_STAGES.TRAITS) / showcase.traits.length
+      : 0.04
+  const classificationParts = showcase.classification.split(" › ")
+  const classificationHead = classificationParts.slice(0, -1)
+  const classificationTail = classificationParts[classificationParts.length - 1]
 
   return (
     <div
@@ -666,9 +595,13 @@ function ExtractionArtifact() {
               "opacity 360ms cubic-bezier(.2,.8,.2,1), transform 360ms cubic-bezier(.2,.8,.2,1)",
           }}
         >
-          Signed Memorabilia <span style={{ color: T.fg3 }}>›</span> Baseball{" "}
-          <span style={{ color: T.fg3 }}>›</span>{" "}
-          <span style={{ color: T.volt }}>OBL · Auto</span>
+          {classificationHead.map((part, i) => (
+            <React.Fragment key={`${part}-${i}`}>
+              {part}
+              <span style={{ color: T.fg3 }}> › </span>
+            </React.Fragment>
+          ))}
+          <span style={{ color: T.volt }}>{classificationTail}</span>
         </div>
       </div>
 
@@ -688,15 +621,11 @@ function ExtractionArtifact() {
             flexWrap: "wrap",
           }}
         >
-          {[
-            { label: "AUTOGRAPHED", at: INTEL_STAGES.TRAITS + 0.0, variant: "signed" as const },
-            { label: "AUTHENTICATED", at: INTEL_STAGES.TRAITS + 0.04, variant: "graded" as const },
-            { label: "ROOKIE-ERA", at: INTEL_STAGES.TRAITS + 0.08, variant: "rookie" as const },
-          ].map((t) => {
-            const on = p >= t.at
+          {showcase.traits.map((t, i) => {
+            const on = p >= INTEL_STAGES.TRAITS + i * traitSpan
             return (
               <span
-                key={t.label}
+                key={`${t.label}-${i}`}
                 style={{
                   opacity: on ? 1 : 0.12,
                   transform: on ? "scale(1)" : "scale(0.92)",
@@ -719,21 +648,23 @@ function ExtractionArtifact() {
             marginBottom: 6,
           }}
         >
-          <Kicker style={{ fontSize: 9 }}>AUTOGRAPH OVERLAY · 10 FIELDS</Kicker>
+          <Kicker style={{ fontSize: 9 }}>
+            EXTRACTED FIELDS · {fieldCount} FIELDS
+          </Kicker>
           <Kicker style={{ fontSize: 9, color: T.fg3 }}>
             {Math.min(
-              10,
-              Math.max(0, Math.floor((p - INTEL_STAGES.FIELDS) / 0.015) + 1)
+              fieldCount,
+              Math.max(0, Math.floor((p - INTEL_STAGES.FIELDS) / fieldSpan) + 1)
             )}
-            /10
+            /{fieldCount}
           </Kicker>
         </div>
         <div>
-          {fields.map(([k, v, at], i) => {
-            const on = p >= at
+          {fields.map((field, i) => {
+            const on = p >= field.at
             return (
               <div
-                key={k}
+                key={`${field.label}-${i}`}
                 data-marketing-intel-field-row
                 style={{
                   padding: "8px 0",
@@ -748,7 +679,7 @@ function ExtractionArtifact() {
                     "opacity 240ms cubic-bezier(.2,.8,.2,1), transform 240ms cubic-bezier(.2,.8,.2,1)",
                 }}
               >
-                <Kicker style={{ fontSize: 9 }}>{k}</Kicker>
+                <Kicker style={{ fontSize: 9 }}>{field.label}</Kicker>
                 <div
                   style={{
                     fontFamily: T.fontMono,
@@ -757,7 +688,7 @@ function ExtractionArtifact() {
                     letterSpacing: 0.2,
                   }}
                 >
-                  {on ? v : "— awaiting —"}
+                  {on ? field.value : "— awaiting —"}
                 </div>
               </div>
             )
@@ -798,9 +729,7 @@ function ExtractionArtifact() {
             transition: "color 300ms, opacity 300ms",
           }}
         >
-          {p >= INTEL_STAGES.TITLE
-            ? "Luis Robert Signed Official Carolina League Baseball (PSA/DNA)"
-            : "— awaiting —"}
+          {p >= INTEL_STAGES.TITLE ? showcase.listingTitle : "— awaiting —"}
         </div>
       </div>
 
@@ -821,7 +750,7 @@ function ExtractionArtifact() {
             transition: "opacity 400ms",
           }}
         >
-          <Pill variant="for_sale">CONFIDENCE · HIGH</Pill>
+          <Pill variant="for_sale">CONFIDENCE · {showcase.confidence}</Pill>
           <span
             style={{
               fontFamily: T.fontMono,
@@ -830,7 +759,7 @@ function ExtractionArtifact() {
               letterSpacing: 0.4,
             }}
           >
-            10 / 10 fields
+            {fieldCount} / {fieldCount} fields
           </span>
         </span>
         <span

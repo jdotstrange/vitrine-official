@@ -21,6 +21,13 @@ export const KICKER_CYCLE = [
   "sneaker",
 ] as const
 
+/** Homepage scroll targets — shared by SiteNav and MobileNav. */
+export const SITE_NAV_LINKS = [
+  { href: "/#features", label: "Product" },
+  { href: "/#intelligence", label: "Looking Glass" },
+  { href: "/#explore", label: "Explore" },
+] as const
+
 // ───────── Hero categories marquee ─────────
 
 export const HERO_CATEGORIES = [
@@ -372,56 +379,6 @@ export const AUCTION_HOUSE_LOGOS = [
   "STACK\u2019S BOWERS",
   "LELAND\u2019S",
 ] as const
-
-// ───────── Footer columns ─────────
-
-export interface FooterItem {
-  label: string
-  /** Optional internal/external href. When omitted, the item renders as
-   * non-interactive copy (used for items that don't have a destination yet). */
-  href?: string
-}
-
-export interface FooterColumn {
-  title: string
-  items: FooterItem[]
-}
-
-export const FOOTER_COLUMNS: FooterColumn[] = [
-  {
-    title: "Product",
-    items: [
-      { label: "Product overview", href: "/product" },
-      { label: "Looking Glass", href: "/intelligence" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "Get the app", href: "/#download" },
-    ],
-  },
-  {
-    title: "Company",
-    items: [
-      { label: "About" },
-      { label: "Press" },
-      { label: "Careers" },
-      { label: "Contact" },
-    ],
-  },
-  {
-    title: "Resources",
-    items: [
-      { label: "Help" },
-      { label: "Status" },
-      { label: "Changelog" },
-    ],
-  },
-  {
-    title: "Legal",
-    items: [
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms", href: "/terms" },
-    ],
-  },
-]
 
 // ───────── Press quotes / testimonials ─────────
 

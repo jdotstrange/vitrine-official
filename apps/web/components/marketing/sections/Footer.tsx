@@ -1,9 +1,11 @@
-import * as React from "react"
 import Link from "next/link"
 import { T } from "@/lib/marketing/tokens"
-import { Kicker } from "@/components/marketing/primitives"
 import { VitrineLogo } from "@/components/marketing/VitrineLogo"
-import { FOOTER_COLUMNS, type FooterItem } from "@/lib/marketing/constants"
+
+const POLICY_LINKS = [
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms of Service" },
+] as const
 
 export function Footer() {
   return (
@@ -41,25 +43,30 @@ export function Footer() {
             Everything serious collectors deserve. Every piece tells a story.
           </p>
         </div>
-        <div
-          data-marketing-grid="footer-cols"
+        <nav
+          data-marketing-grid="footer-policy"
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, auto)",
-            gap: 60,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
             fontSize: 12.5,
-            color: T.fg2,
           }}
         >
-          {FOOTER_COLUMNS.map((col) => (
-            <div key={col.title}>
-              <Kicker style={{ marginBottom: 16 }}>{col.title}</Kicker>
-              {col.items.map((item) => (
-                <FooterItemLink key={item.label} item={item} />
-              ))}
-            </div>
+          {POLICY_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="footer-link"
+              style={{
+                color: T.fg2,
+                textDecoration: "none",
+                transition: "color 160ms ease",
+              }}
+            >
+              {link.label}
+            </Link>
           ))}
-        </div>
+        </nav>
       </div>
       <div
         data-marketing-footer-bottom
@@ -83,40 +90,5 @@ export function Footer() {
         <span>BUILT FOR COLLECTORS</span>
       </div>
     </footer>
-  )
-}
-
-function FooterItemLink({ item }: { item: FooterItem }) {
-  const baseStyle: React.CSSProperties = {
-    display: "block",
-    marginBottom: 10,
-    color: T.fg2,
-    textDecoration: "none",
-    transition: "color 160ms ease",
-  }
-
-  if (item.href) {
-    return (
-      <Link
-        href={item.href}
-        style={{ ...baseStyle, cursor: "pointer" }}
-        className="footer-link"
-      >
-        {item.label}
-      </Link>
-    )
-  }
-
-  return (
-    <span
-      style={{
-        ...baseStyle,
-        color: T.fg3,
-        cursor: "default",
-      }}
-      title="Coming soon"
-    >
-      {item.label}
-    </span>
   )
 }

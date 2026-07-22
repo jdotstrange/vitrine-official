@@ -4,17 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { T } from "@/lib/marketing/tokens"
-
-interface MobileNavLink {
-  href: string
-  label: string
-}
-
-const NAV_LINKS: MobileNavLink[] = [
-  { href: "/intelligence", label: "Looking Glass" },
-  { href: "/product", label: "Product" },
-  { href: "/pricing", label: "Pricing" },
-]
+import { SITE_NAV_LINKS } from "@/lib/marketing/constants"
 
 /**
  * MobileNav — hamburger toggle + slide-down panel that mirrors the
@@ -102,7 +92,7 @@ export function MobileNav() {
             animation: "feedFadeIn 240ms ease-out",
           }}
         >
-          {NAV_LINKS.map((link) => (
+          {SITE_NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -123,23 +113,6 @@ export function MobileNav() {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/login"
-            onClick={() => setOpen(false)}
-            style={{
-              display: "block",
-              padding: "18px 8px",
-              fontFamily: T.fontGrotesk,
-              fontSize: 13,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-              color: T.fg2,
-              textDecoration: "none",
-              marginTop: 8,
-            }}
-          >
-            Sign in
-          </Link>
           <Link
             href="/#download"
             onClick={() => setOpen(false)}

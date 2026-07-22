@@ -1,5 +1,6 @@
 import * as React from "react"
 import { T } from "@/lib/marketing/tokens"
+import type { LiveIntelShowcase } from "@/lib/marketing/intel-showcase"
 import {
   type LiveExploreItem,
   ExploreSection,
@@ -24,9 +25,10 @@ import {
  */
 interface MarketingSiteProps {
   exploreItems?: LiveExploreItem[]
+  intelShowcases?: LiveIntelShowcase[]
 }
 
-export function MarketingSite({ exploreItems }: MarketingSiteProps) {
+export function MarketingSite({ exploreItems, intelShowcases }: MarketingSiteProps) {
   return (
     <div
       style={{
@@ -42,7 +44,7 @@ export function MarketingSite({ exploreItems }: MarketingSiteProps) {
       <ProblemSection />
       <ThesisSection />
       <RapidFireFeatures />
-      <IntelligenceSection />
+      <IntelligenceSection showcases={intelShowcases} />
       <ExploreSection items={exploreItems} />
       <FinalCTA />
       <Footer />

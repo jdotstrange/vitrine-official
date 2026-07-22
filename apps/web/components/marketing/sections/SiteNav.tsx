@@ -1,27 +1,14 @@
 "use client"
 
-import * as React from "react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
 import { T } from "@/lib/marketing/tokens"
+import { SITE_NAV_LINKS } from "@/lib/marketing/constants"
 import { VitrineLogo } from "@/components/marketing/VitrineLogo"
 import { MobileNav } from "@/components/marketing/sections/MobileNav"
 
-interface NavLink {
-  href: string
-  label: string
-}
-
-const NAV_LINKS: NavLink[] = [
-  { href: "/intelligence", label: "Looking Glass" },
-  { href: "/product", label: "Product" },
-  { href: "/pricing", label: "Pricing" },
-]
-
 export function SiteNav() {
   const [scrolled, setScrolled] = useState(false)
-  const pathname = usePathname()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -64,36 +51,21 @@ export function SiteNav() {
         data-marketing-nav-links
         style={{ display: "flex", gap: 32, fontSize: 13, alignItems: "center" }}
       >
-        {NAV_LINKS.map((link) => {
-          const active =
-            link.href === "/"
-              ? pathname === "/"
-              : pathname === link.href || pathname.startsWith(link.href + "/")
-          return (
-            <Link
-              key={link.href}
-              className="nav-link"
-              data-active={active}
-              href={link.href}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-            >
-              {link.label}
-            </Link>
-          )
-        })}
+        {SITE_NAV_LINKS.map((link) => (
+          <Link
+            key={link.href}
+            className="nav-link"
+            href={link.href}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            {link.label}
+          </Link>
+        ))}
       </nav>
       <div
         data-marketing-nav-actions
         style={{ display: "flex", gap: 12, alignItems: "center" }}
       >
-        <Link
-          className="nav-link"
-          href="/login"
-          style={{ fontSize: 13 }}
-          data-marketing-nav-signin
-        >
-          Sign in
-        </Link>
         <Link
           href="/#download"
           data-marketing-nav-cta
