@@ -8,11 +8,8 @@ import {
   Window,
   ChannelHeader,
   MessageList,
-  MessageInput,
+  MessageComposer,
   Thread,
-  Message,
-  useChannelStateContext,
-  useMessageContext,
 } from "stream-chat-react"
 import type { Channel as StreamChannel, Attachment } from "stream-chat"
 import { useStreamChat } from "@/lib/contexts/stream-context"
@@ -72,7 +69,7 @@ export default function MessageThreadPage({
           <Window>
             <ChannelHeader />
             <MessageList />
-            <MessageInput />
+            <MessageComposer />
           </Window>
           <Thread />
         </Channel>
