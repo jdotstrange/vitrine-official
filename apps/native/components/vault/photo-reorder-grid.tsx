@@ -147,6 +147,18 @@ export function PhotoReorderGrid({
 
   const canAddMore = onAddMore !== undefined && photos.length < maxPhotos;
 
+  // SortableGridItem snapshots its slot position on first render, and the
+  // reaction that would correct it bails on the undefined -> value transition.
+  // So a photo appended to an already-mounted grid initializes at {x:0, y:0}
+  // and stays stacked on the cover tile — the photo is in state but invisible.
+  // Remounting the grid whenever the photo SET changes gives every item a
+  // populated position map to read from. Sorted ids keep a reorder (same set,
+  // new order) from remounting mid-spring, which the library handles itself.
+  const gridKey = useMemo(
+    () => photos.map((p) => p.id).sort().join('|'),
+    [photos],
+  );
+
   // Compute total content height so the outer wrapper sizes itself
   // correctly, leaving room for the sentinel "+" in the next slot.
   const totalSlots = photos.length + (canAddMore ? 1 : 0);
@@ -272,6 +284,7 @@ export function PhotoReorderGrid({
     >
       {containerWidth > 0 && photos.length > 0 ? (
         <SortableGrid
+          key={gridKey}
           data={photos}
           renderItem={renderItem}
           itemKeyExtractor={keyExtractor}
