@@ -3,6 +3,16 @@
 Last updated: 2026-07-29
 Last verified: 2026-07-29
 
+## 2026-07-29 (third pass) — Photo add/remove silently dropped: nested setState inside setPhotos updaters
+
+- Founder retest after the gridKey OTA: adds after the first still don't appear, AND **remove doesn't work either** (reorder does). That killed the grid-only theory — remove is pure state with no drag-library involvement. The discriminator: reorder is the only photo mutation that calls `setPhotos(next)` directly; `appendPhotos` and `removePhoto` both dispatched `requestPhotoUpdate(next)` → `setPhotos(next)` from **inside a `setPhotos((current) => …)` updater** that then returned `current` unchanged.
+- Mechanism: React (19.x under RN 0.81) eagerly evaluates a functional updater synchronously inside the dispatch when the fiber has no pending work. The nested `setPhotos(next)` enqueues the real update during that evaluation; the outer dispatch then sees the updater returned the identical state, marks it an eager no-op, and enqueues it after the real update with the OLD state cached — the queue applies `next`, then the old state back on top. Net zero. When the fiber has pending work (first interaction after mount), the eager path is skipped and the update survives — hence "first add works, everything after silently no-ops, reorder always works."
+- Fix: `appendPhotos` and `removePhoto` now compute from the `photos` closure and dispatch once via `requestPhotoUpdate` — no updater, no nesting. Closure freshness is safe: both run from picker/tap handlers and nothing else can mutate photos while the OS picker is up.
+- The 2026-07-29 gridKey remount fix in `PhotoReorderGrid` remains necessary — it was the second-layer rendering bug, unexercised because state never changed underneath it.
+- Same landmine spotted (NOT fixed, out of scope): `tracking-hub.tsx:170` nests `setItems` inside a `setTrackingIds` updater. Logged in OPEN_THREADS.
+- Files changed: `apps/native/components/upload-entry.tsx`, `docs/ai-context/{IMPLEMENTATION_LOG,DO_NOT_BREAK,OPEN_THREADS}.md`.
+- Validation: `read_lints` clean; `tsc --noEmit` shows only the 4 pre-existing `upload-entry.tsx` errors. Not yet device-verified — founder retest pending (cold restart ×2 required for OTA pickup).
+
 ## 2026-07-29 (later) — Photos added one at a time were invisible (PhotoReorderGrid remount)
 
 - Symptom (founder device test, post-OTA): add a single photo, and no further photo can be added from either the camera or library path. Only workaround was deleting the lone photo and re-adding everything as one multi-select batch.

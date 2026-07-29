@@ -746,23 +746,27 @@ export function UploadEntry({
     setPhotoSourceSheetOpen(true);
   }, [emptySlotCount]);
 
+  // NEVER dispatch state from inside a setPhotos updater. React evaluates
+  // updaters eagerly inside the dispatch when the fiber is idle; a nested
+  // setPhotos enqueued during that evaluation gets overwritten by the outer
+  // updater's "no change" result, so the append/remove silently vanishes.
+  // That was the "photos stop attaching after the first add" bug (2026-07-29):
+  // first add worked (mount work pending -> no eager path), every later
+  // add/remove was dropped, reorder (direct dispatch) always worked.
+  // `photos` from the closure is current here: these run from picker/tap
+  // handlers, and nothing else can mutate photos while the OS picker is up.
   const appendPhotos = useCallback(
     (uris: string[]) => {
-      if (uris.length === 0) return;
+      const slots = 6 - photos.length;
+      if (uris.length === 0 || slots <= 0) return;
+      const fresh: PhotoAsset[] = uris.slice(0, slots).map((uri, i) => ({
+        id: `photo-${Date.now()}-${i}`,
+        uri,
+      }));
       Haptics.selectionAsync();
-      setPhotos((current) => {
-        const slots = 6 - current.length;
-        if (slots <= 0) return current;
-        const fresh: PhotoAsset[] = uris.slice(0, slots).map((uri, i) => ({
-          id: `photo-${Date.now()}-${i}`,
-          uri,
-        }));
-        const next = [...current, ...fresh];
-        requestPhotoUpdate(next);
-        return current;
-      });
+      requestPhotoUpdate([...photos, ...fresh]);
     },
-    [requestPhotoUpdate],
+    [photos, requestPhotoUpdate],
   );
 
   // Gate every picked asset on being a plain local file. The picker normally
@@ -877,14 +881,11 @@ export function UploadEntry({
 
   const removePhoto = useCallback(
     (id: string) => {
+      // See appendPhotos: single direct dispatch, no nested updater.
       Haptics.selectionAsync();
-      setPhotos((current) => {
-        const next = current.filter((p) => p.id !== id);
-        requestPhotoUpdate(next);
-        return current;
-      });
+      requestPhotoUpdate(photos.filter((p) => p.id !== id));
     },
-    [requestPhotoUpdate],
+    [photos, requestPhotoUpdate],
   );
 
   // Drag-to-reorder commit. PhotoReorderGrid drives the data array; we
