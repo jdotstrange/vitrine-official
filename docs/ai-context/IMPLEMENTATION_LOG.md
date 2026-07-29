@@ -3,6 +3,11 @@
 Last updated: 2026-07-29
 Last verified: 2026-07-29
 
+## 2026-07-29 (fourth pass) — OTA verification stamp in Settings footer
+
+- Founder request: a visible marker to confirm a production OTA actually applied on-device. Added a second footer line under "Vitrine v3.0.0" on `app/settings/index.tsx`: `Last updated: <publish time> · <short update id>`, sourced from `expo-updates` runtime constants (`Updates.createdAt`, `Updates.updateId`, `Updates.isEmbeddedLaunch`). Shows "embedded build" when running the binary's bundled JS (no OTA applied, or dev client). No manual maintenance — the stamp always reflects the update the launch is actually running, and the short ID cross-checks against the EAS dashboard.
+- OTA-safe: `expo-updates` is already a native dep in the binary; this is JS-only consumption of its constants.
+
 ## 2026-07-29 (third pass) — Photo add/remove silently dropped: nested setState inside setPhotos updaters
 
 - Founder retest after the gridKey OTA: adds after the first still don't appear, AND **remove doesn't work either** (reorder does). That killed the grid-only theory — remove is pure state with no drag-library involvement. The discriminator: reorder is the only photo mutation that calls `setPhotos(next)` directly; `appendPhotos` and `removePhoto` both dispatched `requestPhotoUpdate(next)` → `setPhotos(next)` from **inside a `setPhotos((current) => …)` updater** that then returned `current` unchanged.

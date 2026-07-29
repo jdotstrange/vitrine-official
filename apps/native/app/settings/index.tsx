@@ -5,8 +5,26 @@ import { useTheme, TYPE, SPACING, RADII } from '@/lib/design';
 import type { ThemeMode } from '@/lib/design';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+
+/**
+ * OTA verification stamp: publish time + short ID of the update this launch
+ * is actually running. Set once by expo-updates at startup — if a production
+ * OTA applied, this shows its publish time; "embedded build" means the app
+ * is on the JS bundled into the binary (no OTA yet on this runtimeVersion).
+ */
+const OTA_STAMP =
+  Updates.isEmbeddedLaunch || !Updates.createdAt
+    ? 'embedded build'
+    : `${Updates.createdAt.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      })}, ${Updates.createdAt.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      })}${Updates.updateId ? ` · ${Updates.updateId.slice(0, 8)}` : ''}`;
 
 type SettingsSection = {
   title: string | null;
@@ -139,6 +157,9 @@ export default function SettingsPage() {
 
         {/* Version footer */}
         <Text style={[s.version, { color: colors.textTertiary }]}>Vitrine v{APP_VERSION}</Text>
+        <Text style={[s.otaStamp, { color: colors.textTertiary }]}>
+          Last updated: {OTA_STAMP}
+        </Text>
       </ScrollView>
     </View>
   );
@@ -221,5 +242,12 @@ const s = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     marginTop: SPACING.zoneCluster,
+  },
+  otaStamp: {
+    fontFamily: TYPE.monoMedium,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+    opacity: 0.7,
   },
 });
