@@ -7,11 +7,24 @@ import { logger } from './logger';
 const log = logger.create('ImageUtils');
 
 /**
+ * True only for plain on-disk files. `expo-file-system`'s `File` rejects
+ * anything else (remote URLs, photo-library asset references, Live Photo
+ * bundles) inside its native `validatePath`, which surfaces as an opaque
+ * "wrong type" exception with no mention of the offending URI.
+ */
+export function isLocalFileUri(uri: string): boolean {
+  return typeof uri === 'string' && uri.startsWith('file://');
+}
+
+/**
  * Read a file URI as an ArrayBuffer using expo-file-system.
  * This is the React-Native-safe replacement for `fetch(uri).blob()`,
  * which returns zero-byte blobs on RN and silently uploads empty files.
  */
 async function readUriAsArrayBuffer(uri: string): Promise<ArrayBuffer> {
+  if (!isLocalFileUri(uri)) {
+    throw new Error(`Cannot read image bytes from unsupported URI: ${uri}`);
+  }
   const file = new File(uri);
   return await file.arrayBuffer();
 }
@@ -31,6 +44,10 @@ export const IMAGE_SIZES = {
  * Compress and resize an image before uploading to storage.
  * Ensures the longest dimension is at most maxDimension px,
  * and the output is JPEG at the configured quality.
+ *
+ * This is also the flattening step for assets that aren't plain JPEGs —
+ * iOS Live Photos and HEIC captures included. The manipulator always writes
+ * a new file to cache, so a successful call guarantees a readable local file.
  */
 export async function compressImage(uri: string): Promise<string> {
   try {
@@ -50,6 +67,13 @@ export async function compressImage(uri: string): Promise<string> {
 
     return result.uri;
   } catch (err) {
+    // Falling back to the original is only safe when it is itself a readable
+    // file. For anything else, failing here names the real problem instead of
+    // deferring to an opaque native crash at read time (REACT-NATIVE-12).
+    if (!isLocalFileUri(uri)) {
+      log.error('Image conversion failed for unsupported source:', uri, err);
+      throw new Error(`Unsupported image source: ${uri}`);
+    }
     log.warn('Image compression failed, using original:', err);
     return uri;
   }

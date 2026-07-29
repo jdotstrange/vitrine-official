@@ -1,7 +1,29 @@
 # Implementation Log
 
-Last updated: 2026-06-22
-Last verified: 2026-06-22
+Last updated: 2026-07-29
+Last verified: 2026-07-29
+
+## 2026-07-29 — Upload photo pipeline: REACT-NATIVE-12 (`validatePath`) root cause + fix
+
+- Summary: Sentry `REACT-NATIVE-12` (262 events / 8 users, `FunctionCallException: validatePath` at `image-utils.ts:15`) traced to **edit mode**, not Live Photos. `expo-file-system`'s `File` throws when `!url.isFileURL || url.hasDirectoryPath` (`FileSystemFile.swift:48`). Edit mode seeds `photos` with Supabase `https://` storage URLs via `photosFromUrls`, and the speculative-upload effect had **no `isRemotePhotoUri` guard** — so it ran `new File("https://…")`. Its `.catch` deleted the cache entry, which let the effect re-fire every render (permanent retry loop, hence the event volume from few users). Fixes: (1) remote guard + `speculativeAttemptedRef` set so the effect kicks each photo at most once while `resolveSpeculativeUrls` (user-triggered Analyze) can still retry; (2) `isLocalFileUri` guard in `readUriAsArrayBuffer` so a bad URI throws a **named error containing the URI** instead of an opaque native exception; (3) `compressImage` no longer passes an unreadable source through on manipulator failure — original-URI fallback is allowed only when the original is itself a `file://` path; (4) picked assets gated on being local files (rejects logged with uri/type/mimeType, user sees an alert); (5) picker throws are no longer swallowed — both camera and library now alert instead of leaving the grid silently unchanged.
+- Live Photos investigated per founder report: **already normalized by the picker.** `MediaHandler.swift` sends a Live Photo down the plain-image path when only `mediaTypes: ['images']` is requested — iOS hands over the still frame, expo writes a JPEG to cache at our `quality: 0.85`. Every branch returns a `file://` cache URL. Deliberately **did not** opt into `livePhotos`: that returns the original uncompressed frame (quality ignored by design, so it can re-pair with the video) plus a paired video file, pushing full-res downsizing onto us on the memory-starved devices where this fails (crash event device: iPhone SE 3rd gen, 38 MB free). Rationale is comment-documented at the call site so it doesn't get "fixed" later.
+- The founder-reported Live Photo symptom is most likely the swallowed picker failure (decode throw under memory pressure → nothing appeared, no feedback), now surfaced by fix (5).
+- Files changed: `apps/native/lib/image-utils.ts`, `apps/native/components/upload-entry.tsx`, `docs/ai-context/{IMPLEMENTATION_LOG,DO_NOT_BREAK,OPEN_THREADS,HANDOFF}.md`.
+- Validation: `read_lints` clean on both touched files; `tsc --noEmit` shows only the 4 pre-existing `upload-entry.tsx` errors (`SPACING.xl` ×3, `dimmed` style union) — unchanged by this wave. **No device test** — edit-flow photo path and the two new alerts are unvalidated on hardware.
+- Notes: JS-only, `runtimeVersion` stays `"2"` (OTA-eligible). Remaining gap: `edit-info-modal.tsx`, `trading-card-details-form.tsx`, and the messaging pickers still pass raw picker URIs without the local-file gate (they now fail with a named error rather than crashing). Edge case left standing: if `manipulateAsync` fails on a local HEIC, `compressImage` uploads the HEIC bytes unconverted.
+
+## 2026-06-24 — Web lander: anchor nav, slim footer, dynamic Looking Glass theater
+
+- Summary: Continued single-page lander (`/`) polish for launch. **(1) Scroll-anchor nav** — `SITE_NAV_LINKS` in `constants.ts` shared by `SiteNav` + `MobileNav`: Product → `/#features`, Looking Glass → `/#intelligence`, Explore → `/#explore`; dropped Pricing + pathname active state; CTA stays `/#download`. **(2) Removed Sign in** from desktop + mobile nav ( `/login` route untouched ). **(3) Footer slimmed** — removed four-column `FOOTER_COLUMNS`; logo + tagline + Privacy Policy (`/privacy`) + Terms of Service (`/terms`) only. **(4) Dynamic Looking Glass theater** — new `intel-showcase.ts` maps `collectibles` extraction fields (`ai_metadata`, `trait_metadata`, `field_schema`, traits, photos); `page.tsx` fetches top-scored public completed extractions from `@fmazza821` (shuffle 8 per load); `IntelligenceSection` rotates showcase every 4.8s with real photos + generic field rows; Luis Robert mock fallback if empty; stat bar removed. VAR/AAR/Pulse tiles left static v1.
+- Files changed (uncommitted on `main` at handoff):
+  - `apps/web/lib/marketing/constants.ts` — `SITE_NAV_LINKS`; deleted `FOOTER_COLUMNS`.
+  - `apps/web/lib/marketing/intel-showcase.ts` (new) — mapper, scorer, `MOCK_INTEL_SHOWCASE`.
+  - `apps/web/components/marketing/sections/{SiteNav,MobileNav,Footer,IntelligenceSection}.tsx`.
+  - `apps/web/components/marketing/MarketingSite.tsx` — `intelShowcases` prop.
+  - `apps/web/app/page.tsx` — `getFrankIntelShowcases()` parallel with explore fetch.
+- Git: not committed this session (working tree only). Recent native commits on `main`: `fc56018` (other-profile crash), `1f07381` (cold-start boot), `1be15d7` (App Review login).
+- Validation: `read_lints` clean on touched web files. Full `tsc` not run on web-only delta; repo has pre-existing errors elsewhere. No browser/device test, no deploy.
+- Notes: Intel pool quality depends on Frank vault extraction richness; weak rows filtered by score ≥ 6. `/intelligence`, `/product`, `/pricing` deep pages still exist — route gating / hero screenshot refresh / TestFlight CTA copy not in this wave.
 
 ## 2026-06-22 — Boot screen, unified auth V3, skeleton system reset, dark onboarding, OTP email templates (OTA + git) + battery audit
 

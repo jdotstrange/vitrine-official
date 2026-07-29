@@ -1,7 +1,7 @@
 # Open Threads
 
-Last updated: 2026-06-22
-Last verified: 2026-06-22
+Last updated: 2026-07-29
+Last verified: 2026-07-29
 
 ## Performance / Battery Threads
 
@@ -14,6 +14,9 @@ Last verified: 2026-06-22
 - **Recommended quick wins:** (a) drop dock `BlurView` on dark (keep rgba overlay); (b) `AppState` listener → disconnect/throttle Stream Chat + Feeds on background, reconnect on active; (c) debounce/delta `loadNotifications`; (d) delete `live-ticker.tsx`.
 - **Structural:** tab `lazy`/`unmountOnBlur`, cap `LensPager` `visitedIndices` to ±1, pause upload-theater intervals + loops when `AppState !== 'active'`, gate `HolographicFrame` sheen on focus/visibility.
 - **Validate before/after:** compare 15-min foreground battery for (1) Profile-only, (2) all-tabs-toured, (3) Messages idle, (4) Upload theater, (5) backgrounded — via Settings → Battery or Xcode Energy Log. If backgrounded still drains, that implicates the sockets.
+
+### Photo pickers outside the V3 upload flow still ungated (2026-07-29)
+**Status: Known gap, deliberately out of scope of the REACT-NATIVE-12 fix.** `upload-entry.tsx` now gates picked assets on `isLocalFileUri` before they enter state. `components/edit-info-modal.tsx`, `components/trading-card-details-form.tsx`, and the messaging pickers (`app/messages/[id]/index.tsx`, `components/messaging/attachment-picker.tsx`) still pass raw picker URIs downstream. They no longer crash opaquely — `compressImage` / `readUriAsArrayBuffer` throw a named error containing the URI — but they have no user-facing message and no gate. Also unresolved: if `manipulateAsync` fails on a local HEIC, `compressImage` uploads HEIC bytes unconverted, which downstream extraction and web display may not accept. Watch Sentry for `Unsupported image source:` / `Cannot read image bytes from unsupported URI:` to see whether any of these fire in the wild before investing.
 
 ## Product / Design Threads
 

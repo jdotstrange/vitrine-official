@@ -101,7 +101,7 @@ import {
   subscribeToCollectibleRow,
   type ExtractionStatus,
 } from '@/lib/api/extraction';
-import { uploadImage } from '@/lib/image-utils';
+import { isLocalFileUri, uploadImage } from '@/lib/image-utils';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -414,6 +414,12 @@ export function UploadEntry({
     new Map(),
   );
 
+  // Photos whose speculative upload has already been kicked off once. The
+  // failure handler below clears the cache entry so an explicit Analyze can
+  // retry, which would otherwise let the mount effect re-fire the same doomed
+  // upload on every render.
+  const speculativeAttemptedRef = useRef<Set<string>>(new Set());
+
   const ensureSpeculativeUpload = useCallback(
     (photo: PhotoAsset, userId: string) => {
       const map = speculativeUploadsRef.current;
@@ -594,11 +600,21 @@ export function UploadEntry({
 
     const activeIds = new Set(photos.map((p) => p.id));
     for (const photo of photos) {
+      // Edit mode seeds `photos` with the collectible's existing storage URLs,
+      // which are already uploaded and cannot be read as local files.
+      if (isRemotePhotoUri(photo.uri)) continue;
+      if (speculativeAttemptedRef.current.has(photo.id)) continue;
+      speculativeAttemptedRef.current.add(photo.id);
       ensureSpeculativeUpload(photo, user.id);
     }
     for (const id of speculativeUploadsRef.current.keys()) {
       if (!activeIds.has(id)) {
         speculativeUploadsRef.current.delete(id);
+      }
+    }
+    for (const id of speculativeAttemptedRef.current) {
+      if (!activeIds.has(id)) {
+        speculativeAttemptedRef.current.delete(id);
       }
     }
   }, [photos, user?.id, step, ensureSpeculativeUpload]);
@@ -749,6 +765,39 @@ export function UploadEntry({
     [requestPhotoUpdate],
   );
 
+  // Gate every picked asset on being a plain local file. The picker normally
+  // writes a flattened still to cache — Live Photos included — but anything
+  // that arrives as a non-file reference cannot be read at upload time and
+  // used to fail the whole upload with an opaque error (REACT-NATIVE-12).
+  const appendPickedAssets = useCallback(
+    (assets: ImagePicker.ImagePickerAsset[]) => {
+      const stills = assets.filter((asset) => asset.type !== 'pairedVideo');
+      if (stills.length === 0) return;
+
+      const usable: string[] = [];
+      for (const asset of stills) {
+        if (isLocalFileUri(asset.uri)) {
+          usable.push(asset.uri);
+          continue;
+        }
+        uploadLog.error('Rejected unreadable picked asset:', {
+          uri: asset.uri,
+          type: asset.type,
+          mimeType: asset.mimeType,
+        });
+      }
+
+      if (usable.length < stills.length) {
+        Alert.alert(
+          'Some photos could not be added',
+          "We couldn't read one of those photos. Try selecting it again, or use a different shot.",
+        );
+      }
+      if (usable.length > 0) appendPhotos(usable);
+    },
+    [appendPhotos],
+  );
+
   const pickFromCamera = useCallback(async () => {
     if (emptySlotCount <= 0) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -770,11 +819,15 @@ export function UploadEntry({
         quality: 0.85,
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
-      appendPhotos(result.assets.map((a) => a.uri));
+      appendPickedAssets(result.assets);
     } catch (err) {
       uploadLog.error('Camera capture failed:', err);
+      Alert.alert(
+        'Photo not captured',
+        "That shot couldn't be imported. Try taking it again.",
+      );
     }
-  }, [emptySlotCount, appendPhotos]);
+  }, [emptySlotCount, appendPickedAssets]);
 
   // Library picker — goes through Apple's native PHPickerViewController via
   // expo-image-picker. Multi-select with `orderedSelection` shows the iOS
@@ -797,6 +850,11 @@ export function UploadEntry({
     }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
+        // Deliberately NOT requesting `livePhotos`: asking only for `images`
+        // is what makes iOS hand back the flattened still. Opting in returns
+        // the original uncompressed frame plus a paired video, so `quality`
+        // is ignored and we'd have to downsize the full-resolution frame
+        // ourselves on devices that are already memory-starved.
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
         selectionLimit: emptySlotCount,
@@ -805,11 +863,17 @@ export function UploadEntry({
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
       uploadLog.info('Library picker returned', { count: result.assets.length });
-      appendPhotos(result.assets.map((a) => a.uri));
+      appendPickedAssets(result.assets);
     } catch (err) {
+      // Previously silent: the picker throwing left the user staring at an
+      // unchanged grid with no idea the import had failed.
       uploadLog.error('Library picker failed:', err);
+      Alert.alert(
+        'Photos not added',
+        "Those photos couldn't be imported. Try selecting them again, or pick different shots.",
+      );
     }
-  }, [emptySlotCount, appendPhotos]);
+  }, [emptySlotCount, appendPickedAssets]);
 
   const removePhoto = useCallback(
     (id: string) => {
@@ -1159,6 +1223,7 @@ export function UploadEntry({
     setVisibility('public');
     setEstimatedValue('');
     speculativeUploadsRef.current.clear();
+    speculativeAttemptedRef.current.clear();
   }, []);
 
   // Explicit discard: delete the draft row, then reset. Used by the rejected
