@@ -1,0 +1,50 @@
+---
+description: Phase 1 shipping discipline — PRs to main, preview OTA before production
+alwaysApply: true
+---
+
+# Shipping Discipline (Phase 1)
+
+Real users are on the production TestFlight / store path. Treat `main` and the production OTA channel as gated — not a dump chute.
+
+## Git
+
+- Do **not** push commits straight to `main` as the default habit.
+- Work on a short-lived branch (`fix/…`, `feat/…`, `chore/…`).
+- Open a PR → merge to `main` when ready.
+- Merging to `main` means **ready for preview soak**, not “users have it.”
+- Never force-push `main`. Never `--no-verify` unless the founder explicitly asks.
+
+## OTA promotion (hard rule)
+
+From `apps/native/`:
+
+1. **Preview first (required):**
+   ```bash
+   eas update --channel preview --message "<type>: <short description>"
+   ```
+2. Founder cold-restarts the **preview** binary twice, verifies Settings → “Last updated” stamp + the fix.
+3. **Production only after soak:**
+   ```bash
+   eas update --channel production --message "<type>: <short description>"
+   ```
+
+Do **not** ship production OTA in the same turn as the first preview publish unless the founder explicitly says “promote now” / “skip soak.”
+
+Rollback: `eas update:roll-back-to-embedded --channel preview` (or `production`).
+
+## Backend honesty
+
+Preview and production currently share the **same** Supabase + Stream. Preview is a **code** soak, not a data sandbox. Schema/migration changes still hit real data — call that out before applying.
+
+## Cloud agents / automations (future)
+
+Default agent ship target is **PR + preview OTA**. Production OTA stays a human gate. Agents must not push directly to `main` or publish production OTAs without explicit founder approval in that turn.
+
+## Checklist before production OTA
+
+- [ ] Change is on `main` (merged PR)
+- [ ] Preview OTA published for that commit
+- [ ] Preview binary shows the new Settings stamp / expected behavior
+- [ ] No known crash on cold open / upload path for this change
+- [ ] Production OTA message matches the preview message intent

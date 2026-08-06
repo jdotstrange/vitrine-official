@@ -3,6 +3,12 @@
 Last updated: 2026-07-29
 Last verified: 2026-07-29
 
+## 2026-08-06 — Phase 1 shipping discipline (process, not code)
+
+- Adopted trunk-based + gated promote: short-lived PRs into `main`, OTA **preview first**, production only after founder soak. Preview/production still share the same Supabase + Stream (code soak, not data sandbox).
+- Added always-on Cursor rule `.cursor/rules/shipping-discipline.mdc`; tightened `ota-update-discipline.mdc` with the hard preview-first rule.
+- GitHub branch protection on `main` is the remaining founder step (requires `gh auth login` — CLI was installed this session but not authenticated). Target: require a pull request before merging to `main`.
+
 ## 2026-07-29 (fourth pass) — OTA verification stamp in Settings footer
 
 - Founder request: a visible marker to confirm a production OTA actually applied on-device. Added a second footer line under "Vitrine v3.0.0" on `app/settings/index.tsx`: `Last updated: <publish time> · <short update id>`, sourced from `expo-updates` runtime constants (`Updates.createdAt`, `Updates.updateId`, `Updates.isEmbeddedLaunch`). Shows "embedded build" when running the binary's bundled JS (no OTA applied, or dev client). No manual maintenance — the stamp always reflects the update the launch is actually running, and the short ID cross-checks against the EAS dashboard.

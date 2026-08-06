@@ -18,15 +18,19 @@ Native binaries (preview/production IPA) ship occasionally. JavaScript ships con
 
 ## Shipping an OTA update
 
+**Hard rule (Phase 1):** preview channel first. Production only after founder soak on the preview binary. See `shipping-discipline.mdc`.
+
 Run from `apps/native/`:
 
 ```bash
 eas update --channel preview --message "fix: <short description>"
-# After preview validation, promote:
+# After preview validation (Settings stamp + repro), promote:
 eas update --channel production --message "fix: <short description>"
 ```
 
-Users do nothing. `expo-updates` downloads in background on next launch, applies on next cold start. Rollback: `eas update:roll-back-to-embedded --channel preview`.
+Do not publish production in the same turn as the first preview ship unless the founder explicitly says to promote / skip soak.
+
+Users do nothing. `expo-updates` downloads in background on next launch, applies on next cold start. Rollback: `eas update:roll-back-to-embedded --channel preview` (or `production`).
 
 ## When you DO rebuild
 
