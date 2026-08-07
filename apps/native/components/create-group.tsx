@@ -194,7 +194,7 @@ export function CreateGroup() {
         memberCount={invitedMembers.length + 1}
         insets={insets}
         onOpenGroup={() => router.push('/community/demo-group')}
-        onBackToCommunity={() => router.push('/community')}
+        onBackToCommunity={() => router.push('/messages')}
       />
     );
   }

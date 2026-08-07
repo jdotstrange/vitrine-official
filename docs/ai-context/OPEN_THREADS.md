@@ -1,7 +1,11 @@
 # Open Threads
 
-Last updated: 2026-07-29
-Last verified: 2026-07-29
+Last updated: 2026-08-06
+Last verified: 2026-08-06
+
+## Code hygiene purge (`fix/code-db-purge`, 2026-08-06)
+
+**Status: Landed on branch.** Card Hedge UI/API/DB removed; community discovery hub cut (group threads kept); Wave 0A orphans deleted. Record: `docs/ai-context/CODE_HYGIENE.md`. DB migration `20260806200000_drop_card_hedge_schema.sql` applied — `card_catalog` / `trading_card_details` dropped; 263 `collectible_type = 'trading_card'` rows unchanged. **Deferred:** native fonts, `expo-media-library`, `migrate-images`, `generate-variants` edges. **Founder action:** remote edge deletes need Supabase CLI (`trading-cards`, `card-hedge-proxy`, `price-sync`, `test-push`, `stream-test-notify`, `test-seed-notifications`) — CLI not on this machine.
 
 ## Performance / Battery Threads
 
@@ -10,16 +14,18 @@ Last verified: 2026-07-29
 - **Tier 1 (always-on when logged in):** (1) Stream Chat WebSocket connects app-wide via `StreamProvider` at root and `BottomDock` subscribes to 4 client events on every tab — no `AppState` pause when backgrounded. (2) Stream Feeds notification feed `getOrCreate({ watch: true })` is a second realtime connection; each event triggers a **full `loadNotifications()`** refetch, not a delta. (3) `BottomDock` `BlurView` (intensity 28) renders on every main tab over scrolling content — redundant with the existing rgba overlay on dark.
 - **Tier 2 (session accumulation):** Expo Router tabs don't unmount inactive screens (Profile/Market/Tracking/Messages/Upload all stay mounted + keep effects). `LensPager` with `lazy` never unmounts visited lenses (`shouldRenderPage` returns true for any visited index) — touring 5 profile lenses keeps 5 heavy subtrees alive. Several infinite Reanimated/`Animated.loop` loops while on-screen (`HolographicFrame` 7.2s sheen on featured items, `TelemetryCard` `LiveDot`, `typing-indicator`, skeleton pulse).
 - **Tier 2 spike:** Upload "Lattice Theater" runs **3** `withRepeat` loops + **two 2s `setInterval`** polls (`ENGINE_POLL_MS` / `ROW_POLL_MS`) while analyzing — no pause on background.
-- **Dead code:** `components/live-ticker.tsx` has a `setInterval(…, 50)` auto-scroll but is **not imported anywhere** — safe to delete to prevent future accidents.
-- **Recommended quick wins:** (a) drop dock `BlurView` on dark (keep rgba overlay); (b) `AppState` listener → disconnect/throttle Stream Chat + Feeds on background, reconnect on active; (c) debounce/delta `loadNotifications`; (d) delete `live-ticker.tsx`.
+- **Dead code:** `live-ticker.tsx` deleted in `fix/code-db-purge` (2026-08-06).
 - **Structural:** tab `lazy`/`unmountOnBlur`, cap `LensPager` `visitedIndices` to ±1, pause upload-theater intervals + loops when `AppState !== 'active'`, gate `HolographicFrame` sheen on focus/visibility.
 - **Validate before/after:** compare 15-min foreground battery for (1) Profile-only, (2) all-tabs-toured, (3) Messages idle, (4) Upload theater, (5) backgrounded — via Settings → Battery or Xcode Energy Log. If backgrounded still drains, that implicates the sockets.
+
+### Supabase app DB security audit — remediation waves (2026-08-06)
+**Status: Partially addressed (2026-08-06).** `create_trading_card` / `update_trading_card_pricing` RPCs and `trading_card_details` table dropped in Card Hedge purge. Remaining risks unchanged — see canvas.
 
 ### Nested setState-inside-updater still present in tracking-hub (2026-07-29)
 **Status: Known landmine, deliberately not fixed in the upload-flow OTA.** `components/tracking-hub.tsx:170` calls `setItems(...)` from inside a `setTrackingIds((prev) => …)` updater. This is the exact pattern that silently dropped photo add/remove in `upload-entry.tsx` (see DO_NOT_BREAK). It probably survives today because the outer updater returns a *changed* Set (no eager no-op), but it is fragile under double-invocation and future React changes. Fix by hoisting the `setItems` filter out of the updater next time tracking is touched.
 
 ### Photo pickers outside the V3 upload flow still ungated (2026-07-29)
-**Status: Known gap, deliberately out of scope of the REACT-NATIVE-12 fix.** `upload-entry.tsx` now gates picked assets on `isLocalFileUri` before they enter state. `components/edit-info-modal.tsx`, `components/trading-card-details-form.tsx`, and the messaging pickers (`app/messages/[id]/index.tsx`, `components/messaging/attachment-picker.tsx`) still pass raw picker URIs downstream. They no longer crash opaquely — `compressImage` / `readUriAsArrayBuffer` throw a named error containing the URI — but they have no user-facing message and no gate. Also unresolved: if `manipulateAsync` fails on a local HEIC, `compressImage` uploads HEIC bytes unconverted, which downstream extraction and web display may not accept. Watch Sentry for `Unsupported image source:` / `Cannot read image bytes from unsupported URI:` to see whether any of these fire in the wild before investing.
+**Status: Narrowed (2026-08-06).** `edit-info-modal.tsx` and `trading-card-details-form.tsx` deleted in hygiene purge. Remaining gap: messaging pickers (`app/messages/[id]/index.tsx`, `components/messaging/attachment-picker.tsx`) still pass raw picker URIs downstream.
 
 ## Product / Design Threads
 

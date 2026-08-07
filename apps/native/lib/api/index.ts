@@ -12,8 +12,7 @@
  *   - tracking            → CollectionItem from @/components
  *   - market              → CollectionItem from @/components
  *   - views               → expo-crypto, AsyncStorage device id
- *   - trading-cards       → still on the legacy Railway client
- *   - client              → ApiException helper, Railway-era only
+ *   - auth                  → ApiException (native auth helpers)
  *
  * Those are re-exported below from their existing native paths.
  */
@@ -42,8 +41,8 @@ export * from '@vitrine/api';
 // Native-only modules (still in apps/native/lib/api/)
 // ───────────────────────────────────────────────────────────────────────────
 
-// Base client and configuration (Railway-era helper, used by trading-cards)
-export { ApiException } from './client';
+// Auth API (depends on uploadImage for avatar uploads; exports ApiException)
+export { ApiException } from './auth';
 
 // Collectibles API (depends on uploadImage → expo-image-manipulator)
 export {
@@ -67,28 +66,6 @@ export {
   type CollectibleEditCommitPayload,
   type KeyDetailsRequest,
 } from './collectibles';
-
-// Trading Cards API (legacy Railway client)
-export {
-  searchCards,
-  getCardDetails,
-  getGradePrice,
-  getCardCategories,
-  createTradingCard,
-  getTradingCard,
-  updateTradingCardPricing,
-  listTradingCards,
-  deleteTradingCard,
-  calculateEffectivePrice,
-  formatPrice,
-  getPricingModeLabel,
-  type CardSearchResult,
-  type GradeInfo,
-  type CardDetails,
-  type PricingMode,
-  type CreateTradingCardRequest,
-  type TradingCard,
-} from './trading-cards';
 
 // Auth / User API (depends on uploadImage for avatar uploads)
 export {

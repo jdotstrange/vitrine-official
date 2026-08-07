@@ -28,13 +28,6 @@ export default function TabLayout() {
         name="messages"
         options={{ title: 'Messages' }}
       />
-      <Tabs.Screen
-        name="community"
-        options={{
-          title: 'Community',
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }
