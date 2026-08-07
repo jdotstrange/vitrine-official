@@ -210,90 +210,6 @@ export type Database = {
           },
         ]
       }
-      card_catalog: {
-        Row: {
-          api_price: number | null
-          api_price_available: boolean | null
-          api_price_updated_at: string | null
-          card_hedge_category: string | null
-          card_hedge_id: string
-          card_hedge_metadata: Json | null
-          card_name: string
-          card_number: string | null
-          category_code: string | null
-          category_group: string | null
-          created_at: string | null
-          gain_30day: number | null
-          gain_7day: number | null
-          grade: string
-          grading_company: string | null
-          id: string
-          image_url: string | null
-          is_rookie: boolean | null
-          player_name: string | null
-          sales_30day: number | null
-          sales_7day: number | null
-          set_name: string | null
-          updated_at: string | null
-          variant: string | null
-          year: number | null
-        }
-        Insert: {
-          api_price?: number | null
-          api_price_available?: boolean | null
-          api_price_updated_at?: string | null
-          card_hedge_category?: string | null
-          card_hedge_id: string
-          card_hedge_metadata?: Json | null
-          card_name: string
-          card_number?: string | null
-          category_code?: string | null
-          category_group?: string | null
-          created_at?: string | null
-          gain_30day?: number | null
-          gain_7day?: number | null
-          grade: string
-          grading_company?: string | null
-          id?: string
-          image_url?: string | null
-          is_rookie?: boolean | null
-          player_name?: string | null
-          sales_30day?: number | null
-          sales_7day?: number | null
-          set_name?: string | null
-          updated_at?: string | null
-          variant?: string | null
-          year?: number | null
-        }
-        Update: {
-          api_price?: number | null
-          api_price_available?: boolean | null
-          api_price_updated_at?: string | null
-          card_hedge_category?: string | null
-          card_hedge_id?: string
-          card_hedge_metadata?: Json | null
-          card_name?: string
-          card_number?: string | null
-          category_code?: string | null
-          category_group?: string | null
-          created_at?: string | null
-          gain_30day?: number | null
-          gain_7day?: number | null
-          grade?: string
-          grading_company?: string | null
-          id?: string
-          image_url?: string | null
-          is_rookie?: boolean | null
-          player_name?: string | null
-          sales_30day?: number | null
-          sales_7day?: number | null
-          set_name?: string | null
-          updated_at?: string | null
-          variant?: string | null
-          year?: number | null
-        }
-        Relationships: []
-      }
       category_categories: {
         Row: {
           code: string
@@ -1908,102 +1824,6 @@ export type Database = {
           },
         ]
       }
-      trading_card_details: {
-        Row: {
-          card_catalog_id: string
-          certificate_number: string | null
-          collectible_id: string
-          created_at: string | null
-          effective_price: number | null
-          id: string
-          manual_price: number | null
-          margin_percentage: number | null
-          pricing_mode: Database["public"]["Enums"]["pricing_mode"]
-          updated_at: string | null
-        }
-        Insert: {
-          card_catalog_id: string
-          certificate_number?: string | null
-          collectible_id: string
-          created_at?: string | null
-          effective_price?: number | null
-          id?: string
-          manual_price?: number | null
-          margin_percentage?: number | null
-          pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
-          updated_at?: string | null
-        }
-        Update: {
-          card_catalog_id?: string
-          certificate_number?: string | null
-          collectible_id?: string
-          created_at?: string | null
-          effective_price?: number | null
-          id?: string
-          manual_price?: number | null
-          margin_percentage?: number | null
-          pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trading_card_details_card_catalog_id_fkey"
-            columns: ["card_catalog_id"]
-            isOneToOne: false
-            referencedRelation: "card_catalog"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trading_card_details_collectible_id_fkey"
-            columns: ["collectible_id"]
-            isOneToOne: true
-            referencedRelation: "collectibles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trading_card_details_collectible_id_fkey"
-            columns: ["collectible_id"]
-            isOneToOne: true
-            referencedRelation: "collectibles_unified"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trading_card_price_history: {
-        Row: {
-          card_catalog_id: string
-          created_at: string | null
-          id: string
-          price: number
-          price_source: string | null
-          recorded_at: string
-        }
-        Insert: {
-          card_catalog_id: string
-          created_at?: string | null
-          id?: string
-          price: number
-          price_source?: string | null
-          recorded_at?: string
-        }
-        Update: {
-          card_catalog_id?: string
-          created_at?: string | null
-          id?: string
-          price?: number
-          price_source?: string | null
-          recorded_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trading_card_price_history_card_catalog_id_fkey"
-            columns: ["card_catalog_id"]
-            isOneToOne: false
-            referencedRelation: "card_catalog"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_category_interests: {
         Row: {
           category_code: string
@@ -2300,19 +2120,126 @@ export type Database = {
           variant: string | null
           visibility: string | null
         }
+        Insert: {
+          ai_metadata?: Json | null
+          api_price?: never
+          api_price_available?: never
+          api_price_updated_at?: never
+          autograph_assessment?: Json | null
+          available_for_sale?: boolean | null
+          available_for_trade?: boolean | null
+          card_catalog_id?: never
+          card_hedge_category?: never
+          card_hedge_id?: never
+          card_image_url?: never
+          card_name?: never
+          card_number?: never
+          card_year?: never
+          category_group?: never
+          certificate_number?: never
+          classification?: string | null
+          collectible_type?: string | null
+          confidence?: string | null
+          created_at?: string | null
+          description?: string | null
+          display_price?: number | null
+          extraction_status?: string | null
+          gain_30day?: never
+          gain_7day?: never
+          grade?: never
+          grading_company?: never
+          id?: string | null
+          is_rookie?: never
+          listing_description?: string | null
+          listing_title?: string | null
+          manual_price?: never
+          margin_percentage?: never
+          memorabilia_category?: never
+          memorabilia_subcategory?: never
+          photos?: string[] | null
+          player_name?: never
+          pricing_mode?: never
+          privacy?: string | null
+          published_at?: string | null
+          sales_30day?: never
+          sales_7day?: never
+          saves_count?: number | null
+          search_text?: never
+          set_name?: never
+          tags?: string[] | null
+          title?: string | null
+          trading_card_details_id?: never
+          trait_metadata?: Json | null
+          traits?: string[] | null
+          unified_category?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          variant?: never
+          visibility?: string | null
+        }
+        Update: {
+          ai_metadata?: Json | null
+          api_price?: never
+          api_price_available?: never
+          api_price_updated_at?: never
+          autograph_assessment?: Json | null
+          available_for_sale?: boolean | null
+          available_for_trade?: boolean | null
+          card_catalog_id?: never
+          card_hedge_category?: never
+          card_hedge_id?: never
+          card_image_url?: never
+          card_name?: never
+          card_number?: never
+          card_year?: never
+          category_group?: never
+          certificate_number?: never
+          classification?: string | null
+          collectible_type?: string | null
+          confidence?: string | null
+          created_at?: string | null
+          description?: string | null
+          display_price?: number | null
+          extraction_status?: string | null
+          gain_30day?: never
+          gain_7day?: never
+          grade?: never
+          grading_company?: never
+          id?: string | null
+          is_rookie?: never
+          listing_description?: string | null
+          listing_title?: string | null
+          manual_price?: never
+          margin_percentage?: never
+          memorabilia_category?: never
+          memorabilia_subcategory?: never
+          photos?: string[] | null
+          player_name?: never
+          pricing_mode?: never
+          privacy?: string | null
+          published_at?: string | null
+          sales_30day?: never
+          sales_7day?: never
+          saves_count?: number | null
+          search_text?: never
+          set_name?: never
+          tags?: string[] | null
+          title?: string | null
+          trading_card_details_id?: never
+          trait_metadata?: Json | null
+          traits?: string[] | null
+          unified_category?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          variant?: never
+          visibility?: string | null
+        }
         Relationships: [
           {
             foreignKeyName: "collectibles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trading_card_details_card_catalog_id_fkey"
-            columns: ["card_catalog_id"]
-            isOneToOne: false
-            referencedRelation: "card_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -2434,10 +2361,6 @@ export type Database = {
           allowed: boolean
           reason: string
         }[]
-      }
-      create_trading_card: {
-        Args: { p_input: Json; p_user_id: string }
-        Returns: Json
       }
       get_category_counts: {
         Args: never
@@ -2582,10 +2505,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      refresh_effective_prices_for_catalog: {
-        Args: { p_card_catalog_id: string }
-        Returns: number
-      }
       search_collectibles: {
         Args: {
           p_available_for_sale?: boolean
@@ -2682,16 +2601,6 @@ export type Database = {
       update_collectible_photos: {
         Args: { p_id: string; p_photos: string[] }
         Returns: undefined
-      }
-      update_trading_card_pricing: {
-        Args: {
-          p_collectible_id: string
-          p_manual_price: number
-          p_margin_percentage: number
-          p_pricing_mode: string
-          p_user_id: string
-        }
-        Returns: Json
       }
     }
     Enums: {

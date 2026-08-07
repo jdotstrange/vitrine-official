@@ -23,8 +23,5 @@ export type { CollectibleIconProps } from './collectible-icon';
 export { ShowcaseIcon } from './showcase-icon';
 export type { ShowcaseIconProps } from './showcase-icon';
 
-export { UploadCollectibleIcon } from './upload-collectible-icon';
-export type { UploadCollectibleIconProps } from './upload-collectible-icon';
-
 export { VitrineMarkIcon } from './vitrine-mark-icon';
 export type { VitrineMarkIconProps } from './vitrine-mark-icon';

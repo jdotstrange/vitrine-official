@@ -1,7 +1,6 @@
 /**
- * API Configuration shim — kept native because trading-cards.ts and the
- * legacy api/client.ts rely on the Railway-era `getAuthToken` / `buildUrl`
- * helpers. New code should not import from here.
+ * API Configuration shim — kept native because messaging.ts relies on
+ * getAuthToken / buildUrl helpers for Supabase Edge Functions.
  */
 
 import { getAccessToken } from '@/lib/supabase';

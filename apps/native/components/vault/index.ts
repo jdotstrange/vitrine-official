@@ -103,11 +103,10 @@ export { CollectibleListCard } from './collectible-list-card';
 // Branded icons -------------------------------------------------------
 // Drop-in replacements for select lucide-react-native glyphs. Same
 // `{ size, color, strokeWidth }` prop shape so call sites swap cleanly.
-export { CollectibleIcon, ShowcaseIcon, UploadCollectibleIcon, VitrineMarkIcon } from './icons';
+export { CollectibleIcon, ShowcaseIcon, VitrineMarkIcon } from './icons';
 export type {
   CollectibleIconProps,
   ShowcaseIconProps,
-  UploadCollectibleIconProps,
   VitrineMarkIconProps,
 } from './icons';
 

@@ -37,14 +37,6 @@ export {
   MemberListSkeleton,
 } from './messaging';
 
-export {
-  RecentDMsSkeleton,
-  ActivityHeartbeatSkeleton,
-  HappeningNowSkeleton,
-  ForYouSkeleton,
-  NewThisWeekSkeleton,
-} from './community';
-
 export { SearchRefetchOverlay } from './stale-overlay';
 export {
   MarketMosaicSkeleton,
