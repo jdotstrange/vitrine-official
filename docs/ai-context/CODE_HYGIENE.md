@@ -35,11 +35,11 @@ Ongoing cleanup discipline so we do not accumulate dead dual-architecture paths 
 
 **Kept:** `community/[id]/**`, `community/new`, `conversation-thread`, `group-feed`, `group-post-card`, `post-composer`, `post-reply-thread`, `group-info*`, `create-group`, `groups/**`, `mock-communities`, `skeletons/group-page`.
 
-**Nav fix:** `create-group` success → `/messages` instead of deleted `/community` hub.
+**Nav fix:** `create-group` success → open created group at `/community/{id}` (not stale `/community/demo-group`).
 
 ### Card Hedge removed
 
-- Upload wizard + detail UI + `pricing-mode-selector` + edge function `trading-cards` (local + remote)
+- Upload wizard + detail UI + `pricing-mode-selector` + edge function `trading-cards` (local source deleted; remote delete pending Supabase CLI — see `OPEN_THREADS.md`)
 - DB migration `20260806200000_drop_card_hedge_schema.sql`: `collectibles_unified` without Card Hedge joins; dropped `card_catalog`, `trading_card_details`, `trading_card_price_history`, and related RPCs
 - **`collectible_type === 'trading_card'` kept** as descriptive label (263 rows) in `category-identity`, `identity-strip`, `managed-rule-builder`, `CollectibleType`
 - **`formatPrice`** canonical in `components/collectibles/collection.ts`

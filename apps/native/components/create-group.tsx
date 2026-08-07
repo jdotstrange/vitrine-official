@@ -64,6 +64,7 @@ export function CreateGroup() {
   const [inviteSearch, setInviteSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null);
   const [modalStep, setModalStep] = useState<'types' | 'categories'>('types');
   const [modalSearchQuery, setModalSearchQuery] = useState('');
 
@@ -115,6 +116,7 @@ export function CreateGroup() {
         invited_user_ids: invitedMembers.length > 0 ? invitedMembers : undefined,
       });
       log.info('Group created successfully:', response.conversation.id);
+      setCreatedGroupId(response.conversation.id);
       setIsCreating(false);
       setShowSuccess(true);
     } catch (error: unknown) {
@@ -193,7 +195,7 @@ export function CreateGroup() {
         visibility={visibility}
         memberCount={invitedMembers.length + 1}
         insets={insets}
-        onOpenGroup={() => router.push('/community/demo-group')}
+        onOpenGroup={() => createdGroupId && router.push(`/community/${createdGroupId}`)}
         onBackToCommunity={() => router.push('/messages')}
       />
     );
