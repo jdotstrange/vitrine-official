@@ -72,3 +72,8 @@ junit.xml
 # Temporary files
 *.tmp
 .git-commit-msg.tmp
+.vercel
+
+# Local Supabase CLI token (never commit)
+.supabase-access-token
+
