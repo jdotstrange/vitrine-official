@@ -39,14 +39,14 @@ Ongoing cleanup discipline so we do not accumulate dead dual-architecture paths 
 
 ### Card Hedge removed
 
-- Upload wizard + detail UI + `pricing-mode-selector` + edge function `trading-cards` (local source deleted; remote delete pending Supabase CLI — see `OPEN_THREADS.md`)
+- Upload wizard + detail UI + `pricing-mode-selector` + edge function `trading-cards` (local source + **remote deleted** 2026-08-06)
 - DB migration `20260806200000_drop_card_hedge_schema.sql`: `collectibles_unified` without Card Hedge joins; dropped `card_catalog`, `trading_card_details`, `trading_card_price_history`, and related RPCs
 - **`collectible_type === 'trading_card'` kept** as descriptive label (263 rows) in `category-identity`, `identity-strip`, `managed-rule-builder`, `CollectibleType`
 - **`formatPrice`** canonical in `components/collectibles/collection.ts`
 
-### Test / vendor edges targeted for remote delete
+### Test / vendor edges — remote deleted 2026-08-06
 
-`card-hedge-proxy`, `price-sync`, `test-push`, `stream-test-notify`, `test-seed-notifications` (plus `trading-cards` above).
+`trading-cards`, `card-hedge-proxy`, `price-sync`, `test-push`, `stream-test-notify`, `test-seed-notifications` — confirmed absent via `list_edge_functions`. Optional: remove `CARD_HEDGE_API_KEY` from project secrets.
 
 ### Deferred (rebuild / out of scope)
 
