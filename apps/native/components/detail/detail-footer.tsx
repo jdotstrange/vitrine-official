@@ -5,12 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Share,
-  Clipboard,
 } from 'react-native';
 import { Share2, Flag, Copy } from 'lucide-react-native';
 import { colors } from '@/lib/colors';
 import { SHARE_URLS } from '@vitrine/constants';
 import { formatTimeAgo } from '@/lib/format-time';
+import { shareContent } from '@/lib/share-content';
+import { copyToClipboard } from '@/lib/clipboard';
 
 export interface DetailFooterProps {
   collectibleId?: string;
@@ -33,15 +34,14 @@ export function DetailFooter({
 
   const handleShare = async () => {
     const prefix = isOwner ? 'Check out my' : 'Check out this';
-    const message = `${prefix} "${title}" on the Vitrine App\n\n${shareUrl}`;
     try {
-      await Share.share({ message, url: shareUrl });
+      await Share.share(shareContent(`${prefix} "${title}" on the Vitrine App`, shareUrl));
     } catch {}
   };
 
   const handleCopyId = async () => {
     if (!collectibleId) return;
-    Clipboard.setString(collectibleId);
+    await copyToClipboard(collectibleId);
     onToast?.('Item ID copied');
   };
 

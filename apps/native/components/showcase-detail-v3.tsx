@@ -42,6 +42,7 @@ import { getTrackingIds, trackItem, untrackItem } from '@/lib/api/tracking';
 import { sendNotification } from '@/lib/api/notifications';
 import { recordView } from '@/lib/api/views';
 import { SHARE_URLS } from '@vitrine/constants';
+import { shareContent } from '@/lib/share-content';
 import { logger } from '@/lib/logger';
 import {
   useTheme,
@@ -290,10 +291,7 @@ export default function ShowcaseDetailV3({ showcaseId, currentUserId }: Showcase
     if (!showcase) return;
     Haptics.selectionAsync();
     try {
-      await Share.share({
-        message: `Check out "${showcase.title}" on Vitrine`,
-        url: buildShareUrl(showcase.id),
-      });
+      await Share.share(shareContent(`Check out "${showcase.title}" on Vitrine`, buildShareUrl(showcase.id)));
       // Notify the owner that someone shared their showcase. Owner-on-
       // owner shares are suppressed (no point in self-pinging).
       if (!isOwner && user?.id && showcase.owner.id && showcase.owner.id !== user.id) {

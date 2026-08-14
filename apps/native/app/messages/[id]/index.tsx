@@ -48,6 +48,7 @@ import {
 } from '@/components/messaging/quick-attach-bar';
 import { useTheme, COLORS, RADII, TYPE } from '@/lib/design';
 import { logger } from '@/lib/logger';
+import { materializeLocalImageUri } from '@/lib/image-utils';
 
 const log = logger.create('ConversationPage');
 
@@ -1221,13 +1222,18 @@ async function uploadAssetToCurrentChannel(
 ) {
   if (!channel) return;
   try {
-    const fileName = asset.fileName || asset.uri.split('/').pop() || 'image.jpg';
+    const localUri = await materializeLocalImageUri(asset.uri);
+    if (!localUri) {
+      Alert.alert('Send failed', 'Could not read that photo. Try another shot.');
+      return;
+    }
+    const fileName = asset.fileName || localUri.split('/').pop() || 'image.jpg';
     const contentType = asset.mimeType || 'image/jpeg';
     // Two-step send: upload to Stream's CDN, then post a message that
     // references the uploaded URL as an image attachment. We deliberately
     // bypass MessageInputContext here because the attach picker lives
     // outside the Channel provider tree (it's a top-level modal sibling).
-    const response = await channel.sendImage(asset.uri, fileName, contentType);
+    const response = await channel.sendImage(localUri, fileName, contentType);
     await channel.sendMessage({
       attachments: [
         {

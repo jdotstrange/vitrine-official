@@ -34,7 +34,7 @@ Users do nothing. `expo-updates` downloads in background on next launch, applies
 
 ## When you DO rebuild
 
-1. Bump `runtimeVersion` in `apps/native/app.json` (current: `"2"` → `"3"`, …).
+1. Bump `runtimeVersion` in `apps/native/app.json` (current: `"3"` → `"4"`, …).
 2. `eas build --profile preview --platform ios` (or `production`).
 3. Distribute via TestFlight / Play Internal / direct install.
 

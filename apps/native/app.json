@@ -3,7 +3,7 @@
     "name": "MyVitrine",
     "slug": "myvitrine",
     "version": "4.0.0",
-    "runtimeVersion": "2",
+    "runtimeVersion": "3",
     "updates": {
       "url": "https://u.expo.dev/e6910937-7d1c-4d59-9785-7b1d311a5378"
     },
@@ -77,7 +77,14 @@
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-image-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MyVitrine needs photo library access to upload images of your collectibles.",
+          "cameraPermission": "MyVitrine needs camera access to photograph your collectibles.",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-notifications",
         {

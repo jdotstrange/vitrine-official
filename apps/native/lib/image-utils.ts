@@ -17,6 +17,28 @@ export function isLocalFileUri(uri: string): boolean {
 }
 
 /**
+ * Return a readable on-disk `file://` URI. iOS pickers already give us one
+ * (no extra work). Android Photo Picker often hands back `content://`, which
+ * `expo-file-system` File rejects — copy through the manipulator into cache.
+ */
+export async function materializeLocalImageUri(uri: string): Promise<string | null> {
+  if (isLocalFileUri(uri)) return uri;
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [],
+      { compress: 1, format: ImageManipulator.SaveFormat.JPEG },
+    );
+    if (isLocalFileUri(result.uri)) return result.uri;
+    log.error('Materialize produced non-file URI:', result.uri);
+    return null;
+  } catch (err) {
+    log.error('Failed to materialize local image:', uri, err);
+    return null;
+  }
+}
+
+/**
  * Read a file URI as an ArrayBuffer using expo-file-system.
  * This is the React-Native-safe replacement for `fetch(uri).blob()`,
  * which returns zero-byte blobs on RN and silently uploads empty files.

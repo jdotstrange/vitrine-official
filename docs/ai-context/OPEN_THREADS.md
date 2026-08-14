@@ -1,7 +1,11 @@
 # Open Threads
 
-Last updated: 2026-08-06
-Last verified: 2026-08-06
+Last updated: 2026-08-14
+Last verified: 2026-08-14
+
+## Android first-install soak (2026-08-14)
+
+**Status: Adapters on `feat/android-first-compat`; APK not cut.** Product bugs that would fail without a device are patched (share URL, `content://` photos, hardware back on upload, clipboard, settings back). **Still soak-on-device, do not block APK:** FCM/`google-services.json` (push dead until wired), `assetlinks.json` placeholder fingerprint (https App Links not verified), BlurView+elevation tab dock, Stream composer keyboard vs `SOFT_INPUT_ADJUST_RESIZE`, avatar `allowsEditing` crop. **Do not OTA this branch onto runtime-`2` iOS** — `expo-clipboard` is native; runtime is `"3"`.
 
 ## Code hygiene purge (`fix/code-db-purge`, 2026-08-06)
 
@@ -97,6 +101,18 @@ If Assembly hits the 45s timeout (or the app is killed mid-Assembly), the collec
 
 ### Theater 1 extraction reliability (poll never completes — extraction axis)
 **Status: Addressed for production dispatch (2026-06-04).** `job-status` proxy + reconciler live; Theater polls engine `stage`. Extraction queue drained by Railway service `looking-glass-worker` (`jdotstrange/lookingglassAI`) — **do not** run local worker day-to-day. Local `vitrinedb/worker` remains an escape hatch if Railway is down (see `vitrinedb/worker/README.md`). Remaining polish if needed: Supabase Realtime on `collectibles.extraction_status`, Theater hard-timeout UX.
+
+### Looking Glass `extract-asset` edge deploy blocked (2026-08-08)
+**Status: Active — sync HTTP path only.** `SUPABASE_ACCESS_TOKEN` in `C:\Users\johnj\vitrinedb\.env.local` returns 401 (expired PAT). Production queue path (Railway worker, commit `942f4d2`) is deployed. **Founder action:** mint fresh PAT → `npx supabase functions deploy extract-asset --project-ref nhshzyktaarbknzpsvtr --no-verify-jwt`.
+
+### Bullion/coins classifier false-rejects — DECISION PENDING (2026-08-08)
+**Status: Awaiting John + Frank decision.** Plain stacker bars (A-Mark, Valcambi silver, CHI) deterministically rejected as `not_a_collectible` while branded/vintage/assay-carded bullion passes. Root cause: classifier prompt has zero bullion/coin/precious-metal guidance; model improvises "random object" for plain bars. Founder direction: rather than patching bullion into memorabilia/other, likely build a first-class coins/currency/precious-metals category with proper schema (weight, purity, mint/refiner, assay, NGC/PCGS grading). Until decision: stacker bars keep rejecting (deterministic, no mystery).
+
+### Google Vision pre-pass — parked (2026-08-08)
+**Status: Low priority, revisit after category work.** Founder idea — not an accuracy play (Aug 8 incident proved extraction reads fine text flawlessly); only potentially interesting later for web entity detection / product matching.
+
+### `AI_FORMAT_ERROR` user copy — "unreadable image" (minor, 2026-08-08)
+**Status: Open, low priority.** App-side mapping in `supabase/functions/_shared/engine-mapping.ts` + `upload-entry.tsx` copy maps `AI_FORMAT_ERROR` → "unreadable image," which misled the user into re-shooting good photos during the Aug 4–7 incident. Engine fix should drive format-error rate to ~0; mapping still misleading if it ever fires again. **Also monitor:** format-error rate 1–2 days post `942f4d2` deploy (expect ~0).
 
 ### Migrate legacy V1 memorabilia photo grid to `PhotoReorderGrid`
 The legacy V1 memorabilia upload flow (`components/upload/memorabilia-core-form.tsx` → `components/upload/photo-grid.tsx`) still consumes `react-native-draggable-flatlist@4.0.3` and is reachable via `/upload/memorabilia/[type]/[category]` from `memorabilia-type-selector.tsx`. The V3 upload flow (`components/upload-entry.tsx`) migrated to `<PhotoReorderGrid />` on 2026-05-26, but V1 was intentionally NOT touched in that PR to keep the diff focused. **DFL is therefore still in `package.json`.** Migrating V1 to consume `PhotoReorderGrid` is the cleanup that removes the last DFL dependency. Two complications: (1) V1 is a HORIZONTAL carousel, not the 3-column vertical grid V3 uses — needs either an `orientation` prop expansion on `PhotoReorderGrid` (passing `orientation: GridOrientation.Horizontal` + `rows` instead of `columns` into the underlying SortableGrid) OR a sibling `PhotoReorderCarousel` primitive; (2) V1 caps at 7 photos vs V3's 6 — the primitive's `maxPhotos` prop already accommodates. Open question: is the V1 memorabilia route still on the product roadmap, or is it slated for V3 unification eventually? If the latter, this thread becomes dead code cleanup; if the former, the primitive expansion is real work. Discuss with founder before sinking time. Once V1 is migrated, remove `react-native-draggable-flatlist` from `apps/native/package.json` and refresh DO_NOT_BREAK.
@@ -237,6 +253,7 @@ Any external push notification deep-links targeting `/(tabs)/profile?lens=X` nee
 - `getTrackedCollectionItems` performs acceptably for users tracking 200+ items (currently capped at 50 sources in the comps RPC).
 
 ## Resolved Threads (since last update)
+- ~~Looking Glass `AI_FORMAT_ERROR` spike (filter-trait omission, Aug 4–7)~~ → Resolved 2026-08-08 (lookingglassAI `942f4d2`, Railway worker ~9:57 PM ET). Repair pass before Zod + prompt placement rule + forensics in `attempt_history`. Live verified: Blake Mazza SAGE autograph re-upload ~16s (job `d176e240`). MyVitrine app unchanged.
 - ~~Separate login/signup pages + password-era auth UI~~ → Resolved 2026-06-22 (`a0bfd8d`, preview OTA `668da060`). Unified into one `components/auth-screen.tsx` (email→6-digit OTP, `shouldCreateUser: true`). `login-page.tsx`/`signup-page.tsx` deleted; `app/signup` redirects `/login`. Single-`TextInput` `oneTimeCode` for autofill. See DECISION_LOG + DO_NOT_BREAK.
 - ~~Launch splash → app flash (stack visible before content ready)~~ → Resolved 2026-06-22 (`a0bfd8d`). Void-continuous `vitrine-boot-screen.tsx` reuses native splash art + `#020202` + contain layout; splash hidden inside the boot component. See DECISION_LOG.
 - ~~Scattered/duplicate skeleton files with per-component animation~~ → Resolved 2026-06-22 (`a0bfd8d`). Consolidated into `components/skeleton/` barrel on a shared pulse provider; composed screen skeletons added; ~13 legacy files deleted. See DECISION_LOG + DO_NOT_BREAK.

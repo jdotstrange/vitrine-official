@@ -33,6 +33,7 @@ import {
 import { sendNotification } from '@/lib/api/notifications';
 import { recordView } from '@/lib/api/views';
 import { SHARE_URLS } from '@vitrine/constants';
+import { shareContent } from '@/lib/share-content';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import {
@@ -301,9 +302,10 @@ export function CollectibleDetailV3({ fallbackId }: CollectibleDetailV3Props = {
     if (!collectible?.id) return;
     const shareUrl = SHARE_URLS.collectible(collectible.id);
     const ownerPrefix = isOwner ? 'Check out my' : 'Check out this';
-    const message = `${ownerPrefix} "${title || 'collectible'}" on Vitrine\n\n${shareUrl}`;
     try {
-      await Share.share({ message, url: shareUrl });
+      await Share.share(
+        shareContent(`${ownerPrefix} "${title || 'collectible'}" on Vitrine`, shareUrl),
+      );
       // Fire share_initiated only when a non-owner shares — the owner
       // doesn't need an inbox row about their own share. This is V1's
       // proxy for "someone shared your X" since the platform share
