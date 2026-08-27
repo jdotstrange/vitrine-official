@@ -3,6 +3,14 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## 2026-08-27 — Security Wave 2: path-bind storage object policies (prod applied)
+
+- Summary: Client storage writes were bucket-only (anyone logged in could upload into any folder on `collectible-images` / `message-attachments`). `user-avatars` had no write policies, so `upsert: true` failed RLS (Sentry). Collectible DELETE compared folder[1] to `auth.uid()`, which never matches `public.users.id` (0/878 rows).
+- Change: `current_profile_id()` + `owns_collectible()` helpers. INSERT/UPDATE/DELETE on `collectible-images` and `user-avatars` require `{profileId}/…`. Extra DELETE policy for `migrated/{collectible_id}/…` when the caller owns the collectible. Message-attachment client writes path-bound; `media-upload` edge still uses service_role. Public SELECT added for avatars and category thumbnails. `brand-assets` unchanged (read-only).
+- Files: `supabase/migrations/20260827140913_lock_storage_object_policies.sql`
+- Git: branch `fix/security-storage-policies`. Applied live via MCP on `fxmiongkckkrllgyfwyw`. No app JS, no OTA.
+- Validation: 15 storage.objects policies present; anon cannot EXECUTE the helpers; authenticated can. **Founder preview smoke 2026-08-27:** photo upload + avatar upsert (previously un-updatable) both work.
+
 ## 2026-08-27 — Admin Slice 1 spec locked (no code)
 
 - Summary: Founder accepted vault census as Slice 1. Collectors = ≥1 published collectible; Accounts = all `public.users`; calendar `America/New_York`; range control Today/7d/30d/YTD/All with prior-period deltas. Screens: Overview (KPIs, activation, top collectors, health counts), People + user detail, Catalog + item detail, Browse-by on type/category/`filter_traits`. Auth shell included. Out of scope: DAU, LG retry queue, writes, `admin_users`.

@@ -67,6 +67,13 @@ Last verified: 2026-08-27
 **Out of scope for later slices (Slice 1 is specced in `ADMIN_SLICE_1.md`)**
 - Looking Glass retry/queue, DAU/WAU, brand CMS, moderation, impersonation, writes to collector data.
 
+## Decision: Storage writes bind to `public.users.id`, not `auth.uid()` (2026-08-27)
+
+- Reason: All 878 profile rows have `id <> supabase_auth_id`. Native and web upload to `{profile.id}/…`. The canvas suggested `(storage.foldername(name))[1] = auth.uid()::text`, which would reject every live client upload. The old collectible DELETE policy already made that mistake (silent no-op).
+- Alternatives Considered: (A) Bind to `auth.uid()` as the audit canvas wrote — rejected; (B) Rewrite all upload paths to auth uid + dual-policy for old objects — rejected (OTA + two folder conventions forever); (C) `current_profile_id()` helper + path-bound INSERT/UPDATE/DELETE, extra DELETE for `migrated/{collectible_id}` via `owns_collectible` — selected.
+- Status: Active. Applied to production as `20260827140913_lock_storage_object_policies`.
+- Files Or Areas Affected: `supabase/migrations/20260827140913_lock_storage_object_policies.sql`. `media-upload` / `migrate-images` / `generate-variants` still service_role.
+
 ## Decision: Wave 1 DEFINER RPCs are service_role- or caller-bound (2026-08-27)
 
 - Reason: Client-callable SECURITY DEFINER functions bypassed RLS. `update_collectible_photos` had no owner check; `unschedule_if_exists` could kill cron; `get_or_create_dm` trusted client-supplied user ids. Card Hedge RPCs were already dropped.
