@@ -36,15 +36,15 @@ Last verified: 2026-08-27
 
 ## Current State
 - Waves 1–3 are **live on prod**. `user_category_interests` dropped (`20260827150214`, PR #6).
-- Wave 1 is on `main` (PR #4, `21598f6`). Wave 2 PR #5. Wave 3 undo record on `fix/security-field-values-rls`.
+- Wave 1 is on `main` (PR #4). Wave 2 PR #5. Wave 3 PR #7. Wave 6 drop of leftover `collectible_field_values` is noted in `CODE_HYGIENE.md` (after Waves 4–5).
 - `main` includes Android-first compat (`156bb32`, runtime `"3"`). TestFlight iOS stays on runtime `"2"` until a new IPA.
 - Looking Glass engine still on Railway `942f4d2` from 2026-08-08.
 - Admin portal: architecture + Slice 1 spec locked (`ADMIN_SLICE_1.md`); not scaffolded.
 
 ## Incomplete Work
 - Founder smoke Wave 2: **passed on preview** (photo upload + avatar upsert).
-- Founder smoke Wave 3: catalog, edit, delete, visitor Specs (not done).
 - Wave 4 dictionaries + service-role-only tables.
+- Wave 6 (after 4–5): drop leftover `collectible_field_values` — see `CODE_HYGIENE.md`.
 - Later iOS IPA on runtime `3` if we want new JS on TestFlight.
 - FCM `google-services.json` + Stream `MyVitrineAndroid` for push.
 - Bullion/coins category decision (John + Frank).
@@ -62,4 +62,4 @@ Last verified: 2026-08-27
 - Do not `eas update --channel production` from runtime-`3` `main` onto runtime-`2` TestFlight.
 
 ## Next Best Task
-**Founder smoke Wave 3**, then merge the undo-record PR. Next: Wave 4 dictionaries. Admin Slice 1 remains a separate founder kick.
+**Wave 4** dictionaries + service-role-only tables. Wave 6 (`collectible_field_values` drop) waits until after Waves 4–5. Admin Slice 1 remains a separate founder kick.

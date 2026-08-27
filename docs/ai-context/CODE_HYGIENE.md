@@ -12,7 +12,7 @@ Ongoing cleanup discipline so we do not accumulate dead dual-architecture paths 
 2. **One upload architecture.** AI enrichment + unified `collectibles` row is canonical. No parallel type-specific upload wizards or join tables for presentation labels.
 3. **Dead UI without nav = delete.** If nothing routes to a screen and it is not a design-lab sandbox, it goes.
 4. **Edge functions without callers = delete or lock.** Test harnesses and vendor proxies (`card-hedge-proxy`, `test-push`) do not stay deployed on production projects.
-5. **Empty / unused legacy tables = drop, not RLS.** If a table has no product path, drop it in a migration instead of layering policies. (`user_category_interests` dropped 2026-08-27.) `collectible_field_values` still has 86k rows + delete/comps callers — Wave 3 RLS, not drop.
+5. **Empty / unused legacy tables = drop, not RLS.** If a table has no product path, drop it in a migration instead of layering policies. (`user_category_interests` dropped 2026-08-27.) `collectible_field_values` got Wave 3 RLS first; **drop it in Wave 6** after security Waves 4–5 (see below).
 6. **Document deferrals with rebuild notes.** Native modules (fonts, media-library) that need `runtimeVersion` bumps stay out of JS-only purge PRs — note them here and in `OPEN_THREADS.md`.
 
 ## This purge (branch `fix/code-db-purge`, 2026-08-06)
@@ -56,6 +56,17 @@ Ongoing cleanup discipline so we do not accumulate dead dual-architecture paths 
 | `migrate-images` edge function | Still has callers; founder defer |
 | `generate-variants` edge function | Still has callers; founder defer |
 | `messaging.ts`, Stream paths | Live product surface |
+| `collectible_field_values` drop | **Wave 6** — after security Waves 4–5. See below. |
+
+## Wave 6 (after security Waves 4–5) — drop `collectible_field_values`
+
+**Status: Noted 2026-08-27. Do not start until Waves 4–5 are done.** Founder-confirmed: this table is leftover, not what Specs/edit show.
+
+- Specs / edit read `collectibles.ai_metadata` / `trait_metadata` / `custom_fields`. Native helpers `getCollectibleFieldValues` / `updateCollectibleKeyDetails` / `getCollectibleDynamicDetails` have **zero screen callers**.
+- Looking Glass has not written here since **2026-03-10**. 1,183 collectibles created after that date have **0** rows. ~86k leftover rows on older items only.
+- Strip before `DROP TABLE`: item-delete cleanup in `apps/native/lib/api/collectibles.ts`; `_comps_v2_legacy` (and any other SQL) that still joins the table; generated type in `@vitrine/types`. vitrinedb `batch-migrate.ts` only *reads* it for a one-time backfill.
+- All published items already have `filter_traits` (v3 comps). A handful of unpublished drafts may still lack them — confirm before dropping the v2 fallback.
+- Same pattern as `user_category_interests`: migration + types + docs; shared prod DB; no OTA.
 
 ## Checklist for future PRs
 
