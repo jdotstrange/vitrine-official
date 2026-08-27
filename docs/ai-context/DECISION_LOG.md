@@ -67,6 +67,13 @@ Last verified: 2026-08-27
 **Out of scope for later slices (Slice 1 is specced in `ADMIN_SLICE_1.md`)**
 - Looking Glass retry/queue, DAU/WAU, brand CMS, moderation, impersonation, writes to collector data.
 
+## Decision: Drop unused `user_category_interests` instead of RLS (2026-08-27)
+
+- Reason: Zero app/RPC/edge callers. Six leftover quiz rows. Sibling onboarding tables already dropped in May. Future matching should derive from cataloged inventory, not a self-reported list.
+- Alternatives Considered: (A) Enable RLS with owner policies — rejected (harden-dead-code); (B) Keep the table empty for a future algo — rejected (wrong shape by then); (C) `DROP TABLE` — selected.
+- Status: Active. Applied as `20260827150214_drop_user_category_interests`.
+- Files Or Areas Affected: that migration; `packages/types/src/database.ts`. Wave 3 is now only `collectible_field_values`.
+
 ## Decision: Storage writes bind to `public.users.id`, not `auth.uid()` (2026-08-27)
 
 - Reason: All 878 profile rows have `id <> supabase_auth_id`. Native and web upload to `{profile.id}/…`. The canvas suggested `(storage.foldername(name))[1] = auth.uid()::text`, which would reject every live client upload. The old collectible DELETE policy already made that mistake (silent no-op).

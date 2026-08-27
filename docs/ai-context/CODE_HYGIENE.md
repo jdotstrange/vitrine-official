@@ -1,6 +1,6 @@
 # Code Hygiene
 
-Last updated: 2026-08-06
+Last updated: 2026-08-27
 
 ## Purpose
 
@@ -12,7 +12,7 @@ Ongoing cleanup discipline so we do not accumulate dead dual-architecture paths 
 2. **One upload architecture.** AI enrichment + unified `collectibles` row is canonical. No parallel type-specific upload wizards or join tables for presentation labels.
 3. **Dead UI without nav = delete.** If nothing routes to a screen and it is not a design-lab sandbox, it goes.
 4. **Edge functions without callers = delete or lock.** Test harnesses and vendor proxies (`card-hedge-proxy`, `test-push`) do not stay deployed on production projects.
-5. **Empty legacy tables = drop, not RLS.** If a table has no user data and no product path, drop it in a migration instead of layering policies.
+5. **Empty / unused legacy tables = drop, not RLS.** If a table has no product path, drop it in a migration instead of layering policies. (`user_category_interests` dropped 2026-08-27.)
 6. **Document deferrals with rebuild notes.** Native modules (fonts, media-library) that need `runtimeVersion` bumps stay out of JS-only purge PRs — note them here and in `OPEN_THREADS.md`.
 
 ## This purge (branch `fix/code-db-purge`, 2026-08-06)

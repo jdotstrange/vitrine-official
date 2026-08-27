@@ -1824,38 +1824,6 @@ export type Database = {
           },
         ]
       }
-      user_category_interests: {
-        Row: {
-          category_code: string
-          created_at: string
-          id: string
-          type_code: string
-          user_id: string
-        }
-        Insert: {
-          category_code: string
-          created_at?: string
-          id: string
-          type_code: string
-          user_id: string
-        }
-        Update: {
-          category_code?: string
-          created_at?: string
-          id?: string
-          type_code?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_category_interests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_messaging_settings: {
         Row: {
           dm_privacy: Database["public"]["Enums"]["dm_privacy"] | null

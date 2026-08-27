@@ -3,6 +3,14 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## 2026-08-27 — Drop unused `user_category_interests` (prod applied)
+
+- Summary: Table had no native/web/API/edge/SQL callers. 6 rows, all `jdotstrange`, 2026-01-15 (baseball/basketball jersey/ball/hat). Sibling quiz tables were dropped 2026-05-10; this one was left behind. Network “Shared interests” comes from collectible overlap, not this table. Future algo work should start from inventory, not this schema.
+- Change: `DROP TABLE public.user_category_interests`. Removed generated type from `@vitrine/types`.
+- Files: `supabase/migrations/20260827150214_drop_user_category_interests.sql`, `packages/types/src/database.ts`
+- Git: branch `chore/drop-user-category-interests`. Applied live via MCP on `fxmiongkckkrllgyfwyw`. No OTA.
+- Validation: `to_regclass('public.user_category_interests')` is null. No app smoke needed (zero callers).
+
 ## 2026-08-27 — Security Wave 2: path-bind storage object policies (prod applied)
 
 - Summary: Client storage writes were bucket-only (anyone logged in could upload into any folder on `collectible-images` / `message-attachments`). `user-avatars` had no write policies, so `upsert: true` failed RLS (Sentry). Collectible DELETE compared folder[1] to `auth.uid()`, which never matches `public.users.id` (0/878 rows).
