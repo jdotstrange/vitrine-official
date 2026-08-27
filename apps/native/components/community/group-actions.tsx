@@ -5,16 +5,10 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { colors } from '@/lib/colors';
 import { logger } from '@/lib/logger';
+import { copyToClipboard } from '@/lib/clipboard';
 import * as MessagingAPI from '@/lib/api/messaging';
 
 const log = logger.create('GroupActions');
-
-let Clipboard: { setStringAsync: (text: string) => Promise<void> } | null = null;
-try {
-  Clipboard = require('expo-clipboard');
-} catch {
-  // Not available
-}
 
 interface GroupActionsProps {
   groupId: string;
@@ -50,9 +44,7 @@ export function GroupActions({
   }, []);
 
   const handleCopyLink = useCallback(async () => {
-    if (Clipboard) {
-      await Clipboard.setStringAsync(`https://vitrine.app/community/${groupId}`);
-    }
+    await copyToClipboard(`https://vitrine.app/community/${groupId}`);
     setLinkCopied(true);
     linkTimerRef.current = setTimeout(() => setLinkCopied(false), 2000);
   }, [groupId]);

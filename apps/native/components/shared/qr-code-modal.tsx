@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Clipboard,
   Pressable,
 } from 'react-native';
 import { Copy, Check } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { HolographicFrame } from '@/components/vault';
 import { useTheme, RADII, TYPE } from '@/lib/design';
+import { copyToClipboard } from '@/lib/clipboard';
 
 export interface QRCodeModalProps {
   visible: boolean;
@@ -38,7 +38,7 @@ export function QRCodeModal({ visible, onClose, value, title, subtitle }: QRCode
   };
 
   const handleCopy = () => {
-    Clipboard.setString(value);
+    copyToClipboard(value);
     setLinkCopied(true);
     timerRef.current = setTimeout(() => setLinkCopied(false), 2000);
   };

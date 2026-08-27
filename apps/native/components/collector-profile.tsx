@@ -45,6 +45,7 @@ import { recordView } from '@/lib/api/views';
 import { blockUser } from '@/lib/api/blocked';
 import { formatCount } from '@/lib/format-count';
 import { SHARE_URLS } from '@vitrine/constants';
+import { shareContent } from '@/lib/share-content';
 import {
   AssetMatrixCard,
   CollectibleGridCard,
@@ -1477,10 +1478,12 @@ export function CollectorProfile({
   }, [router]);
 
   const handleShareProfile = useCallback(async () => {
-    await Share.share({
-      message: `Check out ${displayUser?.displayName ?? 'this collector'} on Vitrine`,
-      url: profileShareUrl,
-    });
+    await Share.share(
+      shareContent(
+        `Check out ${displayUser?.displayName ?? 'this collector'} on Vitrine`,
+        profileShareUrl,
+      ),
+    );
     // Notify the profile owner that a visitor shared their profile.
     // Self-shares are suppressed.
     if (!isOwnProfile && viewer?.id && profileUserId && profileUserId !== viewer.id) {

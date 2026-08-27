@@ -1,7 +1,14 @@
 # Decision Log
 
-Last updated: 2026-06-22
-Last verified: 2026-06-22
+Last updated: 2026-08-14
+Last verified: 2026-08-14
+
+## Decision: Bump `runtimeVersion` to `3` for Android-first compat (expo-clipboard + image-picker plugin)
+
+- Reason: First Android binary needs `expo-clipboard` (RN 0.81 removed `Clipboard` from `react-native`) and an `expo-image-picker` plugin config that sets `microphonePermission: false`. Both are native/plugin changes. Bumping to `"3"` keeps this JS off runtime-`2` iOS preview IPAs so we don't OTA a missing native module onto existing installs.
+- Alternatives Considered: (A) Stay on runtime `2` and OTA to iOS — rejected (clipboard native module missing from those IPAs); (B) Skip clipboard package and keep the removed RN API — rejected (crash risk on RN 0.81); (C) Bump to `3`, ship via new Android APK + later iOS IPA — selected.
+- Status: Active on branch `feat/android-first-compat`. APK not cut yet (founder gate).
+- Files Or Areas Affected: `apps/native/app.json`, `apps/native/package.json` (`expo-clipboard`), picker/share/back/clipboard adapters.
 
 ## Decision: Unified passwordless auth — one `AuthScreen` (email→OTP) replaces separate login/signup pages
 - Reason: Two near-identical password-era screens (`login-page.tsx` / `signup-page.tsx`) carried duplicate UI and diverged in styling. A single email→6-digit-OTP flow with `shouldCreateUser: true` serves both new and returning users — the email lookup decides the path server-side, so the client doesn't need a login/signup fork.

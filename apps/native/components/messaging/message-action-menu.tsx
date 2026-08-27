@@ -11,9 +11,8 @@ import {
 import { Copy, Reply, Smile, Trash2 } from 'lucide-react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 
-let Clipboard: { setStringAsync: (text: string) => Promise<void> } | null = null;
-try { Clipboard = require('expo-clipboard'); } catch { /* not installed */ }
 import { colors } from '@/lib/colors';
+import { copyToClipboard } from '@/lib/clipboard';
 
 const QUICK_EMOJIS = ['\u{1F44D}', '\u{2764}\u{FE0F}', '\u{1F602}', '\u{1F632}', '\u{1F622}', '\u{1F525}'];
 
@@ -37,8 +36,8 @@ export function MessageActionMenu({
   onDelete,
 }: MessageActionMenuProps) {
   const handleCopy = async () => {
-    if (messageContent && Clipboard) {
-      await Clipboard.setStringAsync(messageContent);
+    if (messageContent) {
+      await copyToClipboard(messageContent);
     }
     onClose();
   };

@@ -1,7 +1,22 @@
 # Implementation Log
 
-Last updated: 2026-07-29
-Last verified: 2026-07-29
+Last updated: 2026-08-14
+Last verified: 2026-08-14
+
+## 2026-08-14 — Android-first compat adapters (branch `feat/android-first-compat`, APK not cut)
+
+- Summary: Pre-APK QA of the iOS-only-tested native app. No second codebase — OS-seam adapters only. **(1)** `materializeLocalImageUri` in `lib/image-utils.ts` — `file://` returns as-is (iOS); `content://` copied via ImageManipulator into cache. Wired into upload picker, messaging attach, attachment-picker. `uploadImage` still requires `file://`. **(2)** `shareContent()` puts the link in `message` so Android Share sheets include it; iOS still gets `url`. Showcase, profile, collectible, detail-footer. **(3)** Upload discard Alert moved onto `usePreventRemove` so X, stack pop, and Android hardware back share one confirm. **(4)** `expo-clipboard` + `copyToClipboard` helper; QR modal, detail footer, message copy, group invite. **(5)** Settings delete Modal `onRequestClose` + BackHandler for Change Email overlay. **(6)** `expo-image-picker` plugin `microphonePermission: false` (no unused RECORD_AUDIO). **`runtimeVersion`: `"3"`.**
+- Files: `apps/native/app.json`, `apps/native/package.json`, `lib/{image-utils,share-content,clipboard}.ts`, `upload-entry.tsx`, share/clipboard/settings/messaging call sites.
+- Git: branch `feat/android-first-compat`. **Not merged, no EAS build, no OTA.**
+- Validation: `read_lints` clean on touched files. No device test.
+- Notes: Do not `eas update --channel preview` onto runtime-`2` iOS. Next: founder check-in, then preview Android APK.
+
+## 2026-08-08 — Looking Glass AI_FORMAT_ERROR incident: diagnose, fix, deploy (vitrinedb engine)
+
+- Summary: Diagnosed and fixed production extraction failures surfacing as `AI_FORMAT_ERROR` / user-facing "unreadable image." Root cause: `gemini-3-flash-preview` stochastically omitted the seven universal filter-trait keys (`subject`, `franchise`, `item_type`, `maker`, `serial_number`, `year`, `special_finish`) from `fields` or emitted them top-level; strict Zod validator discarded otherwise-valid extractions. ~34 jobs failed Aug 4–7 (peak 26.6% of all jobs Aug 4). No engine deploy since Jul 9 — preview-model drift compounded by Frank's autograph-card batch (autograph overlay makes traits look redundant to the model). Raw model outputs recovered from Railway worker logs. **Fix:** (a) deterministic repair pass before Zod validation — hoists top-level filter traits into `fields` (top-level values also rescue nested nulls), backfills missing traits with defaults; (b) placement rule added to unified extraction prompts only (discovery prompts excluded after review catch); (c) `AI_FORMAT_ERROR` forensics (zod paths + raw prefix, sized to 500-char attempt-detail RPC cap) persisted to `attempt_history`.
+- Repo / deploy: lookingglassAI (`C:\Users\johnj\vitrinedb`), commit `942f4d2` pushed to `main`, Railway worker auto-deployed successfully ~9:57 PM ET.
+- Validation: 133 engine tests pass. Live verified — founder re-uploaded previously-failing Blake Mazza SAGE autograph card via `john@myvitrine.app`, extracted cleanly in ~16s (job `d176e240`).
+- Notes: **MyVitrine app code unchanged this session** (docs-only here). `extract-asset` edge function deploy **blocked** — `SUPABASE_ACCESS_TOKEN` in `vitrinedb/.env.local` returns 401 (expired PAT). Only affects sync HTTP path; production queue path (Railway worker) is deployed. Unblock: fresh PAT → `npx supabase functions deploy extract-asset --project-ref nhshzyktaarbknzpsvtr --no-verify-jwt`. **Open threads logged:** bullion/coins classifier false-rejects (decision pending on first-class category), Google Vision pre-pass (parked), app-side `AI_FORMAT_ERROR` → "unreadable image" copy still misleading if it ever fires (`supabase/functions/_shared/engine-mapping.ts` + `upload-entry.tsx`). Watch format-error rate 1–2 days post-deploy (expect ~0).
 
 ## 2026-08-06 — Phase 1 shipping discipline (process, not code)
 

@@ -1,7 +1,7 @@
 # Quick Reference
 
-Last updated: 2026-06-22
-Last verified: 2026-06-22
+Last updated: 2026-08-14
+Last verified: 2026-08-14
 
 The fast-path memory file. Always loaded at chat start. Kept under 100 lines.
 
@@ -19,7 +19,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 
 ## Current Sprint Focus
 
-**2026-06-22 — boot screen + unified auth V3 + skeleton reset (shipped preview OTA).** `a0bfd8d` on `main` (pushed); preview OTA `668da060` on runtime `2`. Unified `AuthScreen` (email→OTP, deletes login/signup pages), void-continuous boot screen, `components/skeleton/` barrel reset, Pro ship-dark paywall, OTP email templates (Dashboard paste pending). **Founder manual:** paste `email-otp.html` in Supabase Auth templates + upload `icon.png` to Storage `brand-assets/logos`; optionally promote production OTA. **Battery audit done (read-only)** — quick wins queued: dock `BlurView` on dark, AppState pause for Stream Chat + Feeds, delete `live-ticker.tsx`. Open carry-overs: Theater extraction reliability, native session conflict, Upload Lane B-D, V1 memorabilia → `PhotoReorderGrid`.
+**2026-06-24 — Web lander launch (in progress, uncommitted).** `/` nav → scroll anchors (`/#features`, `/#intelligence`, `/#explore`); Sign in removed from nav; footer → Privacy + Terms only; Looking Glass theater dynamic from Frank vault (`intel-showcase.ts`, 8-piece shuffle). **Native on `fc56018`:** App Review login, cold-start boot fix, other-profile crash fix (OTAs shipped). **Next:** browser-test lander, commit web, route gating + hero screenshots + CTA copy, deploy. Carry-overs: production OTA promote (boot wave), Supabase OTP Dashboard paste, battery quick wins, Upload Lane B-D.
 
 ## Critical Constraints (must respect)
 
@@ -28,7 +28,7 @@ pnpm + Turborepo monorepo: Expo SDK 54 / RN 0.81 / Expo Router (native), Next.js
 - **After any DDL change, run `NOTIFY pgrst, 'reload schema'`** or PostgREST will silently fail on the new entity.
 - Managed showcase evaluator in `lib/api/managed-rules.ts` and `supabase/functions/_shared/managed-eval.ts` must stay in lockstep.
 - Do not hardcode secrets — use `EXPO_PUBLIC_*` env vars; keep `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` in Vault.
-- **Preview `runtimeVersion` is `"2"`** — bump + rebuild after native changes; OTAs on `preview` channel only hit matching binaries. Runtime-`1` preview installs need fresh IPA, not OTA.
+- **Preview `runtimeVersion` is `"3"`** — bump + rebuild after native changes; OTAs on `preview` channel only hit matching binaries. Runtime-`2` iOS preview installs need a fresh IPA for clipboard/Android-compat JS, not an OTA.
 - `upload-entry.tsx` — **Identify → Theater (The Lattice) → Review → Catalog → Success** (Finalize + Assembly removed 2026-06-02). Lattice is a stage-choreographed SVG graph (no fake progress); Catalog commit sets `published_at`.
 - **Auth:** unified `components/auth-screen.tsx` (email→OTP, login+signup). OTP field is a **single `TextInput`** with `oneTimeCode` for autofill — never six boxes. Boot screen (`vitrine-boot-screen.tsx`) reuses native splash; splash hidden in the boot component, not `_layout.tsx`.
 - **Skeletons:** import from the `components/skeleton/` barrel; legacy `skeleton*.tsx` + dead `skeletons/*` deleted.

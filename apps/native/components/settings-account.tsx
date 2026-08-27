@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  BackHandler,
   Animated as RNAnimated,
 } from 'react-native';
 import { KeyboardSafeScroll } from '@/components/vault';
@@ -221,6 +222,23 @@ export function SettingsAccount() {
   const showGlow = ['available', 'unavailable', 'invalid', 'same'].includes(fieldStatus);
   const canDelete = deleteConfirmText.toLowerCase() === (user?.username?.toLowerCase() ?? '');
 
+  useEffect(() => {
+    if (!isEditing && !showDeleteModal) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (showDeleteModal) {
+        setShowDeleteModal(false);
+        setDeleteConfirmText('');
+        return true;
+      }
+      if (isEditing) {
+        resetEditing();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [isEditing, showDeleteModal]);
+
   const renderEditModal = () => {
     if (!isEditing) return null;
 
@@ -383,7 +401,12 @@ export function SettingsAccount() {
   };
 
   const renderDeleteModal = () => (
-    <Modal visible={showDeleteModal} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={showDeleteModal}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+    >
       <View style={[s.deleteModal, { backgroundColor: colors.void, paddingTop: insets.top + 20 }]}>
         <View style={[s.deleteHeader, { borderBottomColor: colors.frostDivider }]}>
           <TouchableOpacity onPress={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }} style={s.backBtn}>

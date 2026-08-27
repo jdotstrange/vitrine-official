@@ -36,7 +36,8 @@ import Svg, {
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useNavigation, useRouter, type Href } from 'expo-router';
+import { usePreventRemove } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertCircle,
@@ -101,7 +102,7 @@ import {
   subscribeToCollectibleRow,
   type ExtractionStatus,
 } from '@/lib/api/extraction';
-import { isLocalFileUri, uploadImage } from '@/lib/image-utils';
+import { materializeLocalImageUri, uploadImage } from '@/lib/image-utils';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -337,6 +338,7 @@ export function UploadEntry({
   const editOriginalId = isEditMode ? editCollectibleId! : null;
   const { colors } = useTheme();
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -769,19 +771,20 @@ export function UploadEntry({
     [photos, requestPhotoUpdate],
   );
 
-  // Gate every picked asset on being a plain local file. The picker normally
-  // writes a flattened still to cache — Live Photos included — but anything
-  // that arrives as a non-file reference cannot be read at upload time and
-  // used to fail the whole upload with an opaque error (REACT-NATIVE-12).
+  // Gate every picked asset on being a plain local file. iOS pickers already
+  // write a flattened still to cache (`file://`). Android Photo Picker often
+  // returns `content://`, which we copy into cache before the file-system
+  // read. Anything that still isn't a file cannot be uploaded (REACT-NATIVE-12).
   const appendPickedAssets = useCallback(
-    (assets: ImagePicker.ImagePickerAsset[]) => {
+    async (assets: ImagePicker.ImagePickerAsset[]) => {
       const stills = assets.filter((asset) => asset.type !== 'pairedVideo');
       if (stills.length === 0) return;
 
       const usable: string[] = [];
       for (const asset of stills) {
-        if (isLocalFileUri(asset.uri)) {
-          usable.push(asset.uri);
+        const localUri = await materializeLocalImageUri(asset.uri);
+        if (localUri) {
+          usable.push(localUri);
           continue;
         }
         uploadLog.error('Rejected unreadable picked asset:', {
@@ -823,7 +826,7 @@ export function UploadEntry({
         quality: 0.85,
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
-      appendPickedAssets(result.assets);
+      await appendPickedAssets(result.assets);
     } catch (err) {
       uploadLog.error('Camera capture failed:', err);
       Alert.alert(
@@ -867,7 +870,7 @@ export function UploadEntry({
       });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
       uploadLog.info('Library picker returned', { count: result.assets.length });
-      appendPickedAssets(result.assets);
+      await appendPickedAssets(result.assets);
     } catch (err) {
       // Previously silent: the picker throwing left the user staring at an
       // unchanged grid with no idea the import had failed.
@@ -1477,10 +1480,12 @@ export function UploadEntry({
     (photos.length > 0 || context.trim().length > 0 || extraction !== null || isEditMode);
 
   const handleClose = useCallback(() => {
-    if (!hasInProgressWork && !isEditMode) {
-      router.back();
-      return;
-    }
+    router.back();
+  }, [router]);
+
+  // X button, iOS swipe (disabled on this stack), and Android hardware back
+  // all issue a REMOVE. One Alert covers every leave path.
+  usePreventRemove(hasInProgressWork, ({ data }) => {
     Alert.alert(
       isEditMode ? 'Discard changes?' : 'Discard this upload?',
       isEditMode
@@ -1492,18 +1497,16 @@ export function UploadEntry({
           text: 'Discard',
           style: 'destructive',
           onPress: () => {
-            if (draftCollectibleId && user?.id && isEditMode) {
-              deleteCollectible(draftCollectibleId, user.id).catch(() => {});
-            } else if (draftCollectibleId && user?.id) {
+            if (draftCollectibleId && user?.id) {
               deleteCollectible(draftCollectibleId, user.id).catch(() => {});
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            router.back();
+            navigation.dispatch(data.action);
           },
         },
       ],
     );
-  }, [hasInProgressWork, isEditMode, router, draftCollectibleId, user?.id]);
+  });
 
   if (isEditMode && editLoadState === 'loading') {
     return (

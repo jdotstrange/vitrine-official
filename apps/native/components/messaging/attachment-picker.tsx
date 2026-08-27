@@ -12,6 +12,7 @@ import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-nati
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '@/lib/colors';
 import { logger } from '@/lib/logger';
+import { materializeLocalImageUri } from '@/lib/image-utils';
 
 const log = logger.create('AttachmentPicker');
 
@@ -54,10 +55,14 @@ export function AttachmentPicker({
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        onSelect({
-          type: 'photo',
-          data: { uris: result.assets.map((a) => a.uri) },
-        });
+        const uris: string[] = [];
+        for (const asset of result.assets) {
+          const local = await materializeLocalImageUri(asset.uri);
+          if (local) uris.push(local);
+        }
+        if (uris.length > 0) {
+          onSelect({ type: 'photo', data: { uris } });
+        }
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -76,10 +81,10 @@ export function AttachmentPicker({
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        onSelect({
-          type: 'camera',
-          data: { uris: [result.assets[0].uri] },
-        });
+        const local = await materializeLocalImageUri(result.assets[0].uri);
+        if (local) {
+          onSelect({ type: 'camera', data: { uris: [local] } });
+        }
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
