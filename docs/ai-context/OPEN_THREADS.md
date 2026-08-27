@@ -1,7 +1,11 @@
 # Open Threads
 
-Last updated: 2026-08-14
-Last verified: 2026-08-14
+Last updated: 2026-08-27
+Last verified: 2026-08-27
+
+## Admin portal — Slice 1 spec locked (2026-08-27)
+
+**Status: Spec locked in `docs/ai-context/ADMIN_SLICE_1.md`. No code yet.** Vault census: Accounts vs Collectors (≥1 published item), ET time ranges with prior-period deltas, People + Catalog lists with click-through, Browse-by on `filter_traits` + type/category. Auth shell (roster + TOTP) ships with Slice 1. **Next:** scaffold `apps/admin` on `feat/admin-portal` when founder says go. **Founder note:** Frank needs an `@myvitrine.app` mailbox on `staff_members`. Production migration. Do not use legacy `admin_users`. Parallel: security Wave 1 PR / Wave 2 storage is a separate track.
 
 ## Android first-install soak (2026-08-14)
 
@@ -23,7 +27,7 @@ Last verified: 2026-08-14
 - **Validate before/after:** compare 15-min foreground battery for (1) Profile-only, (2) all-tabs-toured, (3) Messages idle, (4) Upload theater, (5) backgrounded — via Settings → Battery or Xcode Energy Log. If backgrounded still drains, that implicates the sockets.
 
 ### Supabase app DB security audit — remediation waves (2026-08-06)
-**Status: Partially addressed (2026-08-06).** `create_trading_card` / `update_trading_card_pricing` RPCs and `trading_card_details` table dropped in Card Hedge purge. Remaining risks unchanged — see canvas.
+**Status: Wave 1 applied on prod (2026-08-27).** Shared app DB (`fxmiongkckkrllgyfwyw`) migration `lock_dangerous_definer_rpcs` (`20260827134743`). Locked: `update_collectible_photos` + `get_firebase_image_collectibles` (service_role only), `unschedule_if_exists` (postgres/service_role), `get_or_create_dm` + `get_unread_count` (caller must be `auth.uid()`, anon revoked), trigger helpers (`handle_new_auth_user`, `touch_collectibles_changed`, `update_follow_counts`, `update_showcase_counts`) refuse non-trigger RPC via `TG_NAME`. Git: `fix/security-definer-rpcs`. **No OTA** (SQL-only). Smoke: sign-in/OTP (auth trigger), follow, create/delete showcase, catalog a collectible. **Next: Wave 2 storage policies.** Card Hedge RPCs already gone. Canvas: `canvases/supabase-security-audit.canvas.tsx`.
 
 ### Nested setState-inside-updater still present in tracking-hub (2026-07-29)
 **Status: Known landmine, deliberately not fixed in the upload-flow OTA.** `components/tracking-hub.tsx:170` calls `setItems(...)` from inside a `setTrackingIds((prev) => …)` updater. This is the exact pattern that silently dropped photo add/remove in `upload-entry.tsx` (see DO_NOT_BREAK). It probably survives today because the outer updater returns a *changed* Set (no eager no-op), but it is fragile under double-invocation and future React changes. Fix by hoisting the `setItems` filter out of the updater next time tracking is touched.

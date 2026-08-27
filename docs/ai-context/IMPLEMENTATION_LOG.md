@@ -1,7 +1,31 @@
 # Implementation Log
 
-Last updated: 2026-08-14
-Last verified: 2026-08-14
+Last updated: 2026-08-27
+Last verified: 2026-08-27
+
+## 2026-08-27 — Admin Slice 1 spec locked (no code)
+
+- Summary: Founder accepted vault census as Slice 1. Collectors = ≥1 published collectible; Accounts = all `public.users`; calendar `America/New_York`; range control Today/7d/30d/YTD/All with prior-period deltas. Screens: Overview (KPIs, activation, top collectors, health counts), People + user detail, Catalog + item detail, Browse-by on type/category/`filter_traits`. Auth shell included. Out of scope: DAU, LG retry queue, writes, `admin_users`.
+- Files: `docs/ai-context/ADMIN_SLICE_1.md`, DECISION_LOG, OPEN_THREADS, CURRENT_STATE, HANDOFF.
+- Git: docs only.
+- Validation: n/a (spec lock). Live aggregates used to choose definitions (878 accounts / 41 collectors / ~12k published).
+- Notes: Implement on `feat/admin-portal` when kicked. Admin RPCs must follow Wave 1 DEFINER discipline (staff + AAL2, no anon EXECUTE).
+
+## 2026-08-27 — Security Wave 1: lock dangerous SECURITY DEFINER RPCs (prod applied)
+
+- Summary: First remediation wave from the Aug 6 app-DB security audit. Remaining client-callable DEFINER holes after the Card Hedge purge: anyone with the anon/authenticated key could rewrite any collectible’s photos, dump Firebase image URLs, unschedule pg_cron jobs, or create DMs / read unread counts as arbitrary user ids. Trigger helpers were also exposed on `/rest/v1/rpc`.
+- Change: `update_collectible_photos` + `get_firebase_image_collectibles` now require `auth.role() = 'service_role'` and EXECUTE is revoked from anon/authenticated (sole caller is `migrate-images`). `unschedule_if_exists` revoked from clients; postgres/service_role kept. `get_or_create_dm` / `get_unread_count` require `auth.uid()` to be a participant; anon EXECUTE revoked. Trigger functions (`handle_new_auth_user`, `touch_collectibles_changed`, `update_follow_counts`, `update_showcase_counts`) raise if `TG_NAME IS NULL` (blocks RPC, keeps triggers). `search_path` pinned on all of the above.
+- Files: `supabase/migrations/20260827134743_lock_dangerous_definer_rpcs.sql`
+- Git: branch `fix/security-definer-rpcs` (undo record). Applied live via MCP `apply_migration` on project `fxmiongkckkrllgyfwyw` (preview and production share this DB). No app JS change, no OTA.
+- Validation: post-apply `has_function_privilege` — anon EXECUTE false on all nine; authenticated false on photos/firebase/unschedule/auth-user trigger; `supabase_auth_admin` + `authenticator` still EXECUTE on `handle_new_auth_user`; postgres still EXECUTE on `unschedule_if_exists`. Device smoke still needed (OTP, follow, showcase, catalog).
+
+## 2026-08-27 — Admin portal architecture locked (no code)
+
+- Summary: Durable lock for a separate `@vitrine/admin` Next.js app at `admin.myvitrine.app`. Invite-only `staff_members` + `@myvitrine.app`, email OTP then mandatory authenticator-app TOTP (Supabase AAL2; Google Authenticator / Duo Mobile as TOTP clients — not Duo SSO). Host-only cookies, local sign-out only, no `is_admin` on `public.users`, no collector RLS widening. **Phone and desktop are equal surfaces.** **Apple HIG (`apple-hig-designer`) is the design authority** for admin UI — V3 vault/playbook and Electrolize/frost chrome stay off this app. Slice 1 later specced in `ADMIN_SLICE_1.md`.
+- Files: `docs/ai-context/{DECISION_LOG,OPEN_THREADS,ARCHITECTURE,MONOREPO,DATA_MODEL,DO_NOT_BREAK,CURRENT_STATE,HANDOFF,QUICK_REFERENCE,DESIGN_SYSTEM}.md`, `.cursor/rules/{admin-hig.mdc,design-system-playbook.mdc}`.
+- Git: docs only.
+- Validation: n/a (decision lock).
+- Notes: Production Supabase is shared; `staff_members` migration will hit real data when Slice 1 starts.
 
 ## 2026-08-14 — Android-first compat adapters (branch `feat/android-first-compat`, APK not cut)
 
