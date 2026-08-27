@@ -1,7 +1,78 @@
 # Decision Log
 
-Last updated: 2026-08-14
-Last verified: 2026-08-14
+Last updated: 2026-08-27
+Last verified: 2026-08-27
+
+## Decision: Admin Slice 1 is vault census analytics (not the Looking Glass queue)
+
+- Reason: Founder priority is seeing who and what is in the system — user counts, growth windows, collectible lists, and composition by type / person / franchise / etc. — with click-through. Live data showed “users” without a definition is misleading (~878 account rows vs ~41 with published items), so Slice 1 locks **Accounts vs Collectors** and ships lists, not dashboards-without-doors.
+- Alternatives Considered: (A) Looking Glass queue / retry as Slice 1 — deferred (health *counts* on Overview only). (B) `onboarding_completed_at` as “real user” — rejected (almost unused). (C) DAU via `last_seen_at` — rejected (stale). (D) Census Overview + People + Catalog + Browse-by, Collectors = ≥1 published item, ET calendar math — selected.
+- Status: **Spec locked 2026-08-27.** Canonical write-up: `docs/ai-context/ADMIN_SLICE_1.md`. Not implemented.
+- Files Or Areas Affected (planned): `apps/admin/`, `staff_members` + admin RPCs (staff + AAL2 DEFINER, Wave 1 discipline), founder seed on roster. Production DB — call out on the PR.
+- Notes: Time range control is Today / 7d / 30d / YTD / All with prior-period deltas. Phone tabs Overview | People | Catalog. Out of scope listed in the spec.
+
+## Decision: Admin portal is a separate `apps/admin` app with TOTP MFA (pre–slice 1 lock)
+
+- Reason: Founder-as-operator (Supabase dashboard, Railway logs, MCP SQL) does not scale, and stuffing ops into collector `/v/*` or marketing `apps/web` would share sessions, cookies, and auth with the phone app. A dedicated Next.js app on its own hostname keeps collector identity, collector RLS, and admin privilege as separate doors. Founder + co-founder are often on the go, so the HQ must be a first-class phone surface, not a desktop console with a squeezed breakpoint.
+- Alternatives Considered: (A) Route group inside `apps/web` on `admin.myvitrine.app` — rejected; marketing + collector web + ops in one deploy, and cookie isolation is too easy to get wrong. (B) Third-party (Retool / Appsmith) — rejected; this is Vitrine HQ, not a vendor CRUD shell, and those tools are desktop-first. (C) Admin screens inside `/v/*` — rejected; collector session, `shouldCreateUser: true`, and the native logout-on-web-signin bug. (D) Separate native admin app — rejected; two people, browser + authenticator is enough. (E) Separate `apps/admin` (`@vitrine/admin`) on `admin.myvitrine.app`, phone + desktop as equal surfaces — selected.
+- Status: **Architecture locked 2026-08-27.** Slice 1 spec locked the same day (`ADMIN_SLICE_1.md`). Not implemented.
+- Files Or Areas Affected (planned): `apps/admin/` (new), root `package.json` scripts, `docs/ai-context/{ARCHITECTURE,MONOREPO,DATA_MODEL}.md`, future `staff_members` migration, admin-only Edge Functions / RPCs. `apps/web` and `apps/native` stay untouched for this work except `scope: 'local'` sign-out hygiene if we touch auth.
+- Notes: Locked contracts below. Changing any of them is a new decision, not a silent implementation choice.
+
+### Locked contracts
+
+**App + deploy**
+- New workspace app `apps/admin` (`@vitrine/admin`). pnpm workspace already includes `apps/*`.
+- Next.js 16 + React 19 + Tailwind, same generation as `apps/web`. Do **not** import native vault, collector `/v/*` shells, or marketing page components. Do **not** treat `@vitrine/design-tokens` or the V3 playbook as the admin visual system (see Design authority).
+- Own Vercel project. Hostname **`admin.myvitrine.app`**. Noindex, no sitemap, no link from the marketing site or the collector web app.
+- Same production Supabase as native + web (preview/prod already share that project). Admin is live against real data the first day it authenticates — call that out on every migration PR.
+- Root scripts when scaffolded: `dev:admin`, `build:admin`.
+
+**Surfaces (phone + desktop)**
+- Phone and desktop are **equal** priority surfaces. Founder and co-founder use this on the go. Do not ship a desktop console and “make it fit” later.
+- Responsive web in Mobile Safari / Chrome — not a second native app, not a required PWA in v1. “Add to Home Screen” may come later; it is not a Slice 1 gate.
+- Every screen (auth included) must work at ~390px: 44pt touch targets, safe-area insets, keyboard-safe OTP / TOTP fields. Desktop may add density (side nav, multi-column); it must not be the only layout.
+- Navigation is a real mobile pattern (bottom bar or sheet menu), not a collapsed desktop sidebar that overflows. Dense ops data (queues, tables) gets a stacked/card phone layout — horizontal-scroll-only admin tables are not acceptable as the phone experience.
+- TOTP enroll must work on a phone: QR to scan with a second device **and** a copyable secret for the same-phone authenticator-app path.
+- Slice 1 verification includes a phone pass, not a desktop screenshot.
+
+**Design authority (Apple HIG)**
+- For every visual and interaction choice in `apps/admin` (phone **and** desktop), the **`apple-hig-designer` skill is the priority decision maker.** Native V3 playbook, vault components, and marketing DNA do not govern this app.
+- Follow HIG: SF system font stack, 8pt grid, 44×44pt targets, grouped lists, sheets/alerts, capsule primary actions, tab labels always visible, solid backgrounds by default (glass only if explicitly requested). Phone: tab bar (or HIG-equivalent). Desktop: sidebar / split view per HIG platform adaptation — not a squeezed phone layout and not a custom V3 lens strip.
+- Conflict rule: HIG structure, type, spacing, semantics (system blue primary, system red destructive), and motion win. Vitrine wordmark/mark may appear; ivory/volt may tint accent **only** when it does not fight HIG semantics. Do not port Electrolize, frost-on-void theater chrome, or vault primitives into admin.
+- Verification: HIG checklist in the skill + phone pass. Agents working in `apps/admin` must read `apple-hig-designer` before inventing UI.
+
+**Identity + gates (all required)**
+- Invite-only. Source of truth is a `staff_members` table (email + role + optional `user_id` + `revoked_at`), **not** a boolean on `public.users`.
+- Roles: `owner` | `ops` | `support`. Domain gate is `@myvitrine.app` (lowercase, trim). Roster is the second gate — a Workspace mailbox is not automatically staff.
+- Login rejects anyone not on an active (non-revoked) roster row **before** OTP is sent. Client never uses `shouldCreateUser: true`; only a server path that has already checked the roster may create an auth user.
+- Same Auth user as a collector account is allowed (founder’s `john@myvitrine.app`). Staff grants the admin door; collector RLS does not change.
+
+**Authenticator MFA (AAL2)**
+- Supabase Auth TOTP (`factorType: 'totp'`, RFC 6238). This is an **authenticator app** factor: Google Authenticator, Duo Mobile (as a TOTP account), 1Password, Authy, Microsoft Authenticator, etc.
+- **Not** Duo SSO / Duo Push. **Not** SMS. **Not** email as the second factor. **Not** passkeys in v1.
+- Login sequence: roster+domain → email OTP (AAL1) → mandatory TOTP enroll (QR + copyable secret + verify) on first admin session → TOTP challenge on later sessions → AAL2. Middleware and privileged RPCs both require `auth.jwt()->>'aal' = 'aal2'`. No admin page is reachable at AAL1.
+- v1 TOTP recovery: founder resets the factor in Supabase (no self-serve recovery codes yet).
+
+**Session isolation (load-bearing)**
+- Admin cookies are host-only on `admin.myvitrine.app` (not parent `.myvitrine.app`). Separate storage key from collector `/v/*`.
+- `signOut({ scope: 'local' })` only. Never global sign-out from admin.
+- This is the containment for the existing “web sign-in logs out native” bug — admin must not rotate the collector/native refresh token.
+
+**Data access**
+- Do **not** put `is_admin` on `public.users`. Do **not** widen collector RLS for staff JWTs.
+- Admin reads/writes go through staff-checked RPCs or Edge Functions (`auth.uid()` ∈ active `staff_members` **and** AAL2). A stolen collector JWT remains a collector.
+- No impersonation, no marketing CMS, no feature-flag console until those slices are specced.
+
+**Out of scope for later slices (Slice 1 is specced in `ADMIN_SLICE_1.md`)**
+- Looking Glass retry/queue, DAU/WAU, brand CMS, moderation, impersonation, writes to collector data.
+
+## Decision: Wave 1 DEFINER RPCs are service_role- or caller-bound (2026-08-27)
+
+- Reason: Client-callable SECURITY DEFINER functions bypassed RLS. `update_collectible_photos` had no owner check; `unschedule_if_exists` could kill cron; `get_or_create_dm` trusted client-supplied user ids. Card Hedge RPCs were already dropped.
+- Alternatives Considered: (A) Enable RLS only and leave DEFINER EXECUTE open — rejected (DEFINER still bypasses RLS); (B) Drop unused RPCs (`get_or_create_dm`) — deferred (Stream replaced callers, but a bound function is safer than a surprise drop); (C) Revoke client EXECUTE on write/cron helpers, bind remaining RPCs to `auth.uid()`, guard trigger functions with `TG_NAME` — selected.
+- Status: Active. Applied to production app DB `fxmiongkckkrllgyfwyw` as `20260827134743_lock_dangerous_definer_rpcs`.
+- Files Or Areas Affected: `supabase/migrations/20260827134743_lock_dangerous_definer_rpcs.sql`. `migrate-images` edge still uses service_role.
 
 ## Decision: Bump `runtimeVersion` to `3` for Android-first compat (expo-clipboard + image-picker plugin)
 
