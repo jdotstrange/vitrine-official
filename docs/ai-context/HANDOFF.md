@@ -3,6 +3,11 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## Session Summary (2026-08-27 — Drop `user_category_interests`)
+- Confirmed zero app callers. Dropped on shared prod DB (`20260827150214`). Six leftover quiz rows gone. Wave 3 is now only `collectible_field_values` RLS.
+- Branch `chore/drop-user-category-interests`. SQL-only — **do not OTA**.
+- Admin portal WIP was stashed as `wip admin-portal before drop user_category_interests` so this could branch from `main`. Restore with `git checkout feat/admin-portal` then `git stash pop`.
+
 ## Session Summary (2026-08-27 — Security Wave 2 storage policies)
 - Applied `lock_storage_object_policies` (`20260827140913`) on the shared production app DB. Writes must use `{public.users.id}/…` — not `auth.uid()`. UPDATE policies added so avatar upsert can succeed. Migrated-tree deletes go through collectible ownership.
 - Branch `fix/security-storage-policies`. SQL-only — **do not OTA**. Founder confirmed preview: photo upload + avatar upsert (previously broken) both work.
@@ -25,7 +30,7 @@ Last verified: 2026-08-27
 - **Founder gate: check in before cutting the preview APK.** Do not preview-OTA this onto existing runtime-`2` iOS IPAs.
 
 ## Current State
-- Waves 1–2 are **live on prod**. Wave 2 matching migration is on `fix/security-storage-policies`.
+- Waves 1–2 are **live on prod**. `user_category_interests` dropped (`20260827150214`).
 - Wave 1 is on `main` (PR #4, `21598f6`).
 - `main` includes Android-first compat (`156bb32`, runtime `"3"`). TestFlight iOS stays on runtime `"2"` until a new IPA.
 - Looking Glass engine still on Railway `942f4d2` from 2026-08-08.
@@ -33,7 +38,7 @@ Last verified: 2026-08-27
 
 ## Incomplete Work
 - Founder smoke Wave 2: **passed on preview** (photo upload + avatar upsert).
-- Wave 3 RLS on `collectible_field_values` + `user_category_interests`.
+- Wave 3 RLS on `collectible_field_values` (interests table dropped).
 - Later iOS IPA on runtime `3` if we want new JS on TestFlight.
 - FCM `google-services.json` + Stream `MyVitrineAndroid` for push.
 - Bullion/coins category decision (John + Frank).
@@ -50,4 +55,4 @@ Last verified: 2026-08-27
 - Do not `eas update --channel production` from runtime-`3` `main` onto runtime-`2` TestFlight.
 
 ## Next Best Task
-**Wave 3 RLS** on `collectible_field_values` + `user_category_interests`. Admin Slice 1 remains a separate founder kick.
+**Wave 3 RLS** on `collectible_field_values`. Admin Slice 1 remains a separate founder kick.
