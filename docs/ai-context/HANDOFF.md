@@ -3,6 +3,11 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## Session Summary (2026-08-27 — Security Waves 4+5)
+- Applied dictionary/service-table RLS (`20260827174927`) and `search_path` / view invoker (`20260827174937`) on the shared production app DB. Two SQL files, one PR.
+- Branch `fix/security-waves-4-5`. SQL-only — **do not OTA**. Smoke: cold open + pick a category on upload.
+- HIBP is a dashboard toggle (OTP app). Policy initplan/dedupe not in this wave. Wave 6 still the leftover field-values drop.
+
 ## Session Summary (2026-08-27 — Security Wave 3 field-values RLS)
 - Applied `lock_collectible_field_values_rls` (`20260827171954`) on the shared production app DB. Writes owner-only via `owns_collectible()` (profile id). SELECT follows parent `collectibles` RLS — not owner-only.
 - Branch `fix/security-field-values-rls`. SQL-only — **do not OTA**. Founder smoke: catalog, edit, delete an item, open someone else’s Specs.
@@ -35,16 +40,17 @@ Last verified: 2026-08-27
 - **Founder gate: check in before cutting the preview APK.** Do not preview-OTA this onto existing runtime-`2` iOS IPAs.
 
 ## Current State
-- Waves 1–3 are **live on prod**. `user_category_interests` dropped (`20260827150214`, PR #6).
-- Wave 1 is on `main` (PR #4). Wave 2 PR #5. Wave 3 PR #7. Wave 6 drop of leftover `collectible_field_values` is noted in `CODE_HYGIENE.md` (after Waves 4–5).
+- Waves 1–5 are **live on prod**. Wave 6 (drop leftover `collectible_field_values`) is next — see `CODE_HYGIENE.md`.
+- Wave 3 is on `main` (PR #7). Waves 4–5 undo record on `fix/security-waves-4-5`.
 - `main` includes Android-first compat (`156bb32`, runtime `"3"`). TestFlight iOS stays on runtime `"2"` until a new IPA.
 - Looking Glass engine still on Railway `942f4d2` from 2026-08-08.
 - Admin portal: architecture + Slice 1 spec locked (`ADMIN_SLICE_1.md`); not scaffolded.
 
 ## Incomplete Work
 - Founder smoke Wave 2: **passed on preview** (photo upload + avatar upsert).
-- Wave 4 dictionaries + service-role-only tables.
-- Wave 6 (after 4–5): drop leftover `collectible_field_values` — see `CODE_HYGIENE.md`.
+- Founder smoke Waves 4–5: cold open + category picker (not done).
+- Wave 6: drop leftover `collectible_field_values` — see `CODE_HYGIENE.md`.
+- Optional: enable leaked-password protection (HIBP) in Auth dashboard — app is OTP.
 - Later iOS IPA on runtime `3` if we want new JS on TestFlight.
 - FCM `google-services.json` + Stream `MyVitrineAndroid` for push.
 - Bullion/coins category decision (John + Frank).
@@ -52,14 +58,15 @@ Last verified: 2026-08-27
 - Admin Slice 1 spec locked (`ADMIN_SLICE_1.md`); scaffold on `feat/admin-portal` when founder says go.
 
 ## Validation Performed
+- Wave 4–5: dictionaries RLS + SELECT; service-role tables RLS with 0 client policies; 0 functions missing `search_path`; `collectibles_unified` invoker true.
 - Wave 3: `collectible_field_values` RLS on, not forced; four policies (SELECT EXISTS parent, writes `owns_collectible`).
 - Wave 2: 15 `storage.objects` policies; `current_profile_id` / `owns_collectible` EXECUTE authenticated-only.
 - Founder preview smoke Wave 2: photo upload + avatar change succeeded (avatar was previously un-updatable).
 
 ## Risks And Warnings
 - Storage folder check and field-value writes use `public.users.id`, never `auth.uid()`.
-- Shared prod DB. If catalog/edit/delete/Specs fail after Wave 3, revert `20260827171954`.
+- Shared prod DB. If category pickers go empty after Waves 4–5, revert `20260827174927` first (leave `20260827174937`). If catalog/edit/delete/Specs fail after Wave 3, revert `20260827171954`.
 - Do not `eas update --channel production` from runtime-`3` `main` onto runtime-`2` TestFlight.
 
 ## Next Best Task
-**Wave 4** dictionaries + service-role-only tables. Wave 6 (`collectible_field_values` drop) waits until after Waves 4–5. Admin Slice 1 remains a separate founder kick.
+**Founder smoke Waves 4–5** (cold open + category picker), then merge the undo-record PR. Next: Wave 6 drop. Admin Slice 1 remains a separate founder kick.

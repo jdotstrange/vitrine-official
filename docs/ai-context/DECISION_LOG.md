@@ -67,6 +67,13 @@ Last verified: 2026-08-27
 **Out of scope for later slices (Slice 1 is specced in `ADMIN_SLICE_1.md`)**
 - Looking Glass retry/queue, DAU/WAU, brand CMS, moderation, impersonation, writes to collector data.
 
+## Decision: Waves 4+5 combined; HIBP and policy rewrite deferred (2026-08-27)
+
+- Reason: Both were low-break leftover hygiene. One PR with two SQL files keeps revert-by-file. Dictionary SELECT stays `USING (true)` so category pickers do not blank. `search_path` is `ALTER FUNCTION` only so `complete_and_publish` body is untouched.
+- Alternatives Considered: (A) Separate PRs for 4 vs 5 — rejected (same smoke: cold open + category picker). (B) Rewrite 40+ initplan/duplicate policies in the same commit — rejected (reviewability). (C) Enable HIBP via SQL — not possible; Auth dashboard; app is email OTP.
+- Status: Active. Applied as `20260827174927` + `20260827174937`.
+- Files Or Areas Affected: those migrations. Wave 6 drop still waits.
+
 ## Decision: Wave 3 field-values RLS is owner writes + parent-visible reads (2026-08-27)
 
 - Reason: `collectible_field_values` (~86k rows) had RLS off and authenticated full CRUD. Binding writes to `auth.uid()` would reject every owner (profile id ≠ auth uid). Owner-only SELECT would blank other people’s Specs / comps v2 fallback.

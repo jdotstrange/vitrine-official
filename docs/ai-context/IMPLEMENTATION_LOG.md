@@ -3,6 +3,14 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## 2026-08-27 — Security Waves 4+5: dictionaries RLS + search_path / view invoker (prod applied)
+
+- Summary: Combined low-break hygiene. Wave 4: 13 category/field dictionary tables + `view_counters` got RLS + SELECT for anon/authenticated (pickers keep working; clients already had SELECT only). 7 service-role-only tables got RLS with no client policies (`admin_users`, change log, comp alerts, price sync, recent_views, retag proposals, suggested cache). Skipped `_prisma_migrations`. Wave 5: `ALTER FUNCTION … SET search_path` on 17 leftover functions (including load-bearing `complete_and_publish` — path pin only). `collectibles_unified` set `security_invoker=true` (service_role-only view). Revoked anon EXECUTE on unused `get_current_user_id` / `get_user_id_from_auth`.
+- Files: `supabase/migrations/20260827174927_lock_dictionary_and_service_tables.sql`, `supabase/migrations/20260827174937_lock_search_path_and_view_invoker.sql`
+- Git: branch `fix/security-waves-4-5`. Applied live via MCP on `fxmiongkckkrllgyfwyw`. No OTA.
+- Validation: sample dictionaries RLS on + 1 policy; `admin_users` / suggested cache RLS on + 0 policies; 0 public functions missing `search_path`; view invoker true; anon EXECUTE false on the two helpers.
+- Notes: HIBP is Auth dashboard (OTP app — optional). Policy initplan/dedupe still open (40+ policies). Wave 6 remains the `collectible_field_values` drop.
+
 ## 2026-08-27 — Security Wave 3: RLS on `collectible_field_values` (prod applied)
 
 - Summary: Table had RLS off; any logged-in client could CRUD ~86k rows. Specs UI already reads `collectibles.ai_metadata`; this table is still REST-writable, deleted on item delete, and joined by comps v2 fallback. All 11,985 published items have `filter_traits` (v3 comps path).
