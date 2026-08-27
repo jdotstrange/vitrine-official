@@ -3,6 +3,10 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## Session Summary (2026-08-27 — Security Wave 2 storage policies)
+- Applied `lock_storage_object_policies` (`20260827140913`) on the shared production app DB. Writes must use `{public.users.id}/…` — not `auth.uid()`. UPDATE policies added so avatar upsert can succeed. Migrated-tree deletes go through collectible ownership.
+- Branch `fix/security-storage-policies`. SQL-only — **do not OTA**. Founder confirmed preview: photo upload + avatar upsert (previously broken) both work.
+
 ## Session Summary (2026-08-27 — Admin Slice 1 spec locked)
 - Founder accepted vault census as Slice 1: Accounts vs Collectors (≥1 published item), ET time windows with prior-period deltas, People + Catalog click-through, Browse-by dimensions, Overview activation + top collectors + health counts. Auth shell ships with Slice 1. Canonical spec: `docs/ai-context/ADMIN_SLICE_1.md`. No scaffold until kicked.
 
@@ -21,14 +25,15 @@ Last verified: 2026-08-27
 - **Founder gate: check in before cutting the preview APK.** Do not preview-OTA this onto existing runtime-`2` iOS IPAs.
 
 ## Current State
-- Wave 1 DEFINER locks are **live on prod**. Matching migration is in git on `fix/security-definer-rpcs`.
+- Waves 1–2 are **live on prod**. Wave 2 matching migration is on `fix/security-storage-policies`.
+- Wave 1 is on `main` (PR #4, `21598f6`).
 - `main` includes Android-first compat (`156bb32`, runtime `"3"`). TestFlight iOS stays on runtime `"2"` until a new IPA.
 - Looking Glass engine still on Railway `942f4d2` from 2026-08-08.
 - Admin portal: architecture + Slice 1 spec locked (`ADMIN_SLICE_1.md`); not scaffolded.
 
 ## Incomplete Work
-- Founder smoke: OTP sign-in, follow, create/delete a showcase, catalog an item (trigger paths).
-- Wave 2 storage policies on `collectible-images`.
+- Founder smoke Wave 2: **passed on preview** (photo upload + avatar upsert).
+- Wave 3 RLS on `collectible_field_values` + `user_category_interests`.
 - Later iOS IPA on runtime `3` if we want new JS on TestFlight.
 - FCM `google-services.json` + Stream `MyVitrineAndroid` for push.
 - Bullion/coins category decision (John + Frank).
@@ -36,12 +41,13 @@ Last verified: 2026-08-27
 - Admin Slice 1 spec locked (`ADMIN_SLICE_1.md`); scaffold on `feat/admin-portal` when founder says go.
 
 ## Validation Performed
-- Post-apply privilege check on all nine functions. `supabase_auth_admin` / `authenticator` still EXECUTE `handle_new_auth_user`.
-- No device smoke this session.
+- Post-apply: 15 `storage.objects` policies; `current_profile_id` / `owns_collectible` EXECUTE authenticated-only.
+- Founder preview smoke: photo upload + avatar change succeeded (avatar was previously un-updatable).
 
 ## Risks And Warnings
-- This hit real data (shared DB). If OTP signup stops creating `public.users` rows, re-grant `handle_new_auth_user` EXECUTE to the inserting auth role.
+- Storage folder check is `public.users.id`, never `auth.uid()`. Binding to auth uid would reject every live upload.
+- Shared prod DB. If photo upload or avatar change fails, revert `20260827140913`.
 - Do not `eas update --channel production` from runtime-`3` `main` onto runtime-`2` TestFlight.
 
 ## Next Best Task
-**Wave 2 storage policies** on `collectible-images`. Admin Slice 1 is spec-locked — scaffold only when the founder kicks `feat/admin-portal`.
+**Wave 3 RLS** on `collectible_field_values` + `user_category_interests`. Admin Slice 1 remains a separate founder kick.
