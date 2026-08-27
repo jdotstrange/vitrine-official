@@ -3,6 +3,14 @@
 Last updated: 2026-08-27
 Last verified: 2026-08-27
 
+## 2026-08-27 — Security Wave 3: RLS on `collectible_field_values` (prod applied)
+
+- Summary: Table had RLS off; any logged-in client could CRUD ~86k rows. Specs UI already reads `collectibles.ai_metadata`; this table is still REST-writable, deleted on item delete, and joined by comps v2 fallback. All 11,985 published items have `filter_traits` (v3 comps path).
+- Change: ENABLE RLS (not FORCE). SELECT for authenticated via EXISTS on parent `collectibles` so parent RLS applies. INSERT/UPDATE/DELETE require `owns_collectible(collectible_id)` (profile id). `service_role` still bypasses.
+- Files: `supabase/migrations/20260827171954_lock_collectible_field_values_rls.sql`
+- Git: branch `fix/security-field-values-rls`. Applied live via MCP on `fxmiongkckkrllgyfwyw`. No OTA.
+- Validation: `relrowsecurity` true, `relforcerowsecurity` false; four policies present. Founder device smoke still needed (catalog, edit, delete, visitor Specs).
+
 ## 2026-08-27 — Drop unused `user_category_interests` (prod applied)
 
 - Summary: Table had no native/web/API/edge/SQL callers. 6 rows, all `jdotstrange`, 2026-01-15 (baseball/basketball jersey/ball/hat). Sibling quiz tables were dropped 2026-05-10; this one was left behind. Network “Shared interests” comes from collectible overlap, not this table. Future algo work should start from inventory, not this schema.

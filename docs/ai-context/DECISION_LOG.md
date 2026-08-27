@@ -67,6 +67,13 @@ Last verified: 2026-08-27
 **Out of scope for later slices (Slice 1 is specced in `ADMIN_SLICE_1.md`)**
 - Looking Glass retry/queue, DAU/WAU, brand CMS, moderation, impersonation, writes to collector data.
 
+## Decision: Wave 3 field-values RLS is owner writes + parent-visible reads (2026-08-27)
+
+- Reason: `collectible_field_values` (~86k rows) had RLS off and authenticated full CRUD. Binding writes to `auth.uid()` would reject every owner (profile id ≠ auth uid). Owner-only SELECT would blank other people’s Specs / comps v2 fallback.
+- Alternatives Considered: (A) Owner-only SELECT+write — rejected (visitor Specs / comps). (B) `USING (true)` SELECT — rejected (does not follow parent visibility if collectibles SELECT tightens later). (C) Drop the table — deferred (still on item delete + comps v2; all published items have `filter_traits` so the UI path is JSONB). (D) Owner writes via `owns_collectible()` + SELECT EXISTS parent collectible (parent RLS applies) — selected.
+- Status: Active. Applied as `20260827171954_lock_collectible_field_values_rls`.
+- Files Or Areas Affected: that migration. Native Specs reads `ai_metadata`; `updateCollectibleKeyDetails` / `getCollectibleFieldValues` remain REST helpers.
+
 ## Decision: Drop unused `user_category_interests` instead of RLS (2026-08-27)
 
 - Reason: Zero app/RPC/edge callers. Six leftover quiz rows. Sibling onboarding tables already dropped in May. Future matching should derive from cataloged inventory, not a self-reported list.

@@ -8,7 +8,9 @@ Last verified: 2026-08-27
 Active V3 redesign and feature build-out, hosted in a pnpm + Turborepo monorepo with two apps (`@vitrine/native`, `@vitrine/web`) and four shared workspace packages (`@vitrine/design-tokens`, `@vitrine/constants`, `@vitrine/types`, `@vitrine/api`). All primary native surfaces are V3. The web marketing site is now a hybrid multi-page site (10-section `/` lander plus deep `/pricing`, `/intelligence`, `/product`, plus `/login` placeholder and draft `/privacy` + `/terms` legal pages). Approaching deployment readiness with a five-lens profile hub, four-lens Tracking Hub, Instagram-style Market Surface, dedicated Messages tab, V3 Settings, Light/Dark/Auto theme system, and extensive backend infrastructure (Edge Functions, cron jobs, RPC functions).
 
 ## Current Priority
-**2026-08-27 — Dropped dead `user_category_interests`.** Leftover onboarding-quiz sibling (6 rows, no app callers). Migration `20260827150214`. Wave 3 now is only RLS on `collectible_field_values`. SQL-only — no OTA.
+**2026-08-27 — Security Wave 3 applied (`collectible_field_values` RLS).** Writes owner-only via `owns_collectible()` (profile id, not `auth.uid()`). SELECT mirrors parent `collectibles` visibility — not owner-only (that would blank visitor Specs / comps v2). Specs UI reads `ai_metadata` JSONB; this table is still REST-writable and used on delete. Migration `20260827171954`. SQL-only — no OTA.
+
+**2026-08-27 — Dropped dead `user_category_interests`.** Leftover onboarding-quiz sibling (6 rows, no app callers). Migration `20260827150214`. Merged PR #6.
 
 **2026-08-27 — Security Wave 2 applied (storage policies).** Writes on `collectible-images` / `user-avatars` / `message-attachments` must land under `{public.users.id}/…` (not `auth.uid()` — those never match). UPDATE policies added (Sentry upsert RLS). Migrated-tree DELETE uses collectible ownership. Branch `fix/security-storage-policies`, migration `20260827140913_lock_storage_object_policies`. SQL-only — no OTA. Next: Wave 3 RLS on writable tables.
 
